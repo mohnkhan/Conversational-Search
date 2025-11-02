@@ -1,16 +1,17 @@
 // aistudio.d.ts
 // To augment the global 'Window' type.
 
-// FIX: Refactored to use a named 'AIStudio' interface, resolving type conflicts with other global declarations of 'window.aistudio'.
 declare global {
-  // FIX: Using a named 'AIStudio' interface was causing identifier and modifier conflicts.
-  // By inlining the type definition for 'aistudio' directly into the 'Window' interface augmentation,
-  // we avoid a potential name collision with another global 'AIStudio' type and resolve the declaration errors.
+  // FIX: An inline type definition for `aistudio` was causing conflicts with other global declarations.
+  // Defining a global `AIStudio` interface and using it for `window.aistudio` ensures type consistency
+  // across all declarations and resolves the errors.
+  interface AIStudio {
+    hasSelectedApiKey(): Promise<boolean>;
+    openSelectKey(): Promise<void>;
+  }
+
   interface Window {
-    aistudio: {
-      hasSelectedApiKey(): Promise<boolean>;
-      openSelectKey(): Promise<void>;
-    };
+    aistudio: AIStudio;
   }
 }
 
