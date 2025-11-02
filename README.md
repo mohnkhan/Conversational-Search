@@ -18,25 +18,26 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **Dual-Model Support:**
     -   **Model Selection:** Manually switch between Gemini 2.5 Flash (for speed) and Gemini 2.5 Pro (for complex tasks).
     -   **Deep Research Mode:** Instantly toggle to use the more powerful Gemini 2.5 Pro model for in-depth, comprehensive answers to complex questions.
--   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
--   **Full Markdown Support:**
-    -   **Input Toolbar:** Easily format your messages with buttons for **bold**, *italic*, and `code blocks`.
-    -   **Rendered Output:** Both user messages and model responses are beautifully rendered with support for lists, tables, code blocks, and more.
 -   **Multi-modal Generation:**
     -   **Image Generation:** Create stunning, high-quality images using the `/imagine` command.
     -   **Video Generation:** Generate short, 720p videos from text prompts using the `/create-video` command.
--   **Enhanced Media Experience:**
+-   **Productivity Tools:**
+    -   **Integrated To-Do List:** Manage tasks that arise during your conversation directly within a dedicated modal. Your tasks are saved locally.
+    -   **Custom CSS Editor:** Inject your own CSS to fully personalize the application's appearance and layout.
+-   **Advanced User Experience:**
+    -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
+    -   **Full Markdown Support:** An input toolbar and full rendering support for formatted messages, including tables and code blocks.
     -   **Image Lightbox:** Click any generated image to view it in a full-screen, high-resolution lightbox.
-    -   **Robust Video Player:** Play generated videos directly in the chat, with error handling and a download fallback.
--   **Advanced Search Filtering:** Filter results by time, including presets (past day, week, etc.) and custom date ranges.
--   **Smart Suggestions:** AI-powered suggestions for follow-up questions and related topics to guide your exploration.
--   **Chat Utilities:**
-    -   **Persistent Chat History:** Conversations are saved locally for continuity.
-    -   **Conversation Summarization:** Get a quick summary of your chat with a single click.
-    -   **Copy & Export:** Easily copy individual messages, code blocks, the entire chat transcript, or export the conversation as a JSON file.
+    -   **Advanced Search Filtering:** Filter results by time, including presets and custom date ranges.
+    -   **Smart Suggestions:** AI-powered suggestions for follow-up questions and related topics.
+-   **Comprehensive Chat Management:**
+    -   **Persistent History:** Conversations and tasks are saved locally for continuity.
+    -   **Summarization, Copy & Export:** Summarize your chat, copy individual messages or the full transcript, and export conversations as JSON.
     -   **Feedback Mechanism:** Rate model responses with thumbs-up/down.
--   **Customizable Themes:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
--   **Secure API Key Flow:** An integrated and secure process for users to select their own billed API key, required for video generation.
+    -   **Clear & New Chat:** Easily start a new conversation with dedicated buttons.
+-   **Customization & Security:**
+    -   **Theming Engine:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
+    -   **Secure API Key Flow:** An integrated process for users to select their own billed API key, required for video generation.
 -   **Polished & Responsive UI:** A clean, modern interface that works seamlessly across all devices.
 
 ## Technology Stack
@@ -72,6 +73,11 @@ The `/create-video` feature uses the Veo model, which requires an API key associ
 Simply type your question in the input box and press Enter. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message.
 
 -   **Deep Research:** For more complex queries, click the **sparkles icon** ✨ in the input bar to activate Deep Research mode. This will use the more powerful Gemini 2.5 Pro model for your next message to provide a more comprehensive response.
+
+### Productivity & Customization
+
+-   **To-Do List:** Click the **checklist icon** ☑️ in the header to open your personal to-do list. Add, complete, and delete tasks. Your list is saved in your browser.
+-   **Custom CSS:** Click the **code file icon** 📄 in the header to open the custom CSS editor. Add your own styles to personalize the app's look and feel. Your styles are saved locally.
 
 ### Special Commands
 
