@@ -17,7 +17,7 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({ onClose }) => {
     
     return (
         <div 
-            className="absolute top-full mt-2 right-0 w-48 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl z-30 animate-fade-in"
+            className="absolute top-0 right-full mr-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl z-30 animate-fade-in"
             style={{ animationDuration: '0.2s' }}
             onMouseDown={(e) => e.stopPropagation()}
         >

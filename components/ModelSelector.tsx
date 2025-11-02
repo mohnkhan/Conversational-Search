@@ -33,7 +33,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ currentModel, onSetModel,
     
     return (
         <div 
-            className="absolute top-full mt-2 right-0 w-72 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl z-30 animate-fade-in"
+            className="absolute top-0 right-full mr-2 w-72 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl z-30 animate-fade-in"
             style={{ animationDuration: '0.2s' }}
             onMouseDown={(e) => e.stopPropagation()} // Prevent outside click handler from firing on self
         >

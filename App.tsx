@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
+import { playSendSound, playReceiveSound } from './services/audioService';
 import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -62,6 +63,24 @@ interface ModelExplanationState {
 interface PlaceholderLoaderProps {
     type: 'image' | 'video';
     prompt?: string | null;
+}
+
+// Custom hook to handle clicks outside a specified element
+function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: MouseEvent | TouchEvent) => void) {
+    useEffect(() => {
+        const listener = (event: MouseEvent | TouchEvent) => {
+            if (!ref.current || ref.current.contains(event.target as Node)) {
+                return;
+            }
+            handler(event);
+        };
+        document.addEventListener('mousedown', listener);
+        document.addEventListener('touchstart', listener);
+        return () => {
+            document.removeEventListener('mousedown', listener);
+            document.removeEventListener('touchstart', listener);
+        };
+    }, [ref, handler]);
 }
 
 const PlaceholderLoader: React.FC<PlaceholderLoaderProps> = ({ type, prompt }) => {
@@ -171,7 +190,6 @@ const App: React.FC = () => {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState<boolean>(false);
   const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
-  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
   const [model, setModel] = useState<ModelId>(() => {
     try {
@@ -184,7 +202,6 @@ const App: React.FC = () => {
     }
     return 'gemini-2.5-flash'; // Default model
   });
-  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
   const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
   const [isDeepResearch, setIsDeepResearch] = useState<boolean>(false);
   const [customCss, setCustomCss] = useState<string>('');
@@ -194,976 +211,414 @@ const App: React.FC = () => {
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
   const [prioritizeAuthoritative, setPrioritizeAuthoritative] = useState<boolean>(() => {
     try {
-        const savedSetting = localStorage.getItem(AUTHORITATIVE_SOURCES_KEY);
-        return savedSetting ? JSON.parse(savedSetting) : false;
+      const saved = localStorage.getItem(AUTHORITATIVE_SOURCES_KEY);
+      return saved ? JSON.parse(saved) : false;
     } catch (error) {
-        console.error("Failed to load authoritative sources setting:", error);
-        return false;
+      console.error("Failed to load authoritative sources preference from localStorage:", error);
+      return false;
     }
   });
-  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState<boolean>(false);
+  const [showApiKeySelector, setShowApiKeySelector] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
+  const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
 
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const summarizeButtonRef = useRef<HTMLButtonElement>(null);
-  const summaryModalRef = useRef<HTMLDivElement>(null);
-  const themeButtonRef = useRef<HTMLDivElement>(null);
-  const settingsButtonRef = useRef<HTMLButtonElement>(null);
-  const apiKeyButtonRef = useRef<HTMLButtonElement>(null);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isAtBottomRef = useRef(true);
-  const tooltipTimeoutRef = useRef<number | null>(null);
+  // --- Effects ---
+  
+  useOnClickOutside(settingsMenuRef, () => {
+      if (isSettingsMenuOpen) {
+          setIsSettingsMenuOpen(false);
+          setOpenSubMenu(null);
+      }
+  });
 
   useEffect(() => {
-    const checkApiKey = async () => {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setIsKeySelected(hasKey);
-    };
-    checkApiKey();
+    // Check for API key on initial load for video features
+    window.aistudio?.hasSelectedApiKey().then(setIsKeySelected).catch(console.error);
   }, []);
 
-  // Load custom CSS from localStorage on initial mount
   useEffect(() => {
-    try {
-        const savedCss = localStorage.getItem(CUSTOM_CSS_KEY);
-        if (savedCss) {
-            setCustomCss(savedCss);
-        }
-    } catch (error) {
-        console.error("Failed to load custom CSS from localStorage:", error);
-    }
-  }, []);
-
-  // Apply custom CSS to a style tag in the document head
-  useEffect(() => {
-      const styleTagId = 'custom-user-styles';
-      let styleTag = document.getElementById(styleTagId) as HTMLStyleElement;
-
-      if (!styleTag) {
-          styleTag = document.createElement('style');
-          styleTag.id = styleTagId;
-          document.head.appendChild(styleTag);
-      }
-
-      styleTag.innerHTML = customCss;
-
-      try {
-          if (customCss) {
-              localStorage.setItem(CUSTOM_CSS_KEY, customCss);
-          } else {
-              localStorage.removeItem(CUSTOM_CSS_KEY);
-          }
-      } catch (error) {
-          console.error("Failed to save custom CSS to localStorage:", error);
-      }
-  }, [customCss]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleScroll = () => {
-    const scrollContainer = scrollContainerRef.current;
-    if (scrollContainer) {
-        const threshold = 100; // pixels
-        const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
-        isAtBottomRef.current = scrollHeight - clientHeight <= scrollTop + threshold;
-    }
-  };
-
-  // Auto-scroll logic: only scroll to the bottom if the user is already near the bottom.
-  useEffect(() => {
-    if (isAtBottomRef.current) {
-      scrollToBottom();
-    }
-  }, [messages, isLoading, suggestedPrompts, relatedTopics, isGeneratingImage, isGeneratingVideo]);
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isLoading, isGeneratingImage, isGeneratingVideo]);
 
   useEffect(() => {
-    try {
-      if (messages.length > 1 || (messages.length === 1 && messages[0].text !== initialMessages[0].text)) {
-        localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
-      } else {
-        localStorage.removeItem(CHAT_HISTORY_KEY);
-      }
-    } catch (error) {
-      console.error("Failed to save chat history to localStorage:", error);
-    }
+    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
   }, [messages]);
-
-  useEffect(() => {
-    try {
-        localStorage.setItem(TODO_LIST_KEY, JSON.stringify(tasks));
-    } catch (error) {
-        console.error("Failed to save tasks to localStorage:", error);
-    }
-  }, [tasks]);
   
   useEffect(() => {
-    try {
-        localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(recentQueries));
-    } catch (error) {
-        console.error("Failed to save recent queries to localStorage:", error);
-    }
+    localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(recentQueries));
   }, [recentQueries]);
 
   useEffect(() => {
-    try {
-        localStorage.setItem(MODEL_STORAGE_KEY, model);
-    } catch (error) {
-        console.error("Failed to save model to localStorage:", error);
+    localStorage.setItem(TODO_LIST_KEY, JSON.stringify(tasks));
+  }, [tasks]);
+  
+  useEffect(() => {
+    localStorage.setItem(MODEL_STORAGE_KEY, model);
+    if (messages.length > 1) { // Don't show on first load
+      setModelExplanation({ isVisible: true, modelId: model });
+      const timer = setTimeout(() => setModelExplanation({ isVisible: false, modelId: model }), 5000);
+      return () => clearTimeout(timer);
     }
   }, [model]);
 
   useEffect(() => {
-    try {
-        localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative));
-    } catch (error) {
-        console.error("Failed to save authoritative sources setting:", error);
-    }
+    localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative));
   }, [prioritizeAuthoritative]);
-
-
-  const handleClearChat = useCallback(() => {
-    setMessages(initialMessages);
-    setSuggestedPrompts([]);
-    setRelatedTopics([]);
-    try {
-      localStorage.removeItem(CHAT_HISTORY_KEY);
-    } catch (error) {
-      console.error("Failed to clear chat history from localStorage:", error);
-    }
-  }, []);
   
-  const handleClearRecentQueries = useCallback(() => {
-    setRecentQueries([]);
+  useEffect(() => {
     try {
-        localStorage.removeItem(RECENT_QUERIES_KEY);
+      const savedCss = localStorage.getItem(CUSTOM_CSS_KEY) || '';
+      setCustomCss(savedCss);
+      const styleElement = document.getElementById('custom-user-styles') || document.createElement('style');
+      styleElement.id = 'custom-user-styles';
+      styleElement.innerHTML = savedCss;
+      document.head.appendChild(styleElement);
     } catch (error) {
-        console.error("Failed to clear recent queries from localStorage:", error);
+      console.error("Failed to load or apply custom CSS:", error);
     }
   }, []);
 
+  // Keyboard shortcuts
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement;
-      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        handleClearChat();
-      }
-
-      if (event.key.toLowerCase() === 'f' && !isTyping) {
-        event.preventDefault();
-        setIsFilterMenuOpen(prev => !prev);
-      }
-
-      if (event.key === '?' && !isTyping) {
-        event.preventDefault();
-        setShowSummaryModal(false);
-        setIsFilterMenuOpen(false);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Open shortcuts modal with '?'
+      if (e.key === '?') {
+        e.preventDefault();
         setShowShortcutsModal(true);
       }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleClearChat]);
-
-  // Close theme selector on outside click
-  useEffect(() => {
-    if (!isThemeSelectorOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-        if (themeButtonRef.current && !themeButtonRef.current.contains(event.target as Node)) {
-            setIsThemeSelectorOpen(false);
-        }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isThemeSelectorOpen]);
-
-  // Close model selector on outside click
-  useEffect(() => {
-    if (!isModelSelectorOpen) return;
-    const handleClickOutside = (event: MouseEvent) => {
-        if (settingsButtonRef.current && !settingsButtonRef.current.contains(event.target as Node)) {
-            setIsModelSelectorOpen(false);
-        }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isModelSelectorOpen]);
-
-  const handleSendMessage = useCallback(async (inputText: string) => {
-    const trimmedInput = inputText.trim();
-    if (!trimmedInput || isLoading) return;
-  
-    // Add to recent queries if it's not a command
-    if (!trimmedInput.startsWith('/')) {
-        setRecentQueries(prev => {
-            // Remove existing entry if it exists to move it to the front
-            const filtered = prev.filter(q => q.toLowerCase() !== trimmedInput.toLowerCase());
-            const newQueries = [trimmedInput, ...filtered];
-            return newQueries.slice(0, 5); // Keep only the last 5
-        });
-    }
-
-    const userMessage: ChatMessageType = { role: 'user', text: trimmedInput };
-    const isImagine = trimmedInput.toLowerCase().startsWith('/imagine ');
-    const isVideo = trimmedInput.toLowerCase().startsWith('/create-video ');
-
-    // For text generation, add a thinking bubble immediately.
-    if (!isImagine && !isVideo) {
-        const thinkingMessage: ChatMessageType = { role: 'model', text: '', isThinking: true, sources: [] };
-        setMessages(prev => [...prev, userMessage, thinkingMessage]);
-    } else {
-        setMessages(prev => [...prev, userMessage]);
-    }
-
-    // Reset deep research mode after use
-    if (isDeepResearch) {
-        setIsDeepResearch(false);
-    }
-
-    setIsLoading(true);
-    setSuggestedPrompts([]);
-    setRelatedTopics([]);
-    setIsFilterMenuOpen(false);
-  
-    try {
-        if (isImagine) {
-            const imagePrompt = trimmedInput.substring(8).trim();
-            if (imagePrompt) {
-                setIsGeneratingImage(true);
-                setCurrentImagePrompt(imagePrompt);
-                const imageUrl = await generateImage(imagePrompt);
-                const modelMessage: ChatMessageType = {
-                    role: 'model',
-                    text: imagePrompt,
-                    imageUrl: imageUrl,
-                    sources: []
-                };
-                setMessages(prev => [...prev, modelMessage]);
-            } else {
-                 throw new Error("Please provide a prompt after the /imagine command.");
-            }
-        } else if (isVideo) {
-            if (!isKeySelected) {
-                throw new Error("API key not selected. Please select an API key before generating videos.");
-            }
-            setIsGeneratingVideo(true);
-            const videoPrompt = trimmedInput.substring(14).trim();
-            if (videoPrompt) {
-                const videoUrl = await generateVideo(videoPrompt);
-                const modelMessage: ChatMessageType = {
-                    role: 'model',
-                    text: videoPrompt,
-                    videoUrl: videoUrl,
-                    sources: []
-                };
-                setMessages(prev => [...prev, modelMessage]);
-            } else {
-                throw new Error("Please provide a prompt after the /create-video command.");
-            }
-        } else {
-            let firstChunkReceived = false;
-            // The history for the API is the conversation state *before* adding the new user message.
-            // This correctly uses the `messages` from the component's state at the time of sending.
-            const historyForApi: ChatMessageType[] = [...messages, userMessage];
-
-            // Use the more powerful model for deep research mode
-            const effectiveModel = isDeepResearch ? 'gemini-2.5-pro' : model;
-
-            const { sources } = await getGeminiResponseStream(
-                historyForApi,
-                dateFilter,
-                (chunkText) => {
-                    if (!firstChunkReceived) {
-                        firstChunkReceived = true;
-                        setMessages(prev => [
-                            ...prev.slice(0, -1), // Replace the thinking bubble
-                            { role: 'model', text: chunkText, sources: [] }
-                        ]);
-                    } else {
-                        setMessages(prev => {
-                            const lastMessage = prev[prev.length - 1];
-                            const updatedLastMessage = { ...lastMessage, text: lastMessage.text + chunkText };
-                            return [...prev.slice(0, -1), updatedLastMessage];
-                        });
-                    }
-                },
-                effectiveModel,
-                isDeepResearch,
-                prioritizeAuthoritative
-            );
-
-            let finalModelResponseText = '';
-            setMessages(prevMessages => {
-                const lastMessage = prevMessages[prevMessages.length - 1];
-                if (lastMessage?.role === 'model') {
-                    finalModelResponseText = lastMessage.text;
-                    const updatedLastMessage = { ...lastMessage, sources: sources };
-                    return [...prevMessages.slice(0, -1), updatedLastMessage];
-                }
-                return prevMessages;
-            });
-
-            if (finalModelResponseText.trim()) {
-                const lastUserPrompt = userMessage.text;
-
-                // Truncate response to avoid hitting token limits on suggestion calls
-                const MAX_RESPONSE_LENGTH = 4000; // characters
-                const truncatedResponse = finalModelResponseText.length > MAX_RESPONSE_LENGTH
-                    ? finalModelResponseText.substring(0, MAX_RESPONSE_LENGTH) + "..."
-                    : finalModelResponseText;
-
-                setIsFetchingSuggestions(true);
-                try {
-                    await Promise.all([
-                        (async () => {
-                            try {
-                                const suggestions = await getSuggestedPrompts(lastUserPrompt, truncatedResponse, model);
-                                setSuggestedPrompts(suggestions);
-                            } catch (suggestionError) {
-                                console.error("Failed to fetch suggested prompts:", suggestionError);
-                            }
-                        })(),
-                        (async () => {
-                            try {
-                                const topics = await getRelatedTopics(lastUserPrompt, truncatedResponse, model);
-                                setRelatedTopics(topics);
-                            } catch (topicError) {
-                                console.error("Failed to fetch related topics:", topicError);
-                            }
-                        })()
-                    ]);
-                } finally {
-                    setIsFetchingSuggestions(false);
-                }
-            }
-        }
-    } catch (error) {
-        console.error("Failed to get Gemini response:", error);
-        const parsedError = parseGeminiError(error);
-        
-        if (parsedError.type === 'api_key') {
-            setIsKeySelected(false);
-        }
-
-        const errorMessage: ChatMessageType = {
-            role: 'model',
-            text: parsedError.message,
-            sources: [],
-            isError: true,
-            originalText: parsedError.retryable ? trimmedInput : undefined,
-        };
-        
-        setMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-
-            // If the last message is a thinking bubble or a partially streamed response, replace it.
-            if (lastMessage?.isThinking || (lastMessage?.role === 'model' && !lastMessage.imageUrl && !lastMessage.videoUrl)) {
-                return [...prev.slice(0, -1), errorMessage];
-            }
-            
-            // Otherwise, append the error message (e.g., after an image/video generation)
-            return [...prev, errorMessage];
-        });
-    } finally {
-        setIsLoading(false);
-        setIsGeneratingImage(false);
-        setCurrentImagePrompt(null);
-        setIsGeneratingVideo(false);
-    }
-  }, [messages, isLoading, dateFilter, isKeySelected, model, isDeepResearch, prioritizeAuthoritative]);
-
-  const handleCopyAll = () => {
-    const conversationText = messages.map(msg => {
-      let formattedMessage = `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}`;
-      if (msg.role === 'model' && msg.sources && msg.sources.length > 0) {
-        const sourcesText = msg.sources
-          .map(source => `- ${source.web?.title}: ${source.web?.uri}`)
-          .join('\n');
-        formattedMessage += `\n\nSources:\n${sourcesText}`;
+      // Clear chat with Ctrl/Cmd + K
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        handleClearChat();
       }
-      return formattedMessage;
-    }).join('\n\n---\n\n');
-  
-    navigator.clipboard.writeText(conversationText).then(() => {
-      setIsAllCopied(true);
-      setTimeout(() => setIsAllCopied(false), 2000);
-    }).catch(err => {
-      console.error("Failed to copy conversation:", err);
+      // Toggle filter menu with 'f'
+      if (e.key === 'f' && e.target instanceof HTMLElement && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
+        e.preventDefault();
+        setIsFilterMenuOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+
+  // --- Handlers ---
+  const addRecentQuery = (query: string) => {
+    setRecentQueries(prev => {
+        const lowerCaseQuery = query.toLowerCase().trim();
+        const newQueries = prev.filter(q => q.toLowerCase().trim() !== lowerCaseQuery);
+        return [query, ...newQueries].slice(0, 5); // Keep last 5
     });
   };
 
-  const handleExportChat = useCallback(() => {
-    if (messages.length <= 1) return;
-  
-    try {
-      const chatData = JSON.stringify(messages, null, 2);
-      const blob = new Blob([chatData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
-      link.download = `gemini-chat-history-${timestamp}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error("Failed to export chat history:", error);
-    }
-  }, [messages]);
+  const handleSendMessage = async (prompt: string) => {
+    const trimmedPrompt = prompt.trim();
+    if (!trimmedPrompt) return;
 
-  const handleFeedback = (messageIndex: number, feedback: 'up' | 'down') => {
-    setMessages(prevMessages => 
-      prevMessages.map((msg, index) => {
-        if (index === messageIndex) {
-          const newFeedback = msg.feedback === feedback ? undefined : feedback;
-          // Log feedback to console
-          console.log(`Feedback received for message ${index}: ${newFeedback || 'cleared'}`);
-          // In a real application, you would send this to an analytics endpoint.
-          // Example: sendToAnalytics('message_feedback', { messageId: msg.id, feedback: newFeedback });
-          return { ...msg, feedback: newFeedback };
+    const isImageCommand = trimmedPrompt.startsWith('/imagine ');
+    const isVideoCommand = trimmedPrompt.startsWith('/create-video ');
+    const userMessage: ChatMessageType = { role: 'user', text: trimmedPrompt };
+
+    // Common state updates
+    setSuggestedPrompts([]);
+    setRelatedTopics([]);
+    playSendSound();
+
+    // IMAGE COMMAND LOGIC
+    if (isImageCommand) {
+        setMessages(prev => [...prev, userMessage]); // Add user message to UI
+        const imagePrompt = trimmedPrompt.substring(8).trim();
+        if (!imagePrompt) {
+            setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/imagine`.", isError: true }]);
+            return;
         }
-        return msg;
-      })
-    );
+        setIsGeneratingImage(true);
+        setCurrentImagePrompt(imagePrompt);
+        try {
+            const imageUrl = await generateImage(imagePrompt);
+            setMessages(prev => [...prev, { role: 'model', text: imagePrompt, imageUrl }]);
+        } catch (error) {
+            const parsedError = parseGeminiError(error);
+            setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt }]);
+        } finally {
+            setIsGeneratingImage(false);
+            setCurrentImagePrompt(null);
+        }
+        return; // End execution for image command
+    }
+
+    // VIDEO COMMAND LOGIC
+    if (isVideoCommand) {
+        setMessages(prev => [...prev, userMessage]); // Add user message to UI
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setIsKeySelected(hasKey);
+        if (!hasKey) {
+            setMessages(prev => prev.slice(0, -1)); // Remove user message if key is needed
+            setShowApiKeySelector(true);
+            return;
+        }
+        const videoPrompt = trimmedPrompt.substring(14).trim();
+        if (!videoPrompt) {
+            setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/create-video`.", isError: true }]);
+            return;
+        }
+        setIsGeneratingVideo(true);
+        try {
+            const videoUrl = await generateVideo(videoPrompt);
+            setMessages(prev => [...prev, { role: 'model', text: videoPrompt, videoUrl }]);
+        } catch (error) {
+            const parsedError = parseGeminiError(error);
+            if (parsedError.type === 'api_key' || parsedError.type === 'permission') {
+                setShowApiKeySelector(true);
+            }
+            setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt }]);
+        } finally {
+            setIsGeneratingVideo(false);
+        }
+        return; // End execution for video command
+    }
+
+    // STANDARD TEXT COMMAND LOGIC
+    setIsLoading(true);
+    addRecentQuery(trimmedPrompt);
+
+    // Create the history for the API call. It's the current state + the new message.
+    const historyForApi = [...messages, userMessage];
+
+    // Update the UI state with both the user message and the thinking indicator in one go.
+    setMessages(prev => [...prev, userMessage, { role: 'model', text: '', isThinking: true }]);
+
+    let currentResponse = '';
+    try {
+        const { sources } = await getGeminiResponseStream(
+            historyForApi, // Use the correct, up-to-date history
+            dateFilter,
+            (textChunk) => {
+                currentResponse += textChunk;
+                setMessages(prev => prev.map((msg, index) =>
+                    index === prev.length - 1 ? { ...msg, text: currentResponse, isThinking: false } : msg
+                ));
+            },
+            model,
+            isDeepResearch,
+            prioritizeAuthoritative
+        );
+
+        playReceiveSound();
+        setMessages(prev => prev.map((msg, index) =>
+            index === prev.length - 1 ? { ...msg, sources } : msg
+        ));
+
+        // Fetch suggested prompts and related topics after response is complete
+        getSuggestedPrompts(trimmedPrompt, currentResponse, model).then(setSuggestedPrompts);
+        getRelatedTopics(trimmedPrompt, currentResponse, model).then(setRelatedTopics);
+
+    } catch (error) {
+        const parsedError = parseGeminiError(error);
+        setMessages(prev => prev.map((msg, index) =>
+            index === prev.length - 1 ? { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt } : msg
+        ));
+    } finally {
+        setIsLoading(false);
+    }
   };
 
-  const handleRetry = useCallback((promptToRetry: string) => {
-    // Remove the user's failed prompt and the model's error response
-    setMessages(prev => prev.slice(0, -2));
-    
-    // A short timeout ensures the state update is processed before resending,
-    // preventing race conditions with React's batching.
-    setTimeout(() => {
-        handleSendMessage(promptToRetry);
-    }, 50);
-  }, [handleSendMessage]);
-
-  const closeSummaryModal = useCallback(() => {
-    setShowSummaryModal(false);
-    summarizeButtonRef.current?.focus();
-  }, []);
-  
-  useEffect(() => {
-    if (showSummaryModal) {
-      const modalElement = summaryModalRef.current;
-      if (!modalElement) return;
-  
-      const focusableElements = modalElement.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-      );
-      if (focusableElements.length === 0) return;
-  
-      const firstElement = focusableElements[0];
-      const lastElement = focusableElements[focusableElements.length - 1];
-      
-      firstElement.focus();
-  
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
-          closeSummaryModal();
-        } else if (e.key === 'Tab') {
-          if (e.shiftKey) { // Shift + Tab
-            if (document.activeElement === firstElement) {
-              lastElement.focus();
-              e.preventDefault();
-            }
-          } else { // Tab
-            if (document.activeElement === lastElement) {
-              firstElement.focus();
-              e.preventDefault();
-            }
-          }
-        }
-      };
-  
-      document.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [showSummaryModal, closeSummaryModal]);
-
-  const handleSummarize = useCallback(async () => {
-    if (messages.length <= 1 || isSummarizing) return;
-
-    setShowSummaryModal(true);
-    setIsSummarizing(true);
+  const handleClearChat = () => {
+    setMessages(initialMessages);
+    setSuggestedPrompts([]);
+    setRelatedTopics([]);
     setSummaryText(null);
+  };
+  
+  const handleCopyAll = () => {
+    const conversationText = messages
+      .map(m => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.text}`)
+      .join('\n\n---\n\n');
+    navigator.clipboard.writeText(conversationText).then(() => {
+      setIsAllCopied(true);
+      setTimeout(() => setIsAllCopied(false), 2000);
+    });
+  };
 
+  const handleSummarize = async () => {
+    setIsSummarizing(true);
+    setShowSummaryModal(true);
     try {
         const summary = await getConversationSummary(messages, model);
         setSummaryText(summary);
     } catch (error) {
-        console.error("Failed to get summary:", error);
-        const errorText = parseGeminiError(error).message;
-        setSummaryText(errorText);
+        const parsedError = parseGeminiError(error);
+        setSummaryText(`Error generating summary: ${parsedError.message}`);
     } finally {
         setIsSummarizing(false);
     }
-  }, [messages, isSummarizing, model]);
-
-  const handleCopySummary = () => {
-    if (!summaryText) return;
-    navigator.clipboard.writeText(summaryText).then(() => {
-        setIsSummaryCopied(true);
-        setTimeout(() => setIsSummaryCopied(false), 2000);
-    }).catch(err => {
-        console.error("Failed to copy summary:", err);
-    });
+  };
+  
+  const handleFeedback = (index: number, feedback: 'up' | 'down') => {
+    setMessages(prev => prev.map((msg, i) => i === index ? { ...msg, feedback: msg.feedback === feedback ? undefined : feedback } : msg));
   };
 
-  const handleChangeApiKey = async () => {
-      try {
-          await window.aistudio.openSelectKey();
-          setIsKeySelected(true);
-      } catch (error) {
-          console.error("Error opening API key selection:", error);
-      } finally {
-          setIsApiKeyManagerOpen(false);
-      }
+  const handleRetry = (prompt: string) => {
+    // Remove the error message before retrying
+    setMessages(prev => prev.filter(msg => msg.originalText !== prompt));
+    handleSendMessage(prompt);
   };
 
-  const handleClearApiKey = async () => {
-      try {
-          if (window.aistudio.clearSelectedApiKey) {
-              await window.aistudio.clearSelectedApiKey();
-          }
-          setIsKeySelected(false);
-      } catch (error) {
-          console.error("Error clearing API key:", error);
-      } finally {
-          setIsApiKeyManagerOpen(false);
-      }
-  };
-
-  const handleSaveCustomCss = (css: string) => {
+  const handleSaveCss = (css: string) => {
     setCustomCss(css);
+    try {
+      localStorage.setItem(CUSTOM_CSS_KEY, css);
+      const styleElement = document.getElementById('custom-user-styles') as HTMLStyleElement;
+      styleElement.innerHTML = css;
+    } catch (error) {
+      console.error("Failed to save custom CSS:", error);
+    }
     setIsCustomCssModalOpen(false);
   };
 
-  const handleSetModel = useCallback((newModel: ModelId) => {
-    if (model !== newModel) {
-        setModel(newModel);
-
-        if (tooltipTimeoutRef.current) {
-            clearTimeout(tooltipTimeoutRef.current);
-        }
-
-        setModelExplanation({ isVisible: true, modelId: newModel });
-
-        tooltipTimeoutRef.current = window.setTimeout(() => {
-            setModelExplanation({ isVisible: false, modelId: newModel });
-        }, 5000);
-    }
-  }, [model]);
-
-  const closeModelExplanation = () => {
-     if (tooltipTimeoutRef.current) {
-        clearTimeout(tooltipTimeoutRef.current);
-    }
-    setModelExplanation(prev => ({ ...prev, isVisible: false }));
-  };
-
-  // To-Do List Handlers
+  // Task Handlers
   const handleAddTask = (text: string) => {
-    const newTask: Task = {
-        id: Date.now().toString(),
-        text,
-        completed: false
-    };
-    setTasks(prevTasks => [...prevTasks, newTask]);
+    const newTask: Task = { id: Date.now().toString(), text, completed: false };
+    setTasks(prev => [...prev, newTask]);
   };
-
   const handleToggleTask = (id: string) => {
-    setTasks(prevTasks =>
-        prevTasks.map(task =>
-            task.id === id ? { ...task, completed: !task.completed } : task
-        )
-    );
+    setTasks(prev => prev.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
   };
-
   const handleDeleteTask = (id: string) => {
-    setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+    setTasks(prev => prev.filter(task => task.id !== id));
   };
 
+  const handleKeySelected = () => {
+    setShowApiKeySelector(false);
+    setIsKeySelected(true);
+  };
+
+  const handleChangeApiKey = async () => {
+    try {
+        await window.aistudio.openSelectKey();
+        setIsKeySelected(true);
+        setIsApiKeyManagerOpen(false);
+    } catch (error) {
+        console.error("Error opening key selector:", error);
+    }
+  };
+
+  const handleClearApiKey = async () => {
+    try {
+        await window.aistudio.clearSelectedApiKey?.();
+        setIsKeySelected(false);
+    } catch (error) {
+        console.error("Error clearing API key:", error);
+    }
+  };
 
   return (
-    <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
-      {!isKeySelected && <ApiKeySelector onKeySelected={() => setIsKeySelected(true)} />}
-      <header className="relative z-10 flex items-center justify-between px-2 py-3 sm:px-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-sm">
-        <div className="flex items-center space-x-3 min-w-0 flex-shrink">
-            <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-[var(--accent-primary)] flex-shrink-0" />
-            <div className="min-w-0">
-                <h1 className="text-md sm:text-xl font-bold text-[var(--text-primary)] truncate">Conversational Search</h1>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] flex items-center">
-                    <SearchIcon className="w-3.5 h-3.5 mr-1.5 hidden sm:block" />
-                    <span className="truncate">Powered by Google Search Grounding</span>
-                </p>
-            </div>
-        </div>
-        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-            <button
-                onClick={handleClearChat}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                aria-label="New Chat (Ctrl+K)"
-                title="New Chat (Ctrl+K)"
-            >
-                <PlusSquareIcon className="w-5 h-5" />
+    <>
+    <div className="flex h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
+      <main className="flex-1 flex flex-col h-screen">
+        <header className="flex items-center justify-between p-3 border-b border-[var(--border-color)] flex-shrink-0">
+          <div className="flex items-center space-x-3">
+             <BotIcon className="w-7 h-7 text-[var(--accent-primary)]" />
+             <h1 className="text-lg font-semibold text-[var(--text-secondary)]">Conversational Search</h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button onClick={handleCopyAll} title="Copy Conversation" className="p-2 rounded-md hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+              {isAllCopied ? <CheckIcon className="w-5 h-5 text-green-400" /> : <CopyIcon className="w-5 h-5" />}
             </button>
-            <div className="relative">
-              <button
-                  ref={settingsButtonRef}
-                  onClick={() => setIsModelSelectorOpen(prev => !prev)}
-                  className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                  aria-label="Model settings"
-                  title="Model settings"
-              >
-                  <SettingsIcon className="w-5 h-5" />
-              </button>
-              {isModelSelectorOpen && (
-                  <ModelSelector
-                      currentModel={model}
-                      onSetModel={handleSetModel}
-                      onClose={() => setIsModelSelectorOpen(false)}
-                      prioritizeAuthoritative={prioritizeAuthoritative}
-                      onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(prev => !prev)}
-                  />
-              )}
-            </div>
-            <button
-                ref={apiKeyButtonRef}
-                onClick={() => setIsApiKeyManagerOpen(true)}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                aria-label="Manage API Key"
-                title="Manage API Key"
-            >
-                <KeyIcon className="w-5 h-5" />
+            <button onClick={handleSummarize} title="Summarize Conversation" className="p-2 rounded-md hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+              <ClipboardListIcon className="w-5 h-5" />
             </button>
-            <button
-                onClick={() => setIsTodoListModalOpen(true)}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                aria-label="Open to-do list"
-                title="To-Do List"
-            >
-                <CheckSquareIcon className="w-5 h-5" />
-            </button>
-            <button
-                onClick={() => setIsCustomCssModalOpen(true)}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                aria-label="Edit custom CSS"
-                title="Edit custom CSS"
-            >
-                <FileCodeIcon className="w-5 h-5" />
-            </button>
-            <div className="relative" ref={themeButtonRef}>
-              <button
-                  onClick={() => setIsThemeSelectorOpen(prev => !prev)}
-                  className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                  aria-label="Select theme"
-                  title="Select theme"
-              >
-                  <PaletteIcon className="w-5 h-5" />
-              </button>
-              {isThemeSelectorOpen && <ThemeSelector onClose={() => setIsThemeSelectorOpen(false)} />}
-            </div>
-             <button
-                onClick={() => setIsAboutModalOpen(true)}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                aria-label="About this application"
-                title="About"
-            >
-                <InfoIcon className="w-5 h-5" />
-            </button>
-            <button
-                onClick={() => setShowShortcutsModal(true)}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                aria-label="Show keyboard shortcuts (?)"
-                title="Keyboard shortcuts (?)"
-            >
-                <HelpCircleIcon className="w-5 h-5" />
-            </button>
-            <button
-                ref={summarizeButtonRef}
-                onClick={handleSummarize}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0 disabled:text-[var(--text-muted)]/50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                aria-label="Summarize conversation"
-                title="Summarize conversation"
-                disabled={isLoading || isSummarizing || messages.length <= 1}
-            >
-                <SparklesIcon className="w-5 h-5" />
-            </button>
-            <button
-                onClick={handleCopyAll}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0"
-                aria-label="Copy entire chat"
-                title="Copy chat"
-            >
-                {isAllCopied ? <CheckIcon className="w-5 h-5 text-green-400" /> : <ClipboardListIcon className="w-5 h-5" />}
-            </button>
-            <button
-                onClick={handleExportChat}
-                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0 disabled:text-[var(--text-muted)]/50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
-                aria-label="Export chat as JSON"
-                title="Export chat (JSON)"
-                disabled={isLoading || isSummarizing || messages.length <= 1}
-            >
-                <DownloadIcon className="w-5 h-5" />
-            </button>
-            <button
-              onClick={handleClearChat}
-              className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0"
-              aria-label="Clear chat history"
-              title="Clear chat"
-            >
+            <button onClick={handleClearChat} title="Clear Chat (Ctrl+K)" className="p-2 rounded-md hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
               <TrashIcon className="w-5 h-5" />
             </button>
-        </div>
-      </header>
-      
-      <main
-        ref={scrollContainerRef}
-        onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-2 py-4 sm:p-4 md:p-6 space-y-6"
-      >
-        <div className="max-w-4xl mx-auto w-full">
-            {messages.map((msg, index) => (
-                <ErrorBoundary key={index}>
-                    <ChatMessage 
+            <div className="h-6 w-px bg-[var(--border-color)] mx-1"></div>
+            <div className="relative" ref={settingsMenuRef}>
+                <button onClick={() => setIsSettingsMenuOpen(p => !p)} title="Settings" className="p-2 rounded-md hover:bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+                    <SettingsIcon className="w-5 h-5" />
+                </button>
+                {isSettingsMenuOpen && (
+                    <div className="absolute top-full mt-2 right-0 w-64 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl z-30 animate-fade-in p-2"
+                        onMouseLeave={() => setOpenSubMenu(null)}>
+                        <div className="relative">
+                            <button onMouseEnter={() => setOpenSubMenu('theme')} className="w-full text-left flex items-center justify-between p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]">
+                                <div className="flex items-center space-x-2"><PaletteIcon className="w-4 h-4" /> <span>Theme</span></div>
+                                <ChevronRightIcon className="w-4 h-4" />
+                            </button>
+                            {openSubMenu === 'theme' && <ThemeSelector onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} />}
+                        </div>
+                        <div className="relative">
+                            <button onMouseEnter={() => setOpenSubMenu('model')} className="w-full text-left flex items-center justify-between p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]">
+                               <div className="flex items-center space-x-2"><SparklesIcon className="w-4 h-4" /> <span>Model & Settings</span></div>
+                               <ChevronRightIcon className="w-4 h-4" />
+                            </button>
+                            {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)}/>}
+                        </div>
+                         <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
+                         <button onClick={() => { setIsApiKeyManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><KeyIcon className="w-4 h-4" /> <span>API Key Manager</span></button>
+                         <button onClick={() => { setIsCustomCssModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><FileCodeIcon className="w-4 h-4" /> <span>Custom CSS</span></button>
+                         <button onClick={() => { setIsTodoListModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><CheckSquareIcon className="w-4 h-4" /> <span>To-Do List</span></button>
+                         <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
+                         <button onClick={() => { setShowShortcutsModal(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><HelpCircleIcon className="w-4 h-4" /> <span>Keyboard Shortcuts</span></button>
+                         <button onClick={() => { setIsAboutModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><InfoIcon className="w-4 h-4" /> <span>About</span></button>
+                    </div>
+                )}
+            </div>
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4">
+            <div className="max-w-4xl mx-auto">
+                <ErrorBoundary>
+                    {messages.map((msg, index) => (
+                        <ChatMessage
+                        key={index}
                         message={msg}
                         messageIndex={index}
                         onFeedback={handleFeedback}
                         onImageClick={setLightboxImageUrl}
                         onRetry={handleRetry}
-                    />
-                </ErrorBoundary>
-            ))}
-            {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
-            {isGeneratingVideo && <PlaceholderLoader type="video" />}
-            {isLoading && !isFetchingSuggestions && !isGeneratingImage && !isGeneratingVideo && messages[messages.length - 1]?.isThinking !== true && (
-                <div className="pl-12 mt-4 animate-fade-in" role="status" aria-live="polite">
-                    <div className="inline-flex items-center space-x-3 text-[var(--text-muted)] p-2 bg-[var(--bg-secondary)]/50 rounded-lg">
-                      <SparklesIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />
-                      <span className="text-sm font-medium">Generating response...</span>
-                    </div>
-                </div>
-            )}
-            {isFetchingSuggestions && (
-              <div className="pl-12 mt-4 animate-fade-in" role="status" aria-live="polite">
-                <div className="inline-flex items-center space-x-3 text-[var(--text-muted)] p-2 bg-[var(--bg-secondary)]/50 rounded-lg">
-                  <SparklesIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />
-                  <span className="text-sm font-medium">Fetching suggestions & topics...</span>
-                </div>
-              </div>
-            )}
-            {(suggestedPrompts.length > 0 || relatedTopics.length > 0) && !isLoading && (
-              <div className="pl-12 animate-fade-in mt-4 space-y-5">
-                {suggestedPrompts.length > 0 && (
-                  <div>
-                    <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-3">People also ask</h2>
-                    <div className="space-y-2">
-                      {suggestedPrompts.map((prompt, index) => (
-                        <button
-                          key={`suggestion-${index}`}
-                          onClick={() => handleSendMessage(prompt)}
-                          className="w-full text-left text-sm flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-200 group"
-                        >
-                          <span className="pr-2">{prompt}</span>
-                          <ChevronRightIcon className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors flex-shrink-0" />
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                 {relatedTopics.length > 0 && (
-                    <div>
-                        <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-3 flex items-center space-x-2">
-                            <LightbulbIcon className="w-4 h-4" />
-                            <span>Explore related</span>
-                        </h2>
-                        <div className="flex flex-wrap gap-2 sm:gap-3">
-                            {relatedTopics.map((topic, index) => (
-                                <button
-                                    key={`topic-${index}`}
-                                    onClick={() => handleSendMessage(topic)}
-                                    className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
-                                >
-                                    {topic}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                )}
-              </div>
-            )}
-             {messages.length === 1 && !isLoading && suggestedPrompts.length === 0 && (
-                <div className="space-y-6">
-                    {recentQueries.length > 0 && (
-                        <RecentQueries
-                            queries={recentQueries}
-                            onQueryClick={handleSendMessage}
-                            onClear={handleClearRecentQueries}
                         />
-                    )}
-                    <div className="pl-12 animate-fade-in">
-                        <div className="flex flex-wrap gap-2 sm:gap-3">
-                            {examplePrompts.map((prompt, index) => (
-                                <button
-                                key={index}
-                                onClick={() => handleSendMessage(prompt)}
-                                className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
-                                >
-                                {prompt}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
+                    ))}
+                    {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
+                    {isGeneratingVideo && <PlaceholderLoader type="video" prompt={null} />}
+                </ErrorBoundary>
+              <div ref={chatEndRef}></div>
+            </div>
+        </div>
+
+        <div className="p-4 flex-shrink-0 bg-[var(--bg-primary)]">
+            <div className="max-w-4xl mx-auto">
+              <RecentQueries queries={recentQueries} onQueryClick={handleSendMessage} onClear={() => setRecentQueries([])} />
+              <div className="mt-4">
+                <ChatInput
+                    onSendMessage={handleSendMessage}
+                    isLoading={isLoading || isGeneratingImage || isGeneratingVideo}
+                    activeFilter={dateFilter}
+                    onFilterChange={setDateFilter}
+                    isFilterMenuOpen={isFilterMenuOpen}
+                    onToggleFilterMenu={() => setIsFilterMenuOpen(prev => !prev)}
+                    onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
+                    isDeepResearch={isDeepResearch}
+                    onToggleDeepResearch={() => setIsDeepResearch(p => !p)}
+                />
               </div>
-            )}
-            <div ref={messagesEndRef} />
+            </div>
         </div>
       </main>
-
-      <footer className="p-2 sm:p-4 md:p-6 border-t border-[var(--border-color)] bg-[var(--bg-primary)]/80 backdrop-blur-sm">
-        <div className="max-w-4xl mx-auto">
-          <ErrorBoundary fallbackMessage="The chat input component has crashed. Please reload the page to continue.">
-            <ChatInput 
-              onSendMessage={handleSendMessage} 
-              isLoading={isLoading} 
-              placeholder={isDeepResearch ? 'Ask a detailed research question...' : 'Ask me anything, or use /imagine or /create-video...'}
-              activeFilter={dateFilter}
-              onFilterChange={setDateFilter}
-              isFilterMenuOpen={isFilterMenuOpen}
-              onToggleFilterMenu={() => setIsFilterMenuOpen(prev => !prev)}
-              onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
-              isDeepResearch={isDeepResearch}
-              onToggleDeepResearch={() => setIsDeepResearch(prev => !prev)}
-            />
-          </ErrorBoundary>
-        </div>
-      </footer>
-
-      {showSummaryModal && (
-        <div
-          ref={summaryModalRef}
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
-          aria-labelledby="summary-modal-title"
-          role="dialog"
-          aria-modal="true"
-          onClick={closeSummaryModal}
-        >
-          <div
-            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-md sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
-            onClick={e => e.stopPropagation()}
-          >
-            <header className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
-              <div className="flex items-center space-x-3">
-                <SparklesIcon className="w-6 h-6 text-[var(--accent-primary)]" />
-                <h2 id="summary-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
-                  Conversation Summary
-                </h2>
-              </div>
-              <button
-                onClick={closeSummaryModal}
-                className="p-1.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                aria-label="Close summary"
-              >
-                <XIcon className="w-5 h-5" />
-              </button>
-            </header>
-    
-            <main className="p-6 overflow-y-auto prose prose-themed max-w-none">
-              {isSummarizing ? (
-                <div className="flex flex-col items-center justify-center text-[var(--text-muted)] space-y-3" role="status">
-                  <SparklesIcon className="w-10 h-10 text-[var(--accent-primary)] animate-pulse-icon" />
-                  <p>Generating summary...</p>
-                </div>
-              ) : (
-                <p>{summaryText}</p>
-              )}
-            </main>
-    
-            <footer className="flex items-center justify-end p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={closeSummaryModal}
-                  className="px-4 py-2 rounded-md text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] transition-colors"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={handleCopySummary}
-                  disabled={isSummarizing || !summaryText}
-                  className="px-4 py-2 rounded-md text-white bg-[var(--accent-primary)] hover:opacity-90 disabled:bg-[var(--bg-tertiary)] disabled:cursor-not-allowed transition-all flex items-center space-x-2"
-                >
-                  {isSummaryCopied ? <CheckIcon className="w-5 h-5" /> : <CopyIcon className="w-5 h-5" />}
-                  <span>{isSummaryCopied ? 'Copied!' : 'Copy Summary'}</span>
-                </button>
-              </div>
-            </footer>
-          </div>
-        </div>
-      )}
-
-      {lightboxImageUrl && (
-        <Lightbox 
-          imageUrl={lightboxImageUrl}
-          onClose={() => setLightboxImageUrl(null)}
-        />
-      )}
-
-      {showShortcutsModal && (
-        <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />
-      )}
-      
-      {isAboutModalOpen && (
-        <AboutModal onClose={() => setIsAboutModalOpen(false)} />
-      )}
-
-      {isApiKeyManagerOpen && (
-        <ApiKeyManager
-            onClose={() => setIsApiKeyManagerOpen(false)}
-            onChangeKey={handleChangeApiKey}
-            onClearKey={handleClearApiKey}
-            isKeySelected={isKeySelected}
-        />
-      )}
-
-      {isCustomCssModalOpen && (
-        <CustomCssModal
-            initialCss={customCss}
-            onSave={handleSaveCustomCss}
-            onClose={() => setIsCustomCssModalOpen(false)}
-        />
-      )}
-
-      {isTodoListModalOpen && (
-        <TodoListModal
-            tasks={tasks}
-            onAddTask={handleAddTask}
-            onToggleTask={handleToggleTask}
-            onDeleteTask={handleDeleteTask}
-            onClose={() => setIsTodoListModalOpen(false)}
-        />
-      )}
-
-      <ModelExplanationTooltip
-          modelId={modelExplanation.modelId}
-          isVisible={modelExplanation.isVisible}
-          onClose={closeModelExplanation}
-      />
     </div>
+
+    {/* Modals and Overlays */}
+    {showApiKeySelector && <ApiKeySelector onKeySelected={handleKeySelected} />}
+    {lightboxImageUrl && <Lightbox imageUrl={lightboxImageUrl} onClose={() => setLightboxImageUrl(null)} />}
+    {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
+    {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} />}
+    {isCustomCssModalOpen && <CustomCssModal onClose={() => setIsCustomCssModalOpen(false)} onSave={handleSaveCss} initialCss={customCss} />}
+    <ModelExplanationTooltip modelId={modelExplanation.modelId} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, modelId: model })}/>
+    {isTodoListModalOpen && <TodoListModal onClose={() => setIsTodoListModalOpen(false)} tasks={tasks} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} />}
+    {isAboutModalOpen && <AboutModal onClose={() => setIsAboutModalOpen(false)} />}
+    </>
   );
 };
 
