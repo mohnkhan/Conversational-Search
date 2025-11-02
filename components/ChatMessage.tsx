@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage as ChatMessageType } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon } from './Icons';
 import Sources from './Sources';
 
 interface ChatMessageProps {
@@ -10,6 +10,7 @@ interface ChatMessageProps {
   messageIndex: number;
   onFeedback: (index: number, feedback: 'up' | 'down') => void;
   onImageClick: (url: string) => void;
+  onRetry: (prompt: string) => void;
 }
 
 const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props }) => {
@@ -54,7 +55,7 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
 };
 
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick, onRetry }) => {
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
   const [isShared, setIsShared] = useState(false);
@@ -162,40 +163,36 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         {message.imageUrl ? (
             <div>
                 <p className="text-gray-400 italic text-sm mb-2">Image generated for: "{message.text}"</p>
-                <div 
-                    className="relative group/image inline-block cursor-zoom-in"
+                <button
                     onClick={() => onImageClick(message.imageUrl!)}
+                    className="relative group/image inline-block cursor-zoom-in text-left focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-lg"
+                    aria-label={`View larger image for prompt: ${message.text}`}
                 >
-                    <img src={message.imageUrl} alt={message.text} className="rounded-lg border border-gray-700 max-w-full h-auto" />
-                    <div className="absolute bottom-3 right-3 flex items-center space-x-2 opacity-0 group-hover/image:opacity-100 focus-within:opacity-100 transition-opacity">
-                        <button
-                            onClick={(e) => { e.stopPropagation(); onImageClick(message.imageUrl!); }}
-                            className="bg-gray-900/70 text-white p-2 rounded-full hover:bg-gray-800/90 transition-colors"
-                            aria-label="Zoom in"
-                            title="Zoom in"
-                        >
-                            <ZoomInIcon className="w-5 h-5" />
-                        </button>
+                    <img src={message.imageUrl} alt={message.text} className="rounded-lg border border-gray-700 max-w-full h-auto block" />
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/image:opacity-100 group-focus/image:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                        <ZoomInIcon className="w-10 h-10 text-white" />
+                    </div>
+                    <div className="absolute bottom-3 right-3 flex items-center space-x-2 opacity-0 group-hover/image:opacity-100 group-focus-within/image:opacity-100 transition-opacity">
                         <a
                             href={message.imageUrl}
                             download={`gemini-generated-image.png`}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-gray-900/70 text-white p-2 rounded-full hover:bg-gray-800/90 transition-colors"
+                            className="bg-gray-900/70 text-white p-2 rounded-full hover:bg-gray-800/90 transition-colors focus:opacity-100"
                             aria-label="Download image"
                             title="Download image"
                         >
                             <DownloadIcon className="w-5 h-5" />
                         </a>
                     </div>
-                </div>
+                </button>
             </div>
         ) : message.videoUrl ? (
             <div>
                  <p className="text-gray-400 italic text-sm mb-2">Video created for: "{message.text}"</p>
                  {videoError ? (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex flex-col items-center justify-center aspect-video max-w-sm text-center">
+                    <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 flex flex-col items-center justify-center aspect-video max-w-sm text-center">
                         <ErrorIcon className="w-8 h-8 text-red-400 mb-2" />
-                        <p className="text-sm text-red-300/90 mb-3">Video failed to load or play.</p>
+                        <p className="text-sm text-red-200 mb-3">Video failed to load or play.</p>
                         <a
                             href={message.videoUrl}
                             download={`gemini-generated-video.mp4`}
@@ -232,9 +229,18 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             <>
                 <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
                 {message.isError ? (
-                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 not-prose">
-                    <p className="font-semibold text-red-300">An Error Occurred</p>
-                    <p className="text-red-300/90 mt-1 text-sm">{message.text}</p>
+                    <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 not-prose">
+                        <p className="font-semibold text-red-100">An Error Occurred</p>
+                        <p className="text-red-200 mt-1 text-sm">{message.text}</p>
+                        {message.originalText && (
+                            <button
+                                onClick={() => onRetry(message.originalText!)}
+                                className="mt-3 flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-red-600/80 hover:bg-red-500/80 transition-colors"
+                            >
+                                <RefreshCwIcon className="w-4 h-4" />
+                                <span>Retry</span>
+                            </button>
+                        )}
                     </div>
                 ) : (
                     <ReactMarkdown

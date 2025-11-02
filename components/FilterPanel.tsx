@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DateFilter, PredefinedDateFilter, CustomDateFilter } from '../types';
 
 type FilterMode = PredefinedDateFilter | 'custom';
@@ -17,9 +17,10 @@ const presetOptions: { key: PredefinedDateFilter, label: string }[] = [
     { key: 'year', label: 'Past year' },
 ];
 
-const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter }) => {
+const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, onClose }) => {
     const [mode, setMode] = useState<FilterMode>('any');
     const [customDates, setCustomDates] = useState<CustomDateFilter>({ startDate: null, endDate: null });
+    const panelRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (typeof activeFilter === 'string') {
@@ -30,6 +31,45 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter }
             setCustomDates(activeFilter);
         }
     }, [activeFilter]);
+
+    // Focus trap and Escape key handler
+    useEffect(() => {
+        const panelElement = panelRef.current;
+        if (!panelElement) return;
+
+        const focusableElements = panelElement.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        firstElement.focus();
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Tab') {
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === firstElement) {
+                        lastElement.focus();
+                        e.preventDefault();
+                    }
+                } else { // Tab
+                    if (document.activeElement === lastElement) {
+                        firstElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+        };
+
+        // The Escape key listener is handled by ChatInput.tsx to manage focus return correctly.
+        panelElement.addEventListener('keydown', handleKeyDown);
+        return () => {
+            panelElement.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
+
 
     const handleModeChange = (newMode: FilterMode) => {
         setMode(newMode);
@@ -61,13 +101,18 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter }
 
     return (
         <div 
+            ref={panelRef}
             className="absolute bottom-full mb-2 w-full sm:w-[400px] right-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 animate-fade-in"
             style={{ animationDuration: '0.2s' }}
-            aria-modal="true"
             role="dialog"
+            aria-modal="true"
+            aria-labelledby="filter-panel-title"
         >
             <div className="p-4 space-y-4">
                 <div>
+                    <h2 id="filter-panel-title" className="text-base font-semibold text-gray-200 mb-3">
+                        Filter by date
+                    </h2>
                     <p className="text-sm font-semibold text-gray-300 mb-2">Quick filters</p>
                     <div className="grid grid-cols-2 gap-2">
                         {presetOptions.map(option => (

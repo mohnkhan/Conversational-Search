@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+// FIX: Added 'useCallback' to the import from 'react' to resolve the 'Cannot find name' error.
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon } from './Icons';
 import { DateFilter, PredefinedDateFilter } from '../types';
 import FilterPanel from './FilterPanel';
@@ -47,6 +48,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [text, setText] = useState('');
   const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea based on content
@@ -137,26 +139,38 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  // Effect to close filter menu when clicking outside
+  const handleCloseFilterMenu = useCallback(() => {
+    onCloseFilterMenu();
+    filterButtonRef.current?.focus();
+  }, [onCloseFilterMenu]);
+
+  // Effect to close filter menu when clicking outside or pressing Escape
   useEffect(() => {
+    if (!isFilterMenuOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      const filterButton = document.querySelector('[aria-label="Open search filters (F)"]');
       if (
         filterMenuRef.current &&
         !filterMenuRef.current.contains(event.target as Node) &&
-        !filterButton?.contains(event.target as Node)
+        !filterButtonRef.current?.contains(event.target as Node)
       ) {
-        onCloseFilterMenu();
+        handleCloseFilterMenu();
       }
     };
+    
+    const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+            handleCloseFilterMenu();
+        }
+    };
 
-    if (isFilterMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isFilterMenuOpen, onCloseFilterMenu]);
+  }, [isFilterMenuOpen, handleCloseFilterMenu]);
 
   const isFilterActive = !(typeof activeFilter === 'string' && activeFilter === 'any');
 
@@ -168,9 +182,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 activeFilter={activeFilter}
                 onApplyFilter={(newFilter) => {
                     onFilterChange(newFilter);
-                    onCloseFilterMenu();
+                    handleCloseFilterMenu();
                 }}
-                onClose={onCloseFilterMenu}
+                onClose={handleCloseFilterMenu}
             />
         </div>
       )}
@@ -196,13 +210,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
           isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
         }`}>
             <div className="flex items-center space-x-1 p-2 border-b border-gray-700">
-                <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Bold (Ctrl+B)">
+                <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" aria-label="Bold (Ctrl+B)" title="Bold (Ctrl+B)">
                     <BoldIcon className="w-4 h-4" />
                 </button>
-                <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Italic (Ctrl+I)">
+                <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" aria-label="Italic (Ctrl+I)" title="Italic (Ctrl+I)">
                     <ItalicIcon className="w-4 h-4" />
                 </button>
-                <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Code Block (Ctrl+E)">
+                <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" aria-label="Code Block (Ctrl+E)" title="Code Block (Ctrl+E)">
                     <CodeIcon className="w-4 h-4" />
                 </button>
             </div>
@@ -220,6 +234,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             <div className="flex items-center justify-end px-2 pb-2">
                 <div className="flex items-center space-x-1">
                     <button
+                    ref={filterButtonRef}
                     type="button"
                     onClick={onToggleFilterMenu}
                     aria-expanded={isFilterMenuOpen}

@@ -83,7 +83,7 @@ const PlaceholderLoader: React.FC<PlaceholderLoaderProps> = ({ type, prompt }) =
                 <BotIcon className="w-5 h-5 text-cyan-400" />
             </div>
             <div className="flex-1 group relative pt-1">
-                <div className="w-full max-w-sm aspect-video bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center p-4 animate-shimmer">
+                <div className="w-full max-w-sm aspect-video bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center p-4 animate-shimmer" role="status" aria-live="polite">
                     <Icon className="w-10 h-10 text-gray-500 mb-3" />
                     {type === 'image' && prompt && (
                          <p className="text-sm font-medium text-gray-300 text-center px-4 italic truncate" title={prompt}>
@@ -134,6 +134,8 @@ const App: React.FC = () => {
   const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const summarizeButtonRef = useRef<HTMLButtonElement>(null);
+  const summaryModalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -310,8 +312,6 @@ const App: React.FC = () => {
         console.error("Failed to get Gemini response:", error);
         const parsedError = parseGeminiError(error);
         
-        // If the error indicates a problem with the API key, reset the selection state
-        // to prompt the user to select a new one.
         if (parsedError.type === 'api_key') {
             setIsKeySelected(false);
         }
@@ -321,19 +321,18 @@ const App: React.FC = () => {
             text: parsedError.message,
             sources: [],
             isError: true,
+            originalText: trimmedInput,
         };
         
         setMessages(prev => {
-            // Check if the last message is the user's prompt
             const lastMessage = prev[prev.length - 1];
             if (lastMessage.role === 'user' && lastMessage.text === trimmedInput) {
                 return [...prev, errorMessage];
             }
-            // If the last message is already a model response (e.g. from /imagine), append the error.
             if (lastMessage.role === 'model' && (lastMessage.imageUrl || lastMessage.videoUrl)) {
                  return [...prev, errorMessage];
             }
-             // This case handles when streaming fails after starting
+            // This case handles when streaming fails after starting
             return [...prev.slice(0, -1), errorMessage];
         });
     } finally {
@@ -401,6 +400,62 @@ const App: React.FC = () => {
     );
   };
 
+  const handleRetry = useCallback((promptToRetry: string) => {
+    // Remove the user's failed prompt and the model's error response
+    setMessages(prev => prev.slice(0, -2));
+    
+    // A short timeout ensures the state update is processed before resending,
+    // preventing race conditions with React's batching.
+    setTimeout(() => {
+        handleSendMessage(promptToRetry);
+    }, 50);
+  }, [handleSendMessage]);
+
+  const closeSummaryModal = useCallback(() => {
+    setShowSummaryModal(false);
+    summarizeButtonRef.current?.focus();
+  }, []);
+  
+  useEffect(() => {
+    if (showSummaryModal) {
+      const modalElement = summaryModalRef.current;
+      if (!modalElement) return;
+  
+      const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      if (focusableElements.length === 0) return;
+  
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      
+      firstElement.focus();
+  
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          closeSummaryModal();
+        } else if (e.key === 'Tab') {
+          if (e.shiftKey) { // Shift + Tab
+            if (document.activeElement === firstElement) {
+              lastElement.focus();
+              e.preventDefault();
+            }
+          } else { // Tab
+            if (document.activeElement === lastElement) {
+              firstElement.focus();
+              e.preventDefault();
+            }
+          }
+        }
+      };
+  
+      document.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [showSummaryModal, closeSummaryModal]);
+
   const handleSummarize = useCallback(async () => {
     if (messages.length <= 1 || isSummarizing) return;
 
@@ -438,7 +493,7 @@ const App: React.FC = () => {
             <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
             <div className="min-w-0">
                 <h1 className="text-md sm:text-xl font-bold text-white truncate">Gemini Conversational Search</h1>
-                <p className="text-xs sm:text-sm text-gray-400 flex items-center">
+                <p className="text-xs sm:text-sm text-gray-300 flex items-center">
                     <SearchIcon className="w-3.5 h-3.5 mr-1.5 hidden sm:block" />
                     <span className="truncate">Powered by Google Search Grounding</span>
                 </p>
@@ -446,6 +501,7 @@ const App: React.FC = () => {
         </div>
         <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
             <button
+                ref={summarizeButtonRef}
                 onClick={handleSummarize}
                 className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0 disabled:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                 aria-label="Summarize conversation"
@@ -491,11 +547,12 @@ const App: React.FC = () => {
                         messageIndex={index}
                         onFeedback={handleFeedback}
                         onImageClick={setLightboxImageUrl}
+                        onRetry={handleRetry}
                     />
                 </ErrorBoundary>
             ))}
              {isThinking && (
-                <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
+                <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in" role="status" aria-live="polite">
                     <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
                         <BotIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />
                     </div>
@@ -507,7 +564,7 @@ const App: React.FC = () => {
             {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
             {isGeneratingVideo && <PlaceholderLoader type="video" />}
             {isLoading && !isThinking && !isGeneratingImage && !isGeneratingVideo &&(
-                <div className="pl-12 mt-4 animate-fade-in">
+                <div className="pl-12 mt-4 animate-fade-in" role="status" aria-live="polite">
                     <div className="inline-flex items-center space-x-3 text-gray-400 p-2 bg-gray-800/50 rounded-lg">
                       <SparklesIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />
                       <span className="text-sm font-medium">Generating response & suggestions...</span>
@@ -518,7 +575,7 @@ const App: React.FC = () => {
               <div className="pl-12 animate-fade-in mt-4 space-y-5">
                 {suggestedPrompts.length > 0 && (
                   <div>
-                    <p className="text-sm font-semibold text-gray-400 mb-2">Next questions</p>
+                    <h2 className="text-sm font-semibold text-gray-400 mb-2">Next questions</h2>
                     <div className="flex flex-wrap gap-2 sm:gap-3">
                       {suggestedPrompts.map((prompt, index) => (
                         <button
@@ -534,7 +591,7 @@ const App: React.FC = () => {
                 )}
                  {relatedTopics.length > 0 && (
                     <div>
-                        <p className="text-sm font-semibold text-gray-400 mb-2">Explore related</p>
+                        <h2 className="text-sm font-semibold text-gray-400 mb-2">Explore related</h2>
                         <div className="flex flex-wrap gap-2 sm:gap-3">
                             {relatedTopics.map((topic, index) => (
                                 <button
@@ -588,11 +645,12 @@ const App: React.FC = () => {
 
       {showSummaryModal && (
         <div
+          ref={summaryModalRef}
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
           aria-labelledby="summary-modal-title"
           role="dialog"
           aria-modal="true"
-          onClick={() => setShowSummaryModal(false)}
+          onClick={closeSummaryModal}
         >
           <div
             className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
@@ -606,7 +664,7 @@ const App: React.FC = () => {
                 </h2>
               </div>
               <button
-                onClick={() => setShowSummaryModal(false)}
+                onClick={closeSummaryModal}
                 className="p-1.5 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
                 aria-label="Close summary"
               >
@@ -616,7 +674,7 @@ const App: React.FC = () => {
     
             <main className="p-6 overflow-y-auto prose prose-invert max-w-none">
               {isSummarizing ? (
-                <div className="flex flex-col items-center justify-center text-gray-400 space-y-3">
+                <div className="flex flex-col items-center justify-center text-gray-400 space-y-3" role="status">
                   <SparklesIcon className="w-10 h-10 text-cyan-400 animate-pulse-icon" />
                   <p>Generating summary...</p>
                 </div>
@@ -628,7 +686,7 @@ const App: React.FC = () => {
             <footer className="flex items-center justify-end p-4 border-t border-gray-700 bg-gray-800/50">
               <div className="flex items-center space-x-3">
                 <button
-                  onClick={() => setShowSummaryModal(false)}
+                  onClick={closeSummaryModal}
                   className="px-4 py-2 rounded-md text-gray-300 bg-gray-700/80 hover:bg-gray-700 transition-colors"
                 >
                   Close

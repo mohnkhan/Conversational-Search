@@ -13,6 +13,7 @@ export interface ChatMessage {
   feedback?: 'up' | 'down';
   imageUrl?: string;
   videoUrl?: string;
+  originalText?: string;
 }
 
 export type PredefinedDateFilter = 'any' | 'day' | 'week' | 'month' | 'year';

@@ -13,7 +13,7 @@ if (process.env.API_KEY) {
  * A structured error object for better handling in the UI.
  */
 export interface ParsedError {
-    type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'generic' | 'unknown';
+    type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'permission' | 'argument' | 'generic' | 'unknown';
     message: string;
 }
 
@@ -24,51 +24,68 @@ export interface ParsedError {
  */
 export function parseGeminiError(error: unknown): ParsedError {
     if (error instanceof Error) {
-        const message = error.message.toLowerCase();
+        // [GoogleGenerativeAI Error]: usually prefixes specific errors
+        const message = error.message.replace('[GoogleGenerativeAI Error]:', '').trim().toLowerCase();
 
         // API Key issues
         if (message.includes('api key not valid') || message.includes('api_key') || message.includes('requested entity was not found')) {
             return {
                 type: 'api_key',
-                message: "There's an issue with your API key. Please ensure it is valid and has billing enabled for features like video generation. You may need to select a new key."
+                message: "Your API key is invalid or not found. Please ensure it's correct. For video generation, you may need to select a new key from a billed project."
+            };
+        }
+        
+        // Billing issues
+        if (message.includes('billing') || message.includes('enable billing')) {
+            return {
+                type: 'billing',
+                message: "A billing issue was encountered. Please check that the associated Google Cloud project has billing enabled and the account is in good standing."
+            };
+        }
+
+        // Permission issues (often for Veo)
+        if (message.includes('permission denied')) {
+            return {
+                type: 'permission',
+                message: "Permission denied. Your API key may not have the necessary permissions for this operation (e.g., video generation). Ensure the 'Vertex AI API' is enabled in your project."
             };
         }
 
         // Rate limiting
-        if (message.includes('429') || message.includes('rate limit')) {
+        if (message.includes('429') || message.includes('rate limit') || message.includes('resource has been exhausted')) {
             return {
                 type: 'rate_limit',
-                message: "The service is currently experiencing high traffic. Please wait a moment and try your request again."
+                message: "You've exceeded the request limit. Please wait a moment before trying again."
             };
         }
         
         // Safety settings
-        if (message.includes('safety') || message.includes('blocked')) {
+        if (message.includes('safety') || message.includes('blocked') || message.includes('finish reason: safety')) {
             return {
                 type: 'safety',
-                message: "Your prompt or the model's response was blocked due to safety filters. Please try rephrasing your request."
+                message: "The request was blocked due to safety filters. This could be due to the prompt or the model's potential response. Please try rephrasing."
             };
         }
 
-        // Billing issues
-        if (message.includes('billing')) {
-            return {
-                type: 'billing',
-                message: "There seems to be a billing issue with the project. Please check the associated billing account to ensure it's active."
-            };
+        // Invalid arguments
+        if (message.includes('invalid argument')) {
+             return {
+                type: 'argument',
+                message: `There was an issue with the request format. Error: ${error.message}`
+             };
         }
 
         // Generic but slightly more helpful
         return { 
             type: 'generic',
-            message: `An unexpected error occurred: ${error.message}. Please try again.`
+            message: `An unexpected error occurred: ${error.message}.`
         };
     }
 
     // Fallback for non-Error objects
     return {
         type: 'unknown',
-        message: 'An unknown error occurred. Please check your connection and try again.'
+        message: 'An unknown error occurred. Please check the developer console for more details.'
     };
 }
 

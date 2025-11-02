@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { XIcon } from './Icons';
 
 interface LightboxProps {
@@ -7,12 +7,24 @@ interface LightboxProps {
 }
 
 const Lightbox: React.FC<LightboxProps> = ({ imageUrl, onClose }) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
       }
+      // Trap focus
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        closeButtonRef.current?.focus();
+      }
     };
+
+    // Set initial focus to the close button
+    closeButtonRef.current?.focus();
+
     window.addEventListener('keydown', handleKeyDown);
     document.body.style.overflow = 'hidden'; // Prevent background scrolling
 
@@ -24,6 +36,7 @@ const Lightbox: React.FC<LightboxProps> = ({ imageUrl, onClose }) => {
 
   return (
     <div
+      ref={modalRef}
       className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
       onClick={onClose}
       role="dialog"
@@ -31,6 +44,7 @@ const Lightbox: React.FC<LightboxProps> = ({ imageUrl, onClose }) => {
       style={{ animationDuration: '0.2s' }}
     >
       <button
+        ref={closeButtonRef}
         onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors z-20"
         aria-label="Close lightbox"

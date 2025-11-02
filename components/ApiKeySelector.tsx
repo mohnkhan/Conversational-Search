@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { BotIcon, SparklesIcon } from './Icons';
 
 interface ApiKeySelectorProps {
@@ -6,6 +6,43 @@ interface ApiKeySelectorProps {
 }
 
 const ApiKeySelector: React.FC<ApiKeySelectorProps> = ({ onKeySelected }) => {
+    const modalRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const modalElement = modalRef.current;
+        if (!modalElement) return;
+
+        const focusableElements = modalElement.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+        
+        firstElement.focus();
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Tab') {
+                if (e.shiftKey) { // Shift + Tab
+                    if (document.activeElement === firstElement) {
+                        lastElement.focus();
+                        e.preventDefault();
+                    }
+                } else { // Tab
+                    if (document.activeElement === lastElement) {
+                        firstElement.focus();
+                        e.preventDefault();
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, []);
 
     const handleSelectKey = async () => {
         try {
@@ -21,13 +58,19 @@ const ApiKeySelector: React.FC<ApiKeySelectorProps> = ({ onKeySelected }) => {
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
-            <div className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md text-center p-8">
+            <div
+                ref={modalRef}
+                className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md text-center p-8"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="api-key-modal-title"
+            >
                 <div className="flex justify-center mb-4">
                     <div className="p-3 bg-cyan-500/20 rounded-full">
                         <BotIcon className="w-10 h-10 text-cyan-400" />
                     </div>
                 </div>
-                <h2 className="text-2xl font-bold text-white mb-2">API Key Required for Video</h2>
+                <h2 id="api-key-modal-title" className="text-2xl font-bold text-white mb-2">API Key Required for Video</h2>
                 <p className="text-gray-400 mb-6">
                     To use the video generation feature with the Veo model, you must select an API key from a project with billing enabled.
                 </p>
