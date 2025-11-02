@@ -3,7 +3,7 @@ import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, p
 import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -14,6 +14,7 @@ import ApiKeyManager from './components/ApiKeyManager';
 import CustomCssModal from './components/CustomCssModal';
 import ModelExplanationTooltip from './components/ModelExplanationTooltip';
 import TodoListModal from './components/TodoListModal';
+import AboutModal from './components/AboutModal';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -177,6 +178,7 @@ const App: React.FC = () => {
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
   const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, modelId: null });
   const [isTodoListModalOpen, setIsTodoListModalOpen] = useState<boolean>(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
@@ -808,6 +810,14 @@ const App: React.FC = () => {
               </button>
               {isThemeSelectorOpen && <ThemeSelector onClose={() => setIsThemeSelectorOpen(false)} />}
             </div>
+             <button
+                onClick={() => setIsAboutModalOpen(true)}
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                aria-label="About this application"
+                title="About"
+            >
+                <InfoIcon className="w-5 h-5" />
+            </button>
             <button
                 onClick={() => setShowShortcutsModal(true)}
                 className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
@@ -1027,6 +1037,10 @@ const App: React.FC = () => {
 
       {showShortcutsModal && (
         <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />
+      )}
+      
+      {isAboutModalOpen && (
+        <AboutModal onClose={() => setIsAboutModalOpen(false)} />
       )}
 
       {isApiKeyManagerOpen && (
