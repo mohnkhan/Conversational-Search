@@ -60,6 +60,14 @@ export const SparklesIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9L12 3z"/><path d="M5 8.5 3 10l1.5 1.5L3 13l2-1.5L6.5 13l-1.5-1.5L6.5 10 5 8.5z"/><path d="m19 8.5-2 1.5 1.5 1.5-1.5 1.5 2-1.5 1.5 1.5-1.5-1.5 1.5-1.5z"/></svg>
 );
 
+export const SparklesIconFilled = (props: React.SVGProps<SVGSVGElement>) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" {...props}>
+        <path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9L12 3z"/>
+        <path d="M5 8.5 3 10l1.5 1.5L3 13l2-1.5L6.5 13l-1.5-1.5L6.5 10 5 8.5z"/>
+        <path d="m19 8.5-2 1.5 1.5 1.5-1.5 1.5 2-1.5 1.5 1.5-1.5-1.5 1.5-1.5z"/>
+    </svg>
+);
+
 export const XIcon = (props: React.SVGProps<SVGSVGElement>) => (
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}><path d="M18 6 6 18M6 6l12 12"/></svg>
 );

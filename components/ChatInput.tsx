@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon } from './Icons';
+import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon, SparklesIconFilled } from './Icons';
 import { DateFilter, PredefinedDateFilter } from '../types';
 import FilterPanel from './FilterPanel';
 import CodeBlock from './CodeBlock'; // Import the shared CodeBlock component
@@ -421,11 +421,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
                         aria-pressed={isDeepResearch}
                         aria-label={isDeepResearch ? "Disable Deep Research mode" : "Enable Deep Research mode"}
                         title={isDeepResearch ? "Deep Research is active" : "Enable Deep Research for more comprehensive answers"}
-                        className={`p-2 rounded-md hover:bg-[var(--bg-tertiary)]/80 transition-colors duration-200 ${
-                            isDeepResearch ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'
+                        className={`p-2 rounded-md transition-all duration-200 ${
+                            isDeepResearch 
+                                ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/30' 
+                                : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80'
                         }`}
                     >
-                        <SparklesIcon className="w-5 h-5" />
+                        {isDeepResearch ? <SparklesIconFilled className="w-5 h-5" /> : <SparklesIcon className="w-5 h-5" />}
                     </button>
                     <button
                     ref={filterButtonRef}
