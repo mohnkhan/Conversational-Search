@@ -3,7 +3,7 @@ import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, p
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -365,6 +365,26 @@ const App: React.FC = () => {
     });
   };
 
+  const handleExportChat = useCallback(() => {
+    if (messages.length <= 1) return;
+  
+    try {
+      const chatData = JSON.stringify(messages, null, 2);
+      const blob = new Blob([chatData], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().replace(/:/g, '-').replace(/\..+/, '');
+      link.download = `gemini-chat-history-${timestamp}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Failed to export chat history:", error);
+    }
+  }, [messages]);
+
   const handleFeedback = (messageIndex: number, feedback: 'up' | 'down') => {
     setMessages(prevMessages => 
       prevMessages.map((msg, index) => {
@@ -441,6 +461,15 @@ const App: React.FC = () => {
                 title="Copy chat"
             >
                 {isAllCopied ? <CheckIcon className="w-5 h-5 text-green-400" /> : <ClipboardListIcon className="w-5 h-5" />}
+            </button>
+            <button
+                onClick={handleExportChat}
+                className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0 disabled:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                aria-label="Export chat as JSON"
+                title="Export chat (JSON)"
+                disabled={isLoading || isSummarizing || messages.length <= 1}
+            >
+                <DownloadIcon className="w-5 h-5" />
             </button>
             <button
               onClick={handleClearChat}
