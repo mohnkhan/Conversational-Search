@@ -3,7 +3,7 @@ import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, p
 import { ChatMessage as ChatMessageType, DateFilter, ModelId } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -12,6 +12,7 @@ import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import ModelSelector from './components/ModelSelector';
 import ApiKeyManager from './components/ApiKeyManager';
 import CustomCssModal from './components/CustomCssModal';
+import ModelExplanationTooltip from './components/ModelExplanationTooltip';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -46,6 +47,11 @@ const videoLoadingTexts = [
     "Applying special effects...",
     "Finalizing the cut...",
 ];
+
+interface ModelExplanationState {
+    isVisible: boolean;
+    modelId: ModelId | null;
+}
 
 interface PlaceholderLoaderProps {
     type: 'image' | 'video';
@@ -157,6 +163,7 @@ const App: React.FC = () => {
   const [isDeepResearch, setIsDeepResearch] = useState<boolean>(false);
   const [customCss, setCustomCss] = useState<string>('');
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
+  const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, modelId: null });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
@@ -166,6 +173,7 @@ const App: React.FC = () => {
   const apiKeyButtonRef = useRef<HTMLButtonElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+  const tooltipTimeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -656,6 +664,29 @@ const App: React.FC = () => {
     setIsCustomCssModalOpen(false);
   };
 
+  const handleSetModel = useCallback((newModel: ModelId) => {
+    if (model !== newModel) {
+        setModel(newModel);
+
+        if (tooltipTimeoutRef.current) {
+            clearTimeout(tooltipTimeoutRef.current);
+        }
+
+        setModelExplanation({ isVisible: true, modelId: newModel });
+
+        tooltipTimeoutRef.current = window.setTimeout(() => {
+            setModelExplanation({ isVisible: false, modelId: newModel });
+        }, 5000);
+    }
+  }, [model]);
+
+  const closeModelExplanation = () => {
+     if (tooltipTimeoutRef.current) {
+        clearTimeout(tooltipTimeoutRef.current);
+    }
+    setModelExplanation(prev => ({ ...prev, isVisible: false }));
+  };
+
 
   return (
     <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
@@ -685,7 +716,7 @@ const App: React.FC = () => {
               {isModelSelectorOpen && (
                   <ModelSelector
                       currentModel={model}
-                      onSetModel={setModel}
+                      onSetModel={handleSetModel}
                       onClose={() => setIsModelSelectorOpen(false)}
                   />
               )}
@@ -955,6 +986,12 @@ const App: React.FC = () => {
             onClose={() => setIsCustomCssModalOpen(false)}
         />
       )}
+
+      <ModelExplanationTooltip
+          modelId={modelExplanation.modelId}
+          isVisible={modelExplanation.isVisible}
+          onClose={closeModelExplanation}
+      />
     </div>
   );
 };
