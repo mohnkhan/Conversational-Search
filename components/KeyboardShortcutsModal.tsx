@@ -94,6 +94,7 @@ const KeyboardShortcutsModal: React.FC<KeyboardShortcutsModalProps> = ({ onClose
                         onClick={onClose}
                         className="p-1.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                         aria-label="Close shortcuts"
+                        title="Close"
                     >
                         <XIcon className="w-5 h-5" />
                     </button>

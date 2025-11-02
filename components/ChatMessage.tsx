@@ -252,6 +252,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                             <button
                                 onClick={() => onRetry(message.originalText!)}
                                 className="mt-3 flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-red-600/80 hover:bg-red-500/80 transition-colors"
+                                title="Retry failed prompt"
                             >
                                 <RefreshCwIcon className="w-4 h-4" />
                                 <span>Retry</span>

@@ -87,6 +87,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
                         onClick={onClose}
                         className="p-1.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                         aria-label="Close API Key Manager"
+                        title="Close"
                     >
                         <XIcon className="w-5 h-5" />
                     </button>
@@ -110,6 +111,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
                         disabled={!isKeySelected}
                         className="px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                         aria-label="Clear selected API key"
+                        title="Clear selected API key"
                     >
                         <TrashIcon className="w-4 h-4" />
                         <span>Clear Key</span>
@@ -125,6 +127,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
                             onClick={onChangeKey}
                             className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[var(--accent-primary)] hover:opacity-90 transition-all flex items-center space-x-2"
                             aria-label="Change selected API key"
+                            title="Change selected API key"
                         >
                             <RefreshCwIcon className="w-4 h-4" />
                             <span>Change Key</span>

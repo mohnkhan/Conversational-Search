@@ -1,17 +1,18 @@
 // aistudio.d.ts
 // To augment the global 'Window' type.
 
-interface AIStudio {
-    hasSelectedApiKey(): Promise<boolean>;
-    openSelectKey(): Promise<void>;
-    clearSelectedApiKey?(): Promise<void>;
-}
-
-// FIX: All declarations of 'aistudio' must have identical modifiers.
-// Use `declare global` to correctly augment the `Window` interface. This ensures
-// that we're merging with the global Window type, which is necessary when the
-// file is treated as a module. Without this, a local `Window` interface is created.
+// FIX: Moved the AIStudio interface inside the `declare global` block.
+// By defining the interface within the global scope, we ensure that we are augmenting
+// the global `Window` type without creating module-scoped type conflicts. This resolves
+// errors about 'identical modifiers' and also makes the `clearSelectedApiKey` property
+// correctly available on `window.aistudio` throughout the application.
 declare global {
+    interface AIStudio {
+        hasSelectedApiKey(): Promise<boolean>;
+        openSelectKey(): Promise<void>;
+        clearSelectedApiKey?(): Promise<void>;
+    }
+
     interface Window {
         aistudio: AIStudio;
     }

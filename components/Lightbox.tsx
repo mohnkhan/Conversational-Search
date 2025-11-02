@@ -48,6 +48,7 @@ const Lightbox: React.FC<LightboxProps> = ({ imageUrl, onClose }) => {
         onClick={onClose}
         className="absolute top-4 right-4 p-2 rounded-full bg-[var(--bg-secondary)]/40 text-white hover:bg-[var(--bg-secondary)]/60 transition-colors z-20"
         aria-label="Close lightbox"
+        title="Close (Esc)"
       >
         <XIcon className="w-6 h-6" />
       </button>
