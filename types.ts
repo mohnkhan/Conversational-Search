@@ -14,4 +14,11 @@ export interface ChatMessage {
   imageUrl?: string;
 }
 
-export type DateFilter = 'any' | 'day' | 'week' | 'month' | 'year';
+export type PredefinedDateFilter = 'any' | 'day' | 'week' | 'month' | 'year';
+
+export interface CustomDateFilter {
+  startDate: string | null;
+  endDate: string | null;
+}
+
+export type DateFilter = PredefinedDateFilter | CustomDateFilter;

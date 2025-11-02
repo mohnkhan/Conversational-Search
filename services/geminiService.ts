@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source, DateFilter } from '../types';
+import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set.");
@@ -45,14 +45,30 @@ export function parseGeminiError(error: unknown): string {
 }
 
 const getDateFilterPrefix = (filter: DateFilter): string => {
-    switch (filter) {
-        case 'day': return 'Search for information from the past 24 hours. ';
-        case 'week': return 'Search for information from the past week. ';
-        case 'month': return 'Search for information from the past month. ';
-        case 'year': return 'Search for information from the past year. ';
-        case 'any':
-        default:
-            return '';
+    if (typeof filter === 'string') {
+        const predefinedFilter = filter as PredefinedDateFilter;
+        switch (predefinedFilter) {
+            case 'day': return 'Search for information from the past 24 hours. ';
+            case 'week': return 'Search for information from the past week. ';
+            case 'month': return 'Search for information from the past month. ';
+            case 'year': return 'Search for information from the past year. ';
+            case 'any':
+            default:
+                return '';
+        }
+    } else {
+        const customFilter = filter as CustomDateFilter;
+        const { startDate, endDate } = customFilter;
+        if (startDate && endDate) {
+            return `Search for information between ${startDate} and ${endDate}. `;
+        }
+        if (startDate) {
+            return `Search for information after ${startDate}. `;
+        }
+        if (endDate) {
+            return `Search for information before ${endDate}. `;
+        }
+        return '';
     }
 }
 

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SendIcon, FilterIcon } from './Icons';
-import { DateFilter } from '../types';
+import { SendIcon, FilterIcon, XIcon } from './Icons';
+import { DateFilter, PredefinedDateFilter } from '../types';
+import FilterPanel from './FilterPanel';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -13,13 +14,25 @@ interface ChatInputProps {
   placeholder?: string;
 }
 
-const filterOptions: { key: DateFilter, label: string }[] = [
+const filterOptions: { key: PredefinedDateFilter, label: string }[] = [
     { key: 'any', label: 'Any time' },
     { key: 'day', label: 'Past 24 hours' },
     { key: 'week', label: 'Past week' },
     { key: 'month', label: 'Past month' },
     { key: 'year', label: 'Past year' },
 ];
+
+const formatFilterLabel = (filter: DateFilter): string => {
+  if (typeof filter === 'string') {
+    const option = filterOptions.find(opt => opt.key === filter);
+    return option?.label || 'Any time';
+  }
+  const { startDate, endDate } = filter;
+  if (startDate && endDate) return `${startDate} to ${endDate}`;
+  if (startDate) return `From ${startDate}`;
+  if (endDate) return `To ${endDate}`;
+  return 'Custom range';
+};
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
     onSendMessage, 
@@ -60,11 +73,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
-  const handleFilterSelect = (filter: DateFilter) => {
-    onFilterChange(filter);
-    onCloseFilterMenu();
-  };
-
   // Effect to close filter menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -86,69 +94,80 @@ const ChatInput: React.FC<ChatInputProps> = ({
     };
   }, [isFilterMenuOpen, onCloseFilterMenu]);
 
+  const isFilterActive = !(typeof activeFilter === 'string' && activeFilter === 'any');
+
   return (
     <div className="relative">
       {isFilterMenuOpen && (
-        <div 
-          ref={filterMenuRef}
-          className="absolute bottom-full mb-2 w-full sm:w-auto left-0 sm:left-auto sm:right-16 bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-2 z-10 animate-fade-in"
-          style={{ animationDuration: '0.2s' }}
-        >
-          <p className="text-xs font-semibold text-gray-400 px-2 pb-1.5 pt-1">Filter by date</p>
-          <div className="flex flex-col space-y-1">
-            {filterOptions.map(option => (
-              <button
-                key={option.key}
-                onClick={() => handleFilterSelect(option.key)}
-                className={`w-full text-left text-sm px-3 py-1.5 rounded-md transition-colors ${
-                  activeFilter === option.key 
-                    ? 'bg-cyan-600 text-white' 
-                    : 'text-gray-300 hover:bg-gray-700'
-                }`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
+        <div ref={filterMenuRef}>
+            <FilterPanel 
+                activeFilter={activeFilter}
+                onApplyFilter={(newFilter) => {
+                    onFilterChange(newFilter);
+                    onCloseFilterMenu();
+                }}
+                onClose={onCloseFilterMenu}
+            />
         </div>
       )}
-      <form onSubmit={handleSubmit} className="flex items-start space-x-2 sm:space-x-3 bg-gray-800 border border-gray-700 rounded-lg p-2 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200">
-        <textarea
-          ref={textareaRef}
-          rows={1}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder || "Ask me anything..."}
-          className="flex-1 bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-2 text-sm sm:text-base resize-none overflow-y-hidden"
-          disabled={isLoading}
-          style={{ maxHeight: '120px' }}
-        />
-        <div className="flex flex-col self-end h-full justify-end">
-            <button
-            type="button"
-            onClick={onToggleFilterMenu}
-            aria-expanded={isFilterMenuOpen}
-            aria-controls="filter-menu"
-            aria-label="Open search filters (F)"
-            title="Open search filters (F)"
-            className={`p-2 rounded-md hover:bg-gray-700/80 transition-colors duration-200 ${
-                activeFilter !== 'any' ? 'text-cyan-400' : 'text-gray-400'
-            }`}
+      <form onSubmit={handleSubmit}>
+        {isFilterActive && (
+          <div className="flex items-center space-x-2 text-xs bg-gray-800 border-x border-t border-gray-700 px-3 py-1.5 rounded-t-lg w-full">
+            <FilterIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+            <span className="text-gray-300 font-medium truncate" title={formatFilterLabel(activeFilter)}>
+              {formatFilterLabel(activeFilter)}
+            </span>
+            <button 
+              type="button" 
+              onClick={() => onFilterChange('any')} 
+              className="ml-auto text-gray-500 hover:text-white"
+              aria-label="Clear filter"
+              title="Clear filter"
             >
-            <FilterIcon className="w-5 h-5" />
+              <XIcon className="w-4 h-4" />
             </button>
-        </div>
-        <div className="flex flex-col self-end h-full justify-end">
-            <button
-            type="submit"
-            disabled={isLoading || !text.trim()}
-            className="p-2 rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
-            aria-label="Send message (Enter)"
-            title="Send message (Enter)"
-            >
-            <SendIcon className="w-5 h-5" />
-            </button>
+          </div>
+        )}
+        <div className={`flex items-start space-x-2 sm:space-x-3 bg-gray-800 border border-gray-700 p-2 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200 ${
+          isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
+        }`}>
+            <textarea
+            ref={textareaRef}
+            rows={1}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={placeholder || "Ask me anything..."}
+            className="flex-1 bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-2 text-sm sm:text-base resize-none overflow-y-hidden"
+            disabled={isLoading}
+            style={{ maxHeight: '120px' }}
+            />
+            <div className="flex flex-col self-end h-full justify-end">
+                <button
+                type="button"
+                onClick={onToggleFilterMenu}
+                aria-expanded={isFilterMenuOpen}
+                aria-controls="filter-menu"
+                aria-label="Open search filters (F)"
+                title="Open search filters (F)"
+                className={`p-2 rounded-md hover:bg-gray-700/80 transition-colors duration-200 ${
+                    isFilterActive ? 'text-cyan-400' : 'text-gray-400'
+                }`}
+                >
+                <FilterIcon className="w-5 h-5" />
+                </button>
+            </div>
+            <div className="flex flex-col self-end h-full justify-end">
+                <button
+                type="submit"
+                disabled={isLoading || !text.trim()}
+                className="p-2 rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                aria-label="Send message (Enter)"
+                title="Send message (Enter)"
+                >
+                <SendIcon className="w-5 h-5" />
+                </button>
+            </div>
         </div>
       </form>
     </div>
