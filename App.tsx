@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError } from './services/geminiService';
+import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -43,6 +43,7 @@ const App: React.FC = () => {
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isAllCopied, setIsAllCopied] = useState<boolean>(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
+  const [relatedTopics, setRelatedTopics] = useState<string[]>([]);
   const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
@@ -57,7 +58,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, isThinking, suggestedPrompts]);
+  }, [messages, isLoading, isThinking, suggestedPrompts, relatedTopics]);
 
   // Save chat history to localStorage whenever messages change
   useEffect(() => {
@@ -77,6 +78,7 @@ const App: React.FC = () => {
   const handleClearChat = useCallback(() => {
     setMessages(initialMessages);
     setSuggestedPrompts([]);
+    setRelatedTopics([]);
     try {
       localStorage.removeItem(CHAT_HISTORY_KEY);
     } catch (error) {
@@ -116,6 +118,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setIsThinking(true);
     setSuggestedPrompts([]); // Clear previous suggestions
+    setRelatedTopics([]); // Clear previous topics
     setIsFilterMenuOpen(false); // Close filter menu on send
   
     let firstChunkReceived = false;
@@ -156,15 +159,27 @@ const App: React.FC = () => {
         return prevMessages;
       });
 
-      // Now, get suggested prompts if we have a response
+      // Now, get suggested prompts and topics if we have a response
       if (finalModelResponseText.trim()) {
-        try {
-            const suggestions = await getSuggestedPrompts(inputText, finalModelResponseText);
-            setSuggestedPrompts(suggestions);
-        } catch (suggestionError) {
-            console.error("Failed to fetch suggested prompts:", suggestionError);
-            // Silently fail, don't show an error to the user for this.
-        }
+        // Fetch suggestions and topics in parallel for performance
+        await Promise.all([
+          (async () => {
+            try {
+              const suggestions = await getSuggestedPrompts(inputText, finalModelResponseText);
+              setSuggestedPrompts(suggestions);
+            } catch (suggestionError) {
+              console.error("Failed to fetch suggested prompts:", suggestionError);
+            }
+          })(),
+          (async () => {
+            try {
+              const topics = await getRelatedTopics(inputText, finalModelResponseText);
+              setRelatedTopics(topics);
+            } catch (topicError) {
+              console.error("Failed to fetch related topics:", topicError);
+            }
+          })()
+        ]);
       }
   
     } catch (error) {
@@ -316,22 +331,40 @@ const App: React.FC = () => {
                     </div>
                 </div>
              )}
-            {suggestedPrompts.length > 0 && !isLoading && (
-              <div className="pl-12 animate-fade-in mt-4">
-                <p className="text-sm font-semibold text-gray-400 mb-2">
-                    Next questions
-                </p>
-                <div className="flex flex-wrap gap-2 sm:gap-3">
-                  {suggestedPrompts.map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSendMessage(prompt)}
-                      className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
+            {(suggestedPrompts.length > 0 || relatedTopics.length > 0) && !isLoading && (
+              <div className="pl-12 animate-fade-in mt-4 space-y-5">
+                {suggestedPrompts.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold text-gray-400 mb-2">Next questions</p>
+                    <div className="flex flex-wrap gap-2 sm:gap-3">
+                      {suggestedPrompts.map((prompt, index) => (
+                        <button
+                          key={`suggestion-${index}`}
+                          onClick={() => handleSendMessage(prompt)}
+                          className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                        >
+                          {prompt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                 {relatedTopics.length > 0 && (
+                    <div>
+                        <p className="text-sm font-semibold text-gray-400 mb-2">Explore related</p>
+                        <div className="flex flex-wrap gap-2 sm:gap-3">
+                            {relatedTopics.map((topic, index) => (
+                                <button
+                                    key={`topic-${index}`}
+                                    onClick={() => handleSendMessage(topic)}
+                                    className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                                >
+                                    {topic}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
               </div>
             )}
              {messages.length === 1 && !isLoading && suggestedPrompts.length === 0 && (

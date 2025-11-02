@@ -156,6 +156,56 @@ Return the questions as a JSON object with a single key "questions" which is an 
     }
 }
 
+export async function getRelatedTopics(
+    prompt: string,
+    response: string
+): Promise<string[]> {
+    try {
+        const fullPrompt = `Based on the following user query and model response, generate 3-4 broader, related topics for exploration. These should be distinct from simple follow-up questions.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return the topics as a JSON object with a single key "topics" which is an array of strings.`;
+
+        const result = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: fullPrompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        topics: {
+                            type: Type.ARRAY,
+                            description: 'A list of 3-4 broader, related topics for exploration.',
+                            items: {
+                                type: Type.STRING,
+                            },
+                        },
+                    },
+                    required: ['topics'],
+                },
+            },
+        });
+
+        const jsonString = result.text;
+        const parsed = JSON.parse(jsonString);
+
+        if (parsed && Array.isArray(parsed.topics)) {
+            return parsed.topics.slice(0, 4); // Ensure max 4 topics
+        }
+
+        return [];
+    } catch (error) {
+        console.error("Error generating related topics:", error);
+        // Fail silently and return an empty array
+        return [];
+    }
+}
+
+
 export async function getConversationSummary(
     messages: ChatMessage[]
 ): Promise<string> {
