@@ -19,7 +19,6 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({ onClose }) => {
         <div 
             className="absolute top-full mt-2 right-0 w-48 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl z-30 animate-fade-in"
             style={{ animationDuration: '0.2s' }}
-            // Stop mousedown propagation to prevent the 'click outside' handler in App.tsx from closing the menu before a theme is selected.
             onMouseDown={(e) => e.stopPropagation()}
         >
             <div className="p-2">
