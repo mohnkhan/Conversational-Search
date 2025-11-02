@@ -9,42 +9,67 @@ if (process.env.API_KEY) {
     console.warn("API_KEY environment variable not set for standard models.");
 }
 
+/**
+ * A structured error object for better handling in the UI.
+ */
+export interface ParsedError {
+    type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'generic' | 'unknown';
+    message: string;
+}
 
 /**
- * Translates a raw API error into a user-friendly and actionable message.
+ * Translates a raw API error into a structured, user-friendly object.
  * @param error The unknown error object caught from an API call.
- * @returns A string containing a user-friendly error message.
+ * @returns A ParsedError object containing an error type and a user-friendly message.
  */
-export function parseGeminiError(error: unknown): string {
+export function parseGeminiError(error: unknown): ParsedError {
     if (error instanceof Error) {
         const message = error.message.toLowerCase();
 
         // API Key issues
         if (message.includes('api key not valid') || message.includes('api_key') || message.includes('requested entity was not found')) {
-            return "There's an issue with the API key configuration. Please ensure it's set up correctly. If the problem persists, contact support.";
+            return {
+                type: 'api_key',
+                message: "There's an issue with your API key. Please ensure it is valid and has billing enabled for features like video generation. You may need to select a new key."
+            };
         }
 
         // Rate limiting
         if (message.includes('429') || message.includes('rate limit')) {
-            return "The service is currently experiencing high traffic. Please wait a moment and try your request again.";
+            return {
+                type: 'rate_limit',
+                message: "The service is currently experiencing high traffic. Please wait a moment and try your request again."
+            };
         }
         
         // Safety settings
         if (message.includes('safety') || message.includes('blocked')) {
-            return "Your prompt or the model's response was blocked due to safety filters. Please try rephrasing your request.";
+            return {
+                type: 'safety',
+                message: "Your prompt or the model's response was blocked due to safety filters. Please try rephrasing your request."
+            };
         }
 
         // Billing issues
         if (message.includes('billing')) {
-            return "There seems to be a billing issue with the project. Please check the associated billing account. If the problem persists, contact support.";
+            return {
+                type: 'billing',
+                message: "There seems to be a billing issue with the project. Please check the associated billing account to ensure it's active."
+            };
         }
 
         // Generic but slightly more helpful
-        return `An unexpected error occurred: ${error.message}. Please try again.`;
+        return { 
+            type: 'generic',
+            message: `An unexpected error occurred: ${error.message}. Please try again.`
+        };
     }
 
     // Fallback for non-Error objects
-    return 'An unknown error occurred. Please check your connection and try again.';
+    return {
+        type: 'unknown',
+        message: 'An unknown error occurred. Please check your connection and try again.'
+    };
 }
 
 const getDateFilterPrefix = (filter: DateFilter): string => {

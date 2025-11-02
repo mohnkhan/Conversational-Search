@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
+import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo, ParsedError } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -308,16 +308,17 @@ const App: React.FC = () => {
         }
     } catch (error) {
         console.error("Failed to get Gemini response:", error);
-        const errorText = parseGeminiError(error);
+        const parsedError = parseGeminiError(error);
         
         // If the error indicates a problem with the API key, reset the selection state
-        if (errorText.toLowerCase().includes('api key')) {
+        // to prompt the user to select a new one.
+        if (parsedError.type === 'api_key') {
             setIsKeySelected(false);
         }
 
         const errorMessage: ChatMessageType = {
             role: 'model',
-            text: errorText,
+            text: parsedError.message,
             sources: [],
             isError: true,
         };
@@ -392,7 +393,7 @@ const App: React.FC = () => {
         setSummaryText(summary);
     } catch (error) {
         console.error("Failed to get summary:", error);
-        const errorText = parseGeminiError(error);
+        const errorText = parseGeminiError(error).message;
         setSummaryText(errorText);
     } finally {
         setIsSummarizing(false);
