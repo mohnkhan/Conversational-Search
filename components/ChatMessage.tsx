@@ -137,6 +137,17 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         >
           {isCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
         </button>
+        {message.imageUrl && (
+            <a
+                href={message.imageUrl}
+                download={`gemini-generated-image.png`}
+                className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
+                aria-label="Download image"
+                title="Download image"
+            >
+                <DownloadIcon className="w-4 h-4" />
+            </a>
+        )}
     </>
   );
 
