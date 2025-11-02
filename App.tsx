@@ -159,6 +159,8 @@ const App: React.FC = () => {
   const themeButtonRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
   const apiKeyButtonRef = useRef<HTMLButtonElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -172,8 +174,20 @@ const App: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleScroll = () => {
+    const scrollContainer = scrollContainerRef.current;
+    if (scrollContainer) {
+        const threshold = 100; // pixels
+        const { scrollTop, scrollHeight, clientHeight } = scrollContainer;
+        isAtBottomRef.current = scrollHeight - clientHeight <= scrollTop + threshold;
+    }
+  };
+
+  // Auto-scroll logic: only scroll to the bottom if the user is already near the bottom.
   useEffect(() => {
-    scrollToBottom();
+    if (isAtBottomRef.current) {
+      scrollToBottom();
+    }
   }, [messages, isLoading, suggestedPrompts, relatedTopics, isGeneratingImage, isGeneratingVideo]);
 
   useEffect(() => {
@@ -687,7 +701,11 @@ const App: React.FC = () => {
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto p-2 py-4 sm:p-4 md:p-6 space-y-6">
+      <main
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto p-2 py-4 sm:p-4 md:p-6 space-y-6"
+      >
         <div className="max-w-4xl mx-auto w-full">
             {messages.map((msg, index) => (
                 <ErrorBoundary key={index}>
