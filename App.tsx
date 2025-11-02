@@ -19,8 +19,26 @@ const examplePrompts = [
     "Who won the last Super Bowl?",
 ];
 
+const CHAT_HISTORY_KEY = 'chatHistory';
+
 const App: React.FC = () => {
-  const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
+  const [messages, setMessages] = useState<ChatMessageType[]>(() => {
+    try {
+      const savedMessages = localStorage.getItem(CHAT_HISTORY_KEY);
+      if (savedMessages) {
+        const parsedMessages = JSON.parse(savedMessages);
+        if (Array.isArray(parsedMessages) && parsedMessages.length > 0) {
+          return parsedMessages;
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load chat history from localStorage:", error);
+      // If loading fails, clear corrupted data
+      localStorage.removeItem(CHAT_HISTORY_KEY);
+    }
+    return initialMessages;
+  });
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isAllCopied, setIsAllCopied] = useState<boolean>(false);
@@ -41,9 +59,29 @@ const App: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading, isThinking, suggestedPrompts]);
 
+  // Save chat history to localStorage whenever messages change
+  useEffect(() => {
+    try {
+      // Don't save the default initial message by itself
+      if (messages.length > 1 || (messages.length === 1 && messages[0].text !== initialMessages[0].text)) {
+        localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
+      } else {
+        localStorage.removeItem(CHAT_HISTORY_KEY);
+      }
+    } catch (error) {
+      console.error("Failed to save chat history to localStorage:", error);
+    }
+  }, [messages]);
+
+
   const handleClearChat = useCallback(() => {
     setMessages(initialMessages);
     setSuggestedPrompts([]);
+    try {
+      localStorage.removeItem(CHAT_HISTORY_KEY);
+    } catch (error) {
+      console.error("Failed to clear chat history from localStorage:", error);
+    }
   }, []);
 
   useEffect(() => {
