@@ -328,18 +328,29 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                 )}
                 </div>
                 
-                {isModel && !message.isError && (
-                    <div className="mt-3 flex items-center space-x-1 md:absolute md:top-0 md:right-0 md:mt-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                        {renderActionButtons()}
-                    </div>
-                )}
-
                 {isModel && !message.isError && message.sources && message.sources.length > 0 && (
                 <div className="mt-4 border-t border-[var(--border-color)] pt-3">
                     <Sources sources={message.sources} />
                 </div>
                 )}
             </>
+        )}
+        
+        {message.text && !message.isError && (
+            <div className="flex items-center space-x-1 md:absolute md:top-0 md:right-0 md:mt-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+                {isModel ? (
+                    renderActionButtons()
+                ) : (
+                    <button
+                        onClick={handleCopy}
+                        className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                        aria-label="Copy message"
+                        title="Copy message"
+                    >
+                        {isCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
+                    </button>
+                )}
+            </div>
         )}
       </div>
     </div>
