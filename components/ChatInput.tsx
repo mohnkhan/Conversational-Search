@@ -1,6 +1,6 @@
 // FIX: Added 'useCallback' to the import from 'react' to resolve the 'Cannot find name' error.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon } from './Icons';
+import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon } from './Icons';
 import { DateFilter, PredefinedDateFilter } from '../types';
 import FilterPanel from './FilterPanel';
 
@@ -51,6 +51,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
 }) => {
   const [text, setText] = useState('');
   const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -107,6 +109,71 @@ const ChatInput: React.FC<ChatInputProps> = ({
         end: selectedText ? end + prefix.length : start + prefix.length,
     });
   };
+
+  const handleVoiceInputClick = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    let currentTranscript = text;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+      if (currentTranscript && !currentTranscript.endsWith(' ')) {
+        currentTranscript += ' ';
+      }
+    };
+
+    recognition.onresult = (event) => {
+      let interimTranscript = '';
+      let finalTranscriptPiece = '';
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const transcriptPart = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscriptPiece += transcriptPart;
+        } else {
+          interimTranscript += transcriptPart;
+        }
+      }
+
+      if (finalTranscriptPiece) {
+        currentTranscript += finalTranscriptPiece;
+      }
+      
+      setText(currentTranscript + interimTranscript);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      textareaRef.current?.focus();
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech Recognition Error:', event.error);
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        alert("Microphone access is required for voice input. Please enable it in your browser settings.");
+      }
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognition.start();
+  };
+
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -225,7 +292,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 disabled={isLoading}
                 style={{ minHeight: '5rem', maxHeight: '40vh' }}
             />
-            <div className="flex items-center justify-end px-2 pb-2">
+            <div className="flex items-center justify-between px-2 pb-2">
+                 <div></div> {/* Spacer */}
                 <div className="flex items-center space-x-1">
                     <button
                         type="button"
@@ -252,6 +320,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     }`}
                     >
                     <FilterIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleVoiceInputClick}
+                        disabled={isLoading}
+                        aria-label={isListening ? "Stop dictation" : "Start dictation"}
+                        title={isListening ? "Stop dictation" : "Start dictation"}
+                        className={`p-2 rounded-md hover:bg-[var(--bg-tertiary)]/80 transition-colors duration-200 ${
+                            isListening
+                                ? 'text-[var(--accent-danger)] animate-pulse-icon'
+                                : 'text-[var(--text-muted)]'
+                        }`}
+                    >
+                        <MicrophoneIcon className="w-5 h-5" />
                     </button>
                     <button
                     type="submit"
