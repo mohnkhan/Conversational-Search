@@ -912,7 +912,10 @@ const App: React.FC = () => {
                 )}
                  {relatedTopics.length > 0 && (
                     <div>
-                        <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-2">Explore related</h2>
+                        <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-3 flex items-center space-x-2">
+                            <LightbulbIcon className="w-4 h-4" />
+                            <span>Explore related</span>
+                        </h2>
                         <div className="flex flex-wrap gap-2 sm:gap-3">
                             {relatedTopics.map((topic, index) => (
                                 <button
