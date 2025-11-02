@@ -10,6 +10,48 @@ interface ChatMessageProps {
   onFeedback: (index: number, feedback: 'up' | 'down') => void;
 }
 
+const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props }) => {
+  const [isCodeCopied, setIsCodeCopied] = useState(false);
+  const match = /language-(\w+)/.exec(className || '');
+  const language = match ? match[1] : 'text';
+  const codeText = String(children).replace(/\n$/, '');
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(codeText).then(() => {
+      setIsCodeCopied(true);
+      setTimeout(() => setIsCodeCopied(false), 2000);
+    }).catch(err => {
+      console.error("Failed to copy code:", err);
+    });
+  };
+
+  if (!inline && match) {
+    return (
+      <div className="bg-gray-900/70 rounded-lg my-4 border border-gray-700 overflow-hidden not-prose">
+        <div className="flex items-center justify-between bg-gray-800/80 px-4 py-2 text-xs text-gray-400">
+          <span>{language}</span>
+          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-white transition-colors text-xs">
+            {isCodeCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
+            <span>{isCodeCopied ? 'Copied!' : 'Copy code'}</span>
+          </button>
+        </div>
+        <pre className="p-4 text-sm overflow-x-auto font-mono">
+          <code className={className} {...props}>
+            {children}
+          </code>
+        </pre>
+      </div>
+    );
+  }
+  
+  return (
+    <code className="bg-gray-700/50 text-cyan-300 rounded-sm px-1.5 py-0.5 font-mono text-sm mx-0.5 not-prose" {...props}>
+      {children}
+    </code>
+  );
+};
+
+
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback }) => {
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
@@ -113,6 +155,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             <ReactMarkdown
               components={{
                 a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                code: CodeBlock,
               }}
             >
               {message.text}
