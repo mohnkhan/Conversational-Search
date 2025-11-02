@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Source } from '../types';
 
 if (!process.env.API_KEY) {
@@ -54,5 +54,55 @@ export async function getGeminiResponseStream(
         }
         // Fallback for non-Error objects
         throw new Error("An unknown error occurred while fetching the response.");
+    }
+}
+
+
+export async function getSuggestedPrompts(
+    prompt: string,
+    response: string
+): Promise<string[]> {
+    try {
+        const fullPrompt = `Based on this user query and model response, generate 3 concise and relevant follow-up questions a user might ask.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return the questions as a JSON object with a single key "questions" which is an array of strings.`;
+
+        const result = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: fullPrompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        questions: {
+                            type: Type.ARRAY,
+                            description: 'A list of 3 suggested follow-up questions.',
+                            items: {
+                                type: Type.STRING,
+                            },
+                        },
+                    },
+                    required: ['questions'],
+                },
+            },
+        });
+
+        const jsonString = result.text;
+        const parsed = JSON.parse(jsonString);
+
+        if (parsed && Array.isArray(parsed.questions)) {
+            return parsed.questions.slice(0, 3); // Ensure max 3 questions
+        }
+
+        return [];
+    } catch (error) {
+        console.error("Error generating suggested prompts:", error);
+        // Fail silently and return an empty array
+        return [];
     }
 }

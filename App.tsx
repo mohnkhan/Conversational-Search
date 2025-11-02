@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream } from './services/geminiService';
+import { getGeminiResponseStream, getSuggestedPrompts } from './services/geminiService';
 import { ChatMessage as ChatMessageType, Source } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -31,7 +32,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, isThinking]);
+  }, [messages, isLoading, isThinking, suggestedPrompts]);
 
   const handleSendMessage = useCallback(async (inputText: string) => {
     if (!inputText.trim() || isLoading) return;
@@ -40,6 +41,7 @@ const App: React.FC = () => {
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsLoading(true);
     setIsThinking(true);
+    setSuggestedPrompts([]); // Clear previous suggestions
   
     let firstChunkReceived = false;
   
@@ -66,15 +68,28 @@ const App: React.FC = () => {
         }
       );
   
+      let finalModelResponseText = '';
       // After the stream, update the last message with the final sources
       setMessages(prevMessages => {
         const lastMessage = prevMessages[prevMessages.length - 1];
         if (lastMessage?.role === 'model') {
+            finalModelResponseText = lastMessage.text; // Get the full text
             const updatedLastMessage = { ...lastMessage, sources: sources };
             return [...prevMessages.slice(0, -1), updatedLastMessage];
         }
         return prevMessages;
       });
+
+      // Now, get suggested prompts if we have a response
+      if (finalModelResponseText.trim()) {
+        try {
+            const suggestions = await getSuggestedPrompts(inputText, finalModelResponseText);
+            setSuggestedPrompts(suggestions);
+        } catch (suggestionError) {
+            console.error("Failed to fetch suggested prompts:", suggestionError);
+            // Silently fail, don't show an error to the user for this.
+        }
+      }
   
     } catch (error) {
       console.error("Failed to get Gemini response:", error);
@@ -85,7 +100,16 @@ const App: React.FC = () => {
         sources: [],
         isError: true,
       };
-      setMessages(prevMessages => [...prevMessages, errorMessage]);
+      
+      setMessages(prev => {
+        // If the last message is from the user, the model message hasn't been created yet.
+        if (prev[prev.length - 1].role === 'user') {
+            return [...prev, errorMessage];
+        }
+        // Otherwise, the last message is the partial model response, so replace it.
+        return [...prev.slice(0, -1), errorMessage];
+      });
+
     } finally {
       setIsLoading(false);
       setIsThinking(false);
@@ -94,6 +118,7 @@ const App: React.FC = () => {
 
   const handleClearChat = () => {
     setMessages(initialMessages);
+    setSuggestedPrompts([]);
   };
 
   return (
@@ -134,7 +159,25 @@ const App: React.FC = () => {
                     </div>
                 </div>
              )}
-             {messages.length === 1 && !isLoading && (
+            {suggestedPrompts.length > 0 && !isLoading && (
+              <div className="pl-12 animate-fade-in mt-4">
+                <p className="text-sm font-semibold text-gray-400 mb-2">
+                    Next questions
+                </p>
+                <div className="flex flex-wrap gap-2 sm:gap-3">
+                  {suggestedPrompts.map((prompt, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSendMessage(prompt)}
+                      className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+             {messages.length === 1 && !isLoading && suggestedPrompts.length === 0 && (
               <div className="pl-12 animate-fade-in -mt-2">
                 <div className="flex flex-wrap gap-2 sm:gap-3">
                   {examplePrompts.map((prompt, index) => (
