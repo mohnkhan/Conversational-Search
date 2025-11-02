@@ -30,10 +30,10 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
 
   if (!inline && match) {
     return (
-      <div className="bg-gray-900/70 rounded-lg my-4 border border-gray-700 overflow-hidden not-prose">
-        <div className="flex items-center justify-between bg-gray-800/80 px-4 py-2 text-xs text-gray-400">
+      <div className="bg-[var(--bg-primary)] rounded-lg my-4 border border-[var(--border-color)] overflow-hidden not-prose">
+        <div className="flex items-center justify-between bg-[var(--bg-secondary)]/80 px-4 py-2 text-xs text-[var(--text-muted)]">
           <span>{language}</span>
-          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-white transition-colors text-xs">
+          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-[var(--text-primary)] transition-colors text-xs">
             {isCodeCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
             <span>{isCodeCopied ? 'Copied!' : 'Copy code'}</span>
           </button>
@@ -48,7 +48,7 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
   }
   
   return (
-    <code className="bg-gray-700/50 text-cyan-300 rounded-sm px-1.5 py-0.5 font-mono text-sm mx-0.5 not-prose" {...props}>
+    <code className="text-[var(--accent-secondary)] font-mono text-sm mx-0.5 not-prose" {...props}>
       {children}
     </code>
   );
@@ -84,15 +84,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
   const getIcon = () => {
     if (isModel) {
         return message.isError 
-            ? <ErrorIcon className="w-5 h-5 text-red-400" /> 
-            : <BotIcon className="w-5 h-5 text-cyan-400" />;
+            ? <ErrorIcon className="w-5 h-5 text-[var(--accent-danger)]" /> 
+            : <BotIcon className="w-5 h-5 text-[var(--accent-primary)]" />;
     }
     return <UserIcon className="w-5 h-5 text-indigo-400" />;
   };
 
   const getIconBgColor = () => {
     if (isModel) {
-        return message.isError ? 'bg-red-500/20' : 'bg-cyan-500/20';
+        return message.isError ? 'bg-red-500/20' : 'bg-[var(--bg-accent-translucent)]';
     }
     return 'bg-indigo-500/20';
   };
@@ -101,8 +101,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
     <>
         <button
             onClick={() => onFeedback(messageIndex, 'up')}
-            className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
-                message.feedback === 'up' ? 'text-green-400 hover:text-green-300' : 'hover:text-white'
+            className={`p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors duration-200 ${
+                message.feedback === 'up' ? 'text-green-400 hover:text-green-300' : 'hover:text-[var(--text-primary)]'
             }`}
             aria-pressed={message.feedback === 'up'}
             aria-label="Good response"
@@ -112,8 +112,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         </button>
         <button
             onClick={() => onFeedback(messageIndex, 'down')}
-            className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
-                message.feedback === 'down' ? 'text-red-400 hover:text-red-300' : 'hover:text-white'
+            className={`p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors duration-200 ${
+                message.feedback === 'down' ? 'text-red-400 hover:text-red-300' : 'hover:text-[var(--text-primary)]'
             }`}
             aria-pressed={message.feedback === 'down'}
             aria-label="Bad response"
@@ -122,11 +122,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             <ThumbsDownIcon className={`w-4 h-4 ${message.feedback === 'down' ? 'fill-current' : ''}`} />
         </button>
 
-        <div className="h-4 w-px bg-gray-600 mx-1"></div>
+        <div className="h-4 w-px bg-[var(--border-color)] mx-1"></div>
         
         <button
           onClick={handleShare}
-          className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
+          className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
           aria-label="Share message"
           title="Share message"
         >
@@ -134,7 +134,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         </button>
         <button
           onClick={handleCopy}
-          className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
+          className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
           aria-label="Copy message"
           title="Copy message"
         >
@@ -144,7 +144,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             <a
                 href={message.imageUrl}
                 download={`gemini-generated-image.png`}
-                className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
+                className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
                 aria-label="Download image"
                 title="Download image"
             >
@@ -162,13 +162,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
       <div className="flex-1 group relative">
         {message.imageUrl ? (
             <div>
-                <p className="text-gray-400 italic text-sm mb-2">Image generated for: "{message.text}"</p>
+                <p className="text-[var(--text-muted)] italic text-sm mb-2">Image generated for: "{message.text}"</p>
                 <button
                     onClick={() => onImageClick(message.imageUrl!)}
-                    className="relative group/image inline-block cursor-zoom-in text-left focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:ring-offset-2 focus:ring-offset-gray-900 rounded-lg"
+                    className="relative group/image inline-block cursor-zoom-in text-left focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] rounded-lg"
                     aria-label={`View larger image for prompt: ${message.text}`}
                 >
-                    <img src={message.imageUrl} alt={message.text} className="rounded-lg border border-gray-700 max-w-full h-auto block" />
+                    <img src={message.imageUrl} alt={message.text} className="rounded-lg border border-[var(--border-color)] max-w-full h-auto block" />
                     <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/image:opacity-100 group-focus/image:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
                         <ZoomInIcon className="w-10 h-10 text-white" />
                     </div>
@@ -177,7 +177,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                             href={message.imageUrl}
                             download={`gemini-generated-image.png`}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-gray-900/70 text-white p-2 rounded-full hover:bg-gray-800/90 transition-colors focus:opacity-100"
+                            className="bg-black/70 text-white p-2 rounded-full hover:bg-black/90 transition-colors focus:opacity-100"
                             aria-label="Download image"
                             title="Download image"
                         >
@@ -188,7 +188,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             </div>
         ) : message.videoUrl ? (
             <div>
-                 <p className="text-gray-400 italic text-sm mb-2">Video created for: "{message.text}"</p>
+                 <p className="text-[var(--text-muted)] italic text-sm mb-2">Video created for: "{message.text}"</p>
                  {videoError ? (
                     <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 flex flex-col items-center justify-center aspect-video max-w-sm text-center">
                         <ErrorIcon className="w-8 h-8 text-red-400 mb-2" />
@@ -210,13 +210,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                             autoPlay 
                             muted 
                             loop
-                            className="rounded-lg border border-gray-700 max-w-full h-auto"
+                            className="rounded-lg border border-[var(--border-color)] max-w-full h-auto"
                             onError={() => setVideoError(true)}
                         />
                         <a
                             href={message.videoUrl}
                             download={`gemini-generated-video.mp4`}
-                            className="absolute bottom-3 right-3 bg-gray-900/70 text-white p-2 rounded-full opacity-0 group-hover/video:opacity-100 focus:opacity-100 transition-opacity"
+                            className="absolute bottom-3 right-3 bg-black/70 text-white p-2 rounded-full opacity-0 group-hover/video:opacity-100 focus:opacity-100 transition-opacity"
                             aria-label="Download video"
                             title="Download video"
                         >
@@ -227,7 +227,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             </div>
         ) : (
             <>
-                <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
+                <div className={`prose prose-themed max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1`}>
                 {message.isError ? (
                     <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 not-prose">
                         <p className="font-semibold text-red-100">An Error Occurred</p>
@@ -249,13 +249,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                         a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
                         code: CodeBlock,
                         table: ({node, ...props}) => (
-                            <div className="overflow-x-auto my-4 border border-gray-700 rounded-lg not-prose">
+                            <div className="overflow-x-auto my-4 border border-[var(--border-color)] rounded-lg not-prose">
                               <table className="w-full text-sm" {...props} />
                             </div>
                           ),
-                        thead: ({node, ...props}) => <thead className="bg-gray-800/50" {...props} />,
+                        thead: ({node, ...props}) => <thead className="bg-[var(--bg-secondary)]/50" {...props} />,
                         th: ({node, ...props}) => <th className="px-4 py-2.5 text-left font-semibold" {...props} />,
-                        tr: ({node, ...props}) => <tr className="border-b border-gray-700 last:border-b-0" {...props} />,
+                        tr: ({node, ...props}) => <tr className="border-b border-[var(--border-color)] last:border-b-0" {...props} />,
                         td: ({node, ...props}) => <td className="px-4 py-2.5" {...props} />,
                     }}
                     >
@@ -271,7 +271,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                 )}
 
                 {isModel && !message.isError && message.sources && message.sources.length > 0 && (
-                <div className="mt-4 border-t border-gray-700 pt-3">
+                <div className="mt-4 border-t border-[var(--border-color)] pt-3">
                     <Sources sources={message.sources} />
                 </div>
                 )}

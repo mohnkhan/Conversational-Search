@@ -190,15 +190,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
       )}
       <form onSubmit={handleSubmit}>
         {isFilterActive && (
-          <div className="flex items-center space-x-2 text-xs bg-gray-800 border-x border-t border-gray-700 px-3 py-1.5 rounded-t-lg w-full">
-            <FilterIcon className="w-4 h-4 text-cyan-400 flex-shrink-0" />
-            <span className="text-gray-300 font-medium truncate" title={formatFilterLabel(activeFilter)}>
+          <div className="flex items-center space-x-2 text-xs bg-[var(--bg-secondary)] border-x border-t border-[var(--border-color)] px-3 py-1.5 rounded-t-lg w-full">
+            <FilterIcon className="w-4 h-4 text-[var(--accent-primary)] flex-shrink-0" />
+            <span className="text-[var(--text-secondary)] font-medium truncate" title={formatFilterLabel(activeFilter)}>
               {formatFilterLabel(activeFilter)}
             </span>
             <button 
               type="button" 
               onClick={() => onFilterChange('any')} 
-              className="ml-auto text-gray-500 hover:text-white"
+              className="ml-auto text-[var(--text-muted)] hover:text-[var(--text-primary)]"
               aria-label="Clear filter"
               title="Clear filter"
             >
@@ -206,17 +206,17 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
         )}
-        <div className={`bg-gray-800 border border-gray-700 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200 overflow-hidden ${
+        <div className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)] transition-shadow duration-200 overflow-hidden ${
           isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
         }`}>
-            <div className="flex items-center space-x-1 p-2 border-b border-gray-700">
-                <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" aria-label="Bold (Ctrl+B)" title="Bold (Ctrl+B)">
+            <div className="flex items-center space-x-1 p-2 border-b border-[var(--border-color)]">
+                <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Bold (Ctrl+B)" title="Bold (Ctrl+B)">
                     <BoldIcon className="w-4 h-4" />
                 </button>
-                <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" aria-label="Italic (Ctrl+I)" title="Italic (Ctrl+I)">
+                <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Italic (Ctrl+I)" title="Italic (Ctrl+I)">
                     <ItalicIcon className="w-4 h-4" />
                 </button>
-                <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" aria-label="Code Block (Ctrl+E)" title="Code Block (Ctrl+E)">
+                <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Code Block (Ctrl+E)" title="Code Block (Ctrl+E)">
                     <CodeIcon className="w-4 h-4" />
                 </button>
             </div>
@@ -227,7 +227,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder || "Ask me anything..."}
-                className="w-full bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-3 py-3 text-sm sm:text-base resize-none overflow-y-auto"
+                className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none px-3 py-3 text-sm sm:text-base resize-none overflow-y-auto"
                 disabled={isLoading}
                 style={{ maxHeight: '120px' }}
             />
@@ -241,8 +241,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     aria-controls="filter-menu"
                     aria-label="Open search filters (F)"
                     title="Open search filters (F)"
-                    className={`p-2 rounded-md hover:bg-gray-700/80 transition-colors duration-200 ${
-                        isFilterActive ? 'text-cyan-400' : 'text-gray-400'
+                    className={`p-2 rounded-md hover:bg-[var(--bg-tertiary)]/80 transition-colors duration-200 ${
+                        isFilterActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'
                     }`}
                     >
                     <FilterIcon className="w-5 h-5" />
@@ -250,7 +250,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     <button
                     type="submit"
                     disabled={isLoading || !text.trim()}
-                    className="p-2 rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                    className="p-2 rounded-md bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:bg-[var(--bg-tertiary)] disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
                     aria-label="Send message (Enter)"
                     title="Send message (Enter)"
                     >

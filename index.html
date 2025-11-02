@@ -51,27 +51,56 @@
   }
   .animate-shimmer {
     animation: shimmer 2s infinite linear;
-    background: linear-gradient(to right, #2d3748 4%, #3a475a 25%, #2d3748 36%);
+    background: linear-gradient(to right, var(--bg-tertiary, #2d3748) 4%, var(--bg-secondary, #3a475a) 25%, var(--bg-tertiary, #2d3748) 36%);
     background-size: 1000px 100%;
   }
 
-  /* Custom styles for date input */
+  /* Custom styles for date input using CSS variables for theming */
   input[type="date"] {
-    background-color: #1F2937; /* gray-800 */
-    border: 1px solid #4B5563; /* gray-600 */
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
     border-radius: 0.375rem; /* rounded-md */
-    color: #F3F4F6; /* gray-100 */
+    color: var(--text-primary);
     padding: 0.5rem 0.75rem;
     line-height: 1.25rem;
+    color-scheme: dark; /* Helps with picker theme */
   }
   input[type="date"]::-webkit-calendar-picker-indicator {
-    filter: invert(0.8);
+    filter: var(--picker-filter, invert(0.8));
     cursor: pointer;
   }
   input[type="date"]:disabled {
-    background-color: #374151; /* gray-700 */
+    background-color: var(--bg-tertiary);
     cursor: not-allowed;
     opacity: 0.6;
+  }
+
+  /* Themed prose for markdown */
+  .prose-themed {
+    --tw-prose-body: var(--text-primary);
+    --tw-prose-headings: var(--text-primary);
+    --tw-prose-lead: var(--text-secondary);
+    --tw-prose-links: var(--accent-primary);
+    --tw-prose-bold: var(--text-primary);
+    --tw-prose-counters: var(--text-muted);
+    --tw-prose-bullets: var(--text-muted);
+    --tw-prose-hr: var(--border-color);
+    --tw-prose-quotes: var(--text-primary);
+    --tw-prose-quote-borders: var(--border-color);
+    --tw-prose-captions: var(--text-muted);
+    --tw-prose-code: var(--accent-secondary); /* For inline code */
+    --tw-prose-pre-code: var(--text-secondary); /* For code blocks */
+    --tw-prose-pre-bg: var(--bg-primary); /* For code blocks */
+    --tw-prose-th-borders: var(--border-color);
+    --tw-prose-td-borders: var(--border-color);
+  }
+  .prose-themed a:hover {
+    color: var(--accent-secondary);
+  }
+  .prose-themed code {
+    background-color: var(--bg-accent-translucent);
+    border-radius: 0.25rem;
+    padding: 0.1rem 0.25rem;
   }
 
   /* Custom cursor for zoomable images */
@@ -80,7 +109,7 @@
   }
 </style>
 </head>
-  <body class="bg-gray-900 text-white">
+  <body class="bg-[var(--bg-primary)] text-[var(--text-primary)] transition-colors duration-300">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -1,12 +1,15 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo, ParsedError } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
+import { useTheme } from './hooks/useTheme';
+import ThemeSelector from './components/ThemeSelector';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -79,21 +82,21 @@ const PlaceholderLoader: React.FC<PlaceholderLoaderProps> = ({ type, prompt }) =
 
     return (
         <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
-             <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
-                <BotIcon className="w-5 h-5 text-cyan-400" />
+             <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-[var(--bg-accent-translucent)]">
+                <BotIcon className="w-5 h-5 text-[var(--accent-primary)]" />
             </div>
             <div className="flex-1 group relative pt-1">
-                <div className="w-full max-w-sm aspect-video bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center p-4 animate-shimmer" role="status" aria-live="polite">
-                    <Icon className="w-10 h-10 text-gray-500 mb-3" />
+                <div className="w-full max-w-sm aspect-video bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] flex flex-col items-center justify-center p-4 animate-shimmer" role="status" aria-live="polite">
+                    <Icon className="w-10 h-10 text-[var(--text-muted)] mb-3" />
                     {type === 'image' && prompt && (
-                         <p className="text-sm font-medium text-gray-300 text-center px-4 italic truncate" title={prompt}>
+                         <p className="text-sm font-medium text-[var(--text-secondary)] text-center px-4 italic truncate" title={prompt}>
                             "{prompt}"
                          </p>
                     )}
                     {type === 'image' && (
-                        <p className="text-xs font-mono text-gray-500 mt-2">{formatTime(elapsedSeconds)}</p>
+                        <p className="text-xs font-mono text-[var(--text-muted)] mt-2">{formatTime(elapsedSeconds)}</p>
                     )}
-                    <p className="text-sm text-gray-400 text-center px-4 mt-3">{currentText}</p>
+                    <p className="text-sm text-[var(--text-muted)] text-center px-4 mt-3">{currentText}</p>
                 </div>
             </div>
         </div>
@@ -101,6 +104,7 @@ const PlaceholderLoader: React.FC<PlaceholderLoaderProps> = ({ type, prompt }) =
 };
 
 const App: React.FC = () => {
+  useTheme(); // Initialize and apply the theme
   const [messages, setMessages] = useState<ChatMessageType[]>(() => {
     try {
       const savedMessages = localStorage.getItem(CHAT_HISTORY_KEY);
@@ -133,9 +137,13 @@ const App: React.FC = () => {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState<boolean>(false);
   const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
+  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
   const summaryModalRef = useRef<HTMLDivElement>(null);
+  // FIX: The ref is attached to a div element, so its type must be HTMLDivElement.
+  // This resolves the error about assigning an incompatible ref type.
+  const themeButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -198,6 +206,20 @@ const App: React.FC = () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [handleClearChat]);
+
+  // Close theme selector on outside click
+  useEffect(() => {
+    if (!isThemeSelectorOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+        if (themeButtonRef.current && !themeButtonRef.current.contains(event.target as Node)) {
+            setIsThemeSelectorOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isThemeSelectorOpen]);
 
   const handleSendMessage = useCallback(async (inputText: string) => {
     const trimmedInput = inputText.trim();
@@ -486,24 +508,35 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
+    <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
       {!isKeySelected && <ApiKeySelector onKeySelected={() => setIsKeySelected(true)} />}
-      <header className="flex items-center justify-between px-2 py-3 sm:px-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+      <header className="flex items-center justify-between px-2 py-3 sm:px-4 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]/50 backdrop-blur-sm">
         <div className="flex items-center space-x-3 min-w-0 flex-shrink">
-            <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
+            <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-[var(--accent-primary)] flex-shrink-0" />
             <div className="min-w-0">
-                <h1 className="text-md sm:text-xl font-bold text-white truncate">Gemini Conversational Search</h1>
-                <p className="text-xs sm:text-sm text-gray-300 flex items-center">
+                <h1 className="text-md sm:text-xl font-bold text-[var(--text-primary)] truncate">Gemini Conversational Search</h1>
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)] flex items-center">
                     <SearchIcon className="w-3.5 h-3.5 mr-1.5 hidden sm:block" />
                     <span className="truncate">Powered by Google Search Grounding</span>
                 </p>
             </div>
         </div>
         <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+            <div className="relative" ref={themeButtonRef}>
+              <button
+                  onClick={() => setIsThemeSelectorOpen(prev => !prev)}
+                  className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                  aria-label="Select theme"
+                  title="Select theme"
+              >
+                  <PaletteIcon className="w-5 h-5" />
+              </button>
+              {isThemeSelectorOpen && <ThemeSelector onClose={() => setIsThemeSelectorOpen(false)} />}
+            </div>
             <button
                 ref={summarizeButtonRef}
                 onClick={handleSummarize}
-                className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0 disabled:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0 disabled:text-[var(--text-muted)]/50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                 aria-label="Summarize conversation"
                 title="Summarize conversation"
                 disabled={isLoading || isSummarizing || messages.length <= 1}
@@ -512,7 +545,7 @@ const App: React.FC = () => {
             </button>
             <button
                 onClick={handleCopyAll}
-                className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0"
                 aria-label="Copy entire chat"
                 title="Copy chat"
             >
@@ -520,7 +553,7 @@ const App: React.FC = () => {
             </button>
             <button
                 onClick={handleExportChat}
-                className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0 disabled:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0 disabled:text-[var(--text-muted)]/50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
                 aria-label="Export chat as JSON"
                 title="Export chat (JSON)"
                 disabled={isLoading || isSummarizing || messages.length <= 1}
@@ -529,7 +562,7 @@ const App: React.FC = () => {
             </button>
             <button
               onClick={handleClearChat}
-              className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
+              className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0"
               aria-label="Clear chat history (Ctrl+K)"
               title="Clear chat (Ctrl+K)"
             >
@@ -553,11 +586,11 @@ const App: React.FC = () => {
             ))}
              {isThinking && (
                 <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in" role="status" aria-live="polite">
-                    <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
-                        <BotIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />
+                    <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-[var(--bg-accent-translucent)]">
+                        <BotIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />
                     </div>
                     <div className="flex-1 group relative pt-1.5 sm:pt-2">
-                        <p className="text-gray-400 italic">Thinking...</p>
+                        <p className="text-[var(--text-muted)] italic">Thinking...</p>
                     </div>
                 </div>
              )}
@@ -565,8 +598,8 @@ const App: React.FC = () => {
             {isGeneratingVideo && <PlaceholderLoader type="video" />}
             {isLoading && !isThinking && !isGeneratingImage && !isGeneratingVideo &&(
                 <div className="pl-12 mt-4 animate-fade-in" role="status" aria-live="polite">
-                    <div className="inline-flex items-center space-x-3 text-gray-400 p-2 bg-gray-800/50 rounded-lg">
-                      <SparklesIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />
+                    <div className="inline-flex items-center space-x-3 text-[var(--text-muted)] p-2 bg-[var(--bg-secondary)]/50 rounded-lg">
+                      <SparklesIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />
                       <span className="text-sm font-medium">Generating response & suggestions...</span>
                     </div>
                 </div>
@@ -575,13 +608,13 @@ const App: React.FC = () => {
               <div className="pl-12 animate-fade-in mt-4 space-y-5">
                 {suggestedPrompts.length > 0 && (
                   <div>
-                    <h2 className="text-sm font-semibold text-gray-400 mb-2">Next questions</h2>
+                    <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-2">Next questions</h2>
                     <div className="flex flex-wrap gap-2 sm:gap-3">
                       {suggestedPrompts.map((prompt, index) => (
                         <button
                           key={`suggestion-${index}`}
                           onClick={() => handleSendMessage(prompt)}
-                          className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                          className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
                         >
                           {prompt}
                         </button>
@@ -591,13 +624,13 @@ const App: React.FC = () => {
                 )}
                  {relatedTopics.length > 0 && (
                     <div>
-                        <h2 className="text-sm font-semibold text-gray-400 mb-2">Explore related</h2>
+                        <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-2">Explore related</h2>
                         <div className="flex flex-wrap gap-2 sm:gap-3">
                             {relatedTopics.map((topic, index) => (
                                 <button
                                     key={`topic-${index}`}
                                     onClick={() => handleSendMessage(topic)}
-                                    className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                                    className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
                                 >
                                     {topic}
                                 </button>
@@ -614,7 +647,7 @@ const App: React.FC = () => {
                     <button
                       key={index}
                       onClick={() => handleSendMessage(prompt)}
-                      className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                      className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
                     >
                       {prompt}
                     </button>
@@ -626,7 +659,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="p-2 sm:p-4 md:p-6 border-t border-gray-700 bg-gray-900/80 backdrop-blur-sm">
+      <footer className="p-2 sm:p-4 md:p-6 border-t border-[var(--border-color)] bg-[var(--bg-primary)]/80 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto">
           <ErrorBoundary fallbackMessage="The chat input component has crashed. Please reload the page to continue.">
             <ChatInput 
@@ -653,29 +686,29 @@ const App: React.FC = () => {
           onClick={closeSummaryModal}
         >
           <div
-            className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
+            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl w-full max-w-md sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <header className="flex items-center justify-between p-4 border-b border-gray-700">
+            <header className="flex items-center justify-between p-4 border-b border-[var(--border-color)]">
               <div className="flex items-center space-x-3">
-                <SparklesIcon className="w-6 h-6 text-cyan-400" />
-                <h2 id="summary-modal-title" className="text-lg font-semibold text-white">
+                <SparklesIcon className="w-6 h-6 text-[var(--accent-primary)]" />
+                <h2 id="summary-modal-title" className="text-lg font-semibold text-[var(--text-primary)]">
                   Conversation Summary
                 </h2>
               </div>
               <button
                 onClick={closeSummaryModal}
-                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                className="p-1.5 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 aria-label="Close summary"
               >
                 <XIcon className="w-5 h-5" />
               </button>
             </header>
     
-            <main className="p-6 overflow-y-auto prose prose-invert max-w-none">
+            <main className="p-6 overflow-y-auto prose prose-themed max-w-none">
               {isSummarizing ? (
-                <div className="flex flex-col items-center justify-center text-gray-400 space-y-3" role="status">
-                  <SparklesIcon className="w-10 h-10 text-cyan-400 animate-pulse-icon" />
+                <div className="flex flex-col items-center justify-center text-[var(--text-muted)] space-y-3" role="status">
+                  <SparklesIcon className="w-10 h-10 text-[var(--accent-primary)] animate-pulse-icon" />
                   <p>Generating summary...</p>
                 </div>
               ) : (
@@ -683,18 +716,18 @@ const App: React.FC = () => {
               )}
             </main>
     
-            <footer className="flex items-center justify-end p-4 border-t border-gray-700 bg-gray-800/50">
+            <footer className="flex items-center justify-end p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
               <div className="flex items-center space-x-3">
                 <button
                   onClick={closeSummaryModal}
-                  className="px-4 py-2 rounded-md text-gray-300 bg-gray-700/80 hover:bg-gray-700 transition-colors"
+                  className="px-4 py-2 rounded-md text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
                   Close
                 </button>
                 <button
                   onClick={handleCopySummary}
                   disabled={isSummarizing || !summaryText}
-                  className="px-4 py-2 rounded-md text-white bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                  className="px-4 py-2 rounded-md text-white bg-[var(--accent-primary)] hover:opacity-90 disabled:bg-[var(--bg-tertiary)] disabled:cursor-not-allowed transition-all flex items-center space-x-2"
                 >
                   {isSummaryCopied ? <CheckIcon className="w-5 h-5" /> : <CopyIcon className="w-5 h-5" />}
                   <span>{isSummaryCopied ? 'Copied!' : 'Copy Summary'}</span>

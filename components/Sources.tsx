@@ -18,7 +18,7 @@ const Sources: React.FC<SourcesProps> = ({ sources }) => {
     <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full text-left text-sm font-semibold text-gray-400 mb-2 focus:outline-none hover:text-gray-200 transition-colors duration-200"
+        className="flex items-center justify-between w-full text-left text-sm font-semibold text-[var(--text-muted)] mb-2 focus:outline-none hover:text-[var(--text-secondary)] transition-colors duration-200"
         aria-expanded={isOpen}
         aria-controls="sources-list"
       >

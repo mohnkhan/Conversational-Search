@@ -46,7 +46,7 @@ const Lightbox: React.FC<LightboxProps> = ({ imageUrl, onClose }) => {
       <button
         ref={closeButtonRef}
         onClick={onClose}
-        className="absolute top-4 right-4 p-2 rounded-full bg-black/40 text-white hover:bg-black/60 transition-colors z-20"
+        className="absolute top-4 right-4 p-2 rounded-full bg-[var(--bg-secondary)]/40 text-white hover:bg-[var(--bg-secondary)]/60 transition-colors z-20"
         aria-label="Close lightbox"
       >
         <XIcon className="w-6 h-6" />

@@ -102,7 +102,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
     return (
         <div 
             ref={panelRef}
-            className="absolute bottom-full mb-2 w-full sm:w-[400px] right-0 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-10 animate-fade-in"
+            className="absolute bottom-full mb-2 w-full sm:w-[400px] right-0 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-xl z-10 animate-fade-in"
             style={{ animationDuration: '0.2s' }}
             role="dialog"
             aria-modal="true"
@@ -110,10 +110,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
         >
             <div className="p-4 space-y-4">
                 <div>
-                    <h2 id="filter-panel-title" className="text-base font-semibold text-gray-200 mb-3">
+                    <h2 id="filter-panel-title" className="text-base font-semibold text-[var(--text-primary)] mb-3">
                         Filter by date
                     </h2>
-                    <p className="text-sm font-semibold text-gray-300 mb-2">Quick filters</p>
+                    <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">Quick filters</p>
                     <div className="grid grid-cols-2 gap-2">
                         {presetOptions.map(option => (
                         <button
@@ -121,8 +121,8 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
                             onClick={() => handleModeChange(option.key)}
                             className={`w-full text-center text-sm px-3 py-2 rounded-md transition-colors duration-200 ${
                             mode === option.key 
-                                ? 'bg-cyan-600 text-white' 
-                                : 'text-gray-300 bg-gray-700/60 hover:bg-gray-700'
+                                ? 'bg-[var(--accent-primary)] text-white' 
+                                : 'text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/60 hover:bg-[var(--bg-tertiary)]'
                             }`}
                         >
                             {option.label}
@@ -131,13 +131,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
                     </div>
                 </div>
 
-                <div className="border-t border-gray-700 my-4"></div>
+                <div className="border-t border-[var(--border-color)] my-4"></div>
 
                 <div>
-                    <p className="text-sm font-semibold text-gray-300 mb-2">Custom date range</p>
+                    <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">Custom date range</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                        <div>
-                            <label htmlFor="start-date" className="block text-xs text-gray-400 mb-1">Start date</label>
+                            <label htmlFor="start-date" className="block text-xs text-[var(--text-muted)] mb-1">Start date</label>
                             <input
                                 type="date"
                                 id="start-date"
@@ -148,7 +148,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
                             />
                        </div>
                        <div>
-                            <label htmlFor="end-date" className="block text-xs text-gray-400 mb-1">End date</label>
+                            <label htmlFor="end-date" className="block text-xs text-[var(--text-muted)] mb-1">End date</label>
                             <input
                                 type="date"
                                 id="end-date"
@@ -163,16 +163,16 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
                 </div>
             </div>
 
-            <footer className="flex items-center justify-between p-3 border-t border-gray-700 bg-gray-800/50 rounded-b-lg">
+            <footer className="flex items-center justify-between p-3 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50 rounded-b-lg">
                 <button
                     onClick={handleClear}
-                    className="px-4 py-2 rounded-md text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+                    className="px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
                     Clear Filter
                 </button>
                 <button
                     onClick={handleApply}
-                    className="px-5 py-2 rounded-md text-sm font-semibold text-white bg-cyan-600 hover:bg-cyan-500 transition-colors"
+                    className="px-5 py-2 rounded-md text-sm font-semibold text-white bg-[var(--accent-primary)] hover:opacity-90 transition-all"
                 >
                     Apply
                 </button>
