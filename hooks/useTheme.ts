@@ -17,10 +17,10 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [themeId, setThemeId] = useState<string>(() => {
     try {
       const savedThemeId = window.localStorage.getItem(THEME_STORAGE_KEY);
-      return savedThemeId || 'abyss'; // Default theme
+      return savedThemeId || 'latte'; // Default theme
     } catch (error) {
       console.error("Failed to read theme from localStorage:", error);
-      return 'abyss';
+      return 'latte';
     }
   });
 
@@ -30,7 +30,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const selectedTheme: Theme | undefined = themes.find(t => t.id === id);
       if (!selectedTheme) {
         console.warn(`Theme with id "${id}" not found. Applying default.`);
-        setThemeId('abyss');
+        setThemeId('latte');
         return;
       }
       
