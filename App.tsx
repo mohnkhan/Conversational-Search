@@ -19,12 +19,14 @@ import AboutModal from './components/AboutModal';
 import RecentQueries from './components/RecentQueries';
 import SuggestedPrompts from './components/SuggestedPrompts';
 import RelatedTopics from './components/RelatedTopics';
+import ExportChatModal from './components/ExportChatModal';
 
 const initialMessages: ChatMessageType[] = [
   {
     role: 'model',
     text: "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, or `/create-video <prompt>` for a short video.",
-    sources: []
+    sources: [],
+    timestamp: new Date().toISOString(),
   }
 ];
 
@@ -217,6 +219,7 @@ const App: React.FC = () => {
   const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, modelId: null });
   const [isTodoListModalOpen, setIsTodoListModalOpen] = useState<boolean>(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [prioritizeAuthoritative, setPrioritizeAuthoritative] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(AUTHORITATIVE_SOURCES_KEY);
@@ -327,7 +330,11 @@ const App: React.FC = () => {
 
     const isImageCommand = trimmedPrompt.startsWith('/imagine ');
     const isVideoCommand = trimmedPrompt.startsWith('/create-video ');
-    const userMessage: ChatMessageType = { role: 'user', text: trimmedPrompt };
+    const userMessage: ChatMessageType = { 
+        role: 'user', 
+        text: trimmedPrompt,
+        timestamp: new Date().toISOString(),
+    };
 
     // Common state updates
     setSuggestedPrompts([]);
@@ -339,14 +346,14 @@ const App: React.FC = () => {
         setMessages(prev => [...prev, userMessage]); // Add user message to UI
         const imagePrompt = trimmedPrompt.substring(8).trim();
         if (!imagePrompt) {
-            setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/imagine`.", isError: true }]);
+            setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/imagine`.", isError: true, timestamp: new Date().toISOString() }]);
             return;
         }
         setIsGeneratingImage(true);
         setCurrentImagePrompt(imagePrompt);
         try {
             const imageUrl = await generateImage(imagePrompt);
-            setMessages(prev => [...prev, { role: 'model', text: imagePrompt, imageUrl }]);
+            setMessages(prev => [...prev, { role: 'model', text: imagePrompt, imageUrl, timestamp: new Date().toISOString() }]);
         } catch (error) {
             const parsedError = parseGeminiError(error);
             if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
@@ -356,7 +363,7 @@ const App: React.FC = () => {
                     description: parsedError.message
                 });
             }
-            setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt }]);
+            setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt, timestamp: new Date().toISOString() }]);
         } finally {
             setIsGeneratingImage(false);
             setCurrentImagePrompt(null);
@@ -380,13 +387,13 @@ const App: React.FC = () => {
         }
         const videoPrompt = trimmedPrompt.substring(14).trim();
         if (!videoPrompt) {
-            setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/create-video`.", isError: true }]);
+            setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/create-video`.", isError: true, timestamp: new Date().toISOString() }]);
             return;
         }
         setIsGeneratingVideo(true);
         try {
             const videoUrl = await generateVideo(videoPrompt);
-            setMessages(prev => [...prev, { role: 'model', text: videoPrompt, videoUrl }]);
+            setMessages(prev => [...prev, { role: 'model', text: videoPrompt, videoUrl, timestamp: new Date().toISOString() }]);
         } catch (error) {
             const parsedError = parseGeminiError(error);
             if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
@@ -396,7 +403,7 @@ const App: React.FC = () => {
                     description: parsedError.message
                 });
             }
-            setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt }]);
+            setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt, timestamp: new Date().toISOString() }]);
         } finally {
             setIsGeneratingVideo(false);
         }
@@ -411,7 +418,7 @@ const App: React.FC = () => {
     const historyForApi = [...messages, userMessage];
 
     // Update the UI state with both the user message and the thinking indicator in one go.
-    setMessages(prev => [...prev, userMessage, { role: 'model', text: '', isThinking: true }]);
+    setMessages(prev => [...prev, userMessage, { role: 'model', text: '', isThinking: true, timestamp: new Date().toISOString() }]);
 
     let currentResponse = '';
     try {
@@ -448,7 +455,7 @@ const App: React.FC = () => {
             });
         }
         setMessages(prev => prev.map((msg, index) =>
-            index === prev.length - 1 ? { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt } : msg
+            index === prev.length - 1 ? { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt, timestamp: new Date().toISOString() } : msg
         ));
     } finally {
         setIsLoading(false);
@@ -597,6 +604,7 @@ const App: React.FC = () => {
                          <button onClick={() => { setIsCustomCssModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><FileCodeIcon className="w-4 h-4" /> <span>Custom CSS</span></button>
                          <button onClick={() => { setIsTodoListModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><CheckSquareIcon className="w-4 h-4" /> <span>To-Do List</span></button>
                          <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
+                         <button onClick={() => { setIsExportModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><DownloadIcon className="w-4 h-4" /> <span>Export Chat</span></button>
                          <button onClick={() => { setShowShortcutsModal(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><HelpCircleIcon className="w-4 h-4" /> <span>Keyboard Shortcuts</span></button>
                          <button onClick={() => { setIsAboutModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><InfoIcon className="w-4 h-4" /> <span>About</span></button>
                     </div>
@@ -668,6 +676,7 @@ const App: React.FC = () => {
     <ModelExplanationTooltip modelId={modelExplanation.modelId} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, modelId: model })}/>
     {isTodoListModalOpen && <TodoListModal onClose={() => setIsTodoListModalOpen(false)} tasks={tasks} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} />}
     {isAboutModalOpen && <AboutModal onClose={() => setIsAboutModalOpen(false)} />}
+    {isExportModalOpen && <ExportChatModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} messages={messages} />}
     </>
   );
 };

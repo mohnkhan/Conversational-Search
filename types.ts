@@ -15,6 +15,7 @@ export interface ChatMessage {
   videoUrl?: string;
   originalText?: string;
   isThinking?: boolean;
+  timestamp?: string;
 }
 
 export interface Task {
