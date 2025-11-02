@@ -174,7 +174,8 @@ export async function getGeminiResponseStream(
     history: ChatMessage[],
     filter: DateFilter,
     onStreamUpdate: (text: string) => void,
-    model: ModelId
+    model: ModelId,
+    isDeepResearch: boolean = false
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
@@ -194,11 +195,15 @@ export async function getGeminiResponseStream(
             parts: [{ text: msg.text }],
         }));
 
-        // Apply date filter prefix ONLY to the last user message
+        // Apply date filter and/or deep research prefix ONLY to the last user message
         if (contents.length > 0) {
             const lastContent = contents[contents.length - 1];
             if (lastContent.role === 'user') {
-                const prefix = getDateFilterPrefix(filter);
+                let prefix = '';
+                if (isDeepResearch) {
+                    prefix += 'Conduct a deep research analysis on the following topic, providing a comprehensive and detailed response with multiple perspectives if applicable. Topic: ';
+                }
+                prefix += getDateFilterPrefix(filter);
                 lastContent.parts[0].text = prefix + lastContent.parts[0].text;
             }
         }

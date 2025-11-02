@@ -152,6 +152,7 @@ const App: React.FC = () => {
   });
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
   const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
+  const [isDeepResearch, setIsDeepResearch] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
@@ -294,6 +295,11 @@ const App: React.FC = () => {
         setMessages(prev => [...prev, userMessage]);
     }
 
+    // Reset deep research mode after use
+    if (isDeepResearch) {
+        setIsDeepResearch(false);
+    }
+
     setIsLoading(true);
     setSuggestedPrompts([]);
     setRelatedTopics([]);
@@ -340,6 +346,9 @@ const App: React.FC = () => {
             // This correctly uses the `messages` from the component's state at the time of sending.
             const historyForApi: ChatMessageType[] = [...messages, userMessage];
 
+            // Use the more powerful model for deep research mode
+            const effectiveModel = isDeepResearch ? 'gemini-2.5-pro' : model;
+
             const { sources } = await getGeminiResponseStream(
                 historyForApi,
                 dateFilter,
@@ -358,7 +367,8 @@ const App: React.FC = () => {
                         });
                     }
                 },
-                model
+                effectiveModel,
+                isDeepResearch // Pass deep research flag to service
             );
 
             let finalModelResponseText = '';
@@ -434,7 +444,7 @@ const App: React.FC = () => {
         setCurrentImagePrompt(null);
         setIsGeneratingVideo(false);
     }
-  }, [messages, isLoading, dateFilter, isKeySelected, model]);
+  }, [messages, isLoading, dateFilter, isKeySelected, model, isDeepResearch]);
 
   const handleCopyAll = () => {
     const conversationText = messages.map(msg => {
@@ -790,12 +800,14 @@ const App: React.FC = () => {
             <ChatInput 
               onSendMessage={handleSendMessage} 
               isLoading={isLoading} 
-              placeholder="Ask me anything, or use /imagine or /create-video..."
+              placeholder={isDeepResearch ? 'Ask a detailed research question...' : 'Ask me anything, or use /imagine or /create-video...'}
               activeFilter={dateFilter}
               onFilterChange={setDateFilter}
               isFilterMenuOpen={isFilterMenuOpen}
               onToggleFilterMenu={() => setIsFilterMenuOpen(prev => !prev)}
               onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
+              isDeepResearch={isDeepResearch}
+              onToggleDeepResearch={() => setIsDeepResearch(prev => !prev)}
             />
           </ErrorBoundary>
         </div>

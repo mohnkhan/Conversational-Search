@@ -1,6 +1,6 @@
 // FIX: Added 'useCallback' to the import from 'react' to resolve the 'Cannot find name' error.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon } from './Icons';
+import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon } from './Icons';
 import { DateFilter, PredefinedDateFilter } from '../types';
 import FilterPanel from './FilterPanel';
 
@@ -13,6 +13,8 @@ interface ChatInputProps {
   onToggleFilterMenu: () => void;
   onCloseFilterMenu: () => void;
   placeholder?: string;
+  isDeepResearch: boolean;
+  onToggleDeepResearch: () => void;
 }
 
 const filterOptions: { key: PredefinedDateFilter, label: string }[] = [
@@ -43,7 +45,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
     isFilterMenuOpen,
     onToggleFilterMenu,
     onCloseFilterMenu,
-    placeholder
+    placeholder,
+    isDeepResearch,
+    onToggleDeepResearch,
 }) => {
   const [text, setText] = useState('');
   const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
@@ -223,6 +227,18 @@ const ChatInput: React.FC<ChatInputProps> = ({
             />
             <div className="flex items-center justify-end px-2 pb-2">
                 <div className="flex items-center space-x-1">
+                    <button
+                        type="button"
+                        onClick={onToggleDeepResearch}
+                        aria-pressed={isDeepResearch}
+                        aria-label={isDeepResearch ? "Disable Deep Research mode" : "Enable Deep Research mode"}
+                        title={isDeepResearch ? "Deep Research is active" : "Enable Deep Research for more comprehensive answers"}
+                        className={`p-2 rounded-md hover:bg-[var(--bg-tertiary)]/80 transition-colors duration-200 ${
+                            isDeepResearch ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'
+                        }`}
+                    >
+                        <SparklesIcon className="w-5 h-5" />
+                    </button>
                     <button
                     ref={filterButtonRef}
                     type="button"

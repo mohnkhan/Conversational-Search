@@ -1,6 +1,6 @@
 # Conversational Search
 
-This is a powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images and videos, providing a truly interactive and multi-modal experience.
+A powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images and videos, providing a truly interactive and multi-modal experience.
 
 ## Table of Contents
 
@@ -11,15 +11,13 @@ This is a powerful, feature-rich conversational search tool powered by the Googl
   - [Special Commands](#special-commands)
   - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Prompt Engineering Tips](#prompt-engineering-tips)
-  - [General Tips for Text Generation](#general-tips-for-text-generation)
-  - [Image Generation (`/imagine`)](#image-generation-imagine)
-  - [Video Generation (`/create-video`)](#video-generation-create-video)
-  - [Using Markdown for Structured Prompts](#using-markdown-for-structured-prompts)
 
 ## Key Features
 
 -   **Grounded Conversational Search:** Get reliable answers with sources cited directly from Google Search.
--   **Model Selection:** Switch between Gemini 2.5 Flash (for speed) and Gemini 2.5 Pro (for complex tasks) to suit your needs.
+-   **Dual-Model Support:**
+    -   **Model Selection:** Manually switch between Gemini 2.5 Flash (for speed) and Gemini 2.5 Pro (for complex tasks).
+    -   **Deep Research Mode:** Instantly toggle to use the more powerful Gemini 2.5 Pro model for in-depth, comprehensive answers to complex questions.
 -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
 -   **Full Markdown Support:**
     -   **Input Toolbar:** Easily format your messages with buttons for **bold**, *italic*, and `code blocks`.
@@ -51,26 +49,29 @@ This is a powerful, feature-rich conversational search tool powered by the Googl
 
 ## Getting Started
 
-This project is a standard static web application and can be run in any environment that serves static files.
+This project is a static web application and can be run in any environment that serves static files.
 
 ### Prerequisites
 
-1.  **Obtain a Google Gemini API Key:** You'll need an API key from [Google AI Studio](https://ai.google.dev/).
-2.  **Set Environment Variable:** Set your key as an environment variable named `API_KEY` in your deployment environment. Most features, like search and image generation, will use this key.
+You will need a Google Gemini API Key from [Google AI Studio](https://ai.google.dev/).
 
-### Running the Application
+### Setup
 
-1.  Deploy the project files (HTML, TSX, etc.) to your preferred hosting service (like Vercel, Netlify, or a simple web server).
-2.  Ensure the `API_KEY` environment variable is correctly configured in the hosting environment.
-3.  Access the deployed URL to start using the application.
+1.  **Deploy the Application:** Deploy the project files (HTML, TSX, etc.) to your preferred hosting service (e.g., Vercel, Netlify, or a simple web server).
+2.  **Configure General API Key:** Set your Gemini API Key as an environment variable named `API_KEY` in your hosting environment. This key will be used for standard features like conversational search and image generation.
+3.  **Access the App:** Open the deployed URL in your browser to start using the application.
 
 ### Enabling Video Generation
 
-The `/create-video` feature uses the Veo model, which requires a billed API key. When you first use this command, a pop-up will appear prompting you to select an API key from a Google Cloud project where billing is enabled. This is a secure, one-time setup step managed within the AI Studio environment.
+The `/create-video` feature uses the Veo model, which requires an API key associated with a billed Google Cloud project.
+- When you first use this command, a secure pop-up from AI Studio will appear, prompting you to select an appropriate billed API key.
+- This is a one-time setup step. The key is managed by the AI Studio environment and is not stored by this application.
 
 ## Usage
 
 Simply type your question in the input box and press Enter. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message.
+
+-   **Deep Research:** For more complex queries, click the **sparkles icon** ✨ in the input bar to activate Deep Research mode. This will use the more powerful Gemini 2.5 Pro model for your next message to provide a more comprehensive response.
 
 ### Special Commands
 
@@ -97,61 +98,10 @@ A list of keyboard shortcuts for power users. *Use `Cmd` instead of `Ctrl` on ma
 
 ## Prompt Engineering Tips
 
-Crafting effective prompts is key to unlocking the full potential of the generative models. Here are some tips to get better results.
+Crafting effective prompts is key to unlocking the full potential of the generative models.
 
-### General Tips for Text Generation
-
--   **Be Specific and Detailed:** The more detail you provide, the better the model can understand your intent.
-    -   **Vague:** `Tell me about space.`
-    -   **Better:** `Explain the concept of a black hole to a 12-year-old, using a simple analogy.`
--   **Provide Context and Persona:** Tell the model who it should be or what context it should operate in.
-    -   **Vague:** `Write about a new product.`
-    -   **Better:** `You are a marketing expert. Write a short, exciting announcement for a new smartphone with a revolutionary camera. The target audience is tech enthusiasts.`
--   **Define the Output Format:** Explicitly ask for the format you want.
-    -   **Vague:** `What are the pros and cons of coffee?`
-    -   **Better:** `List the pros and cons of drinking coffee in a two-column markdown table.`
-
-### Image Generation (`/imagine`)
-
--   **Use Descriptive Adjectives:** Combine subjects with rich adjectives to guide the visual details.
-    -   **Simple:** `/imagine a cat`
-    -   **Better:** `/imagine a fluffy, mischievous ginger tabby cat, with bright green eyes, playfully chasing a laser dot.`
--   **Specify Styles and Mediums:** Mention artistic styles, mediums, or artists to influence the look and feel.
-    -   **Style:** `/imagine a futuristic city skyline at night, cyberpunk, neon-drenched, Blade Runner style`
-    -   **Medium:** `/imagine a tranquil mountain lake surrounded by pine trees, watercolor painting, impressionistic`
-    -   **Rendering:** `/imagine a cute, friendly robot waving, 3D render, Pixar animation style`
--   **Set the Scene:** Describe the environment, lighting, and camera angle.
-    -   **Lighting:** `/imagine a medieval knight in shining armor, dramatic cinematic lighting, golden hour`
-    -   **Angle:** `/imagine a tiny mouse eating a piece of cheese, macro shot, shallow depth of field`
-
-### Video Generation (`/create-video`)
-
--   **Focus on Action and Movement:** Video prompts excel when they describe a scene with clear motion.
-    -   **Static:** `/create-video a beautiful beach`
-    -   **Better:** `/create-video waves gently crashing on a pristine tropical beach at sunset, with palm trees swaying in the breeze.`
--   **Describe Camera Work:** Use terms like "time-lapse," "slow motion," or "aerial shot" for more dynamic results.
-    -   **Example:** `/create-video a time-lapse of a busy city street, with car light trails and pedestrians hurrying`
-    -   **Example:** `/create-video an eagle soaring over a grand canyon, aerial drone footage, slow motion`
--   **Combine Subjects and Actions:** Clearly state who or what is doing the action.
-    -   **Example:** `/create-video a chef skillfully tossing pizza dough in a rustic Italian kitchen`
-
-### Using Markdown for Structured Prompts
-
-For complex requests, use markdown in the chat input to structure your prompt. This helps the model differentiate between instructions, context, and the data it needs to work with.
-
-**Example Template:**
-
-```markdown
-You are an expert travel planner. Create a concise, 3-day itinerary based on the following details.
-
----
-**Destination:** Paris, France
-**Traveler Profile:** A couple on their honeymoon, interested in art and food.
-**Budget:** Moderate
-**Tone:** Romantic and enthusiastic
----
-
-Generate the itinerary now.
-```
-
-This structured approach is much clearer than writing a single, long paragraph and often leads to more accurate and well-formatted responses.
+-   **Be Specific and Detailed:** The more detail you provide, the better the model can understand your intent. (e.g., `Explain the concept of a black hole to a 12-year-old` vs. `Tell me about space`).
+-   **Provide Context and Persona:** Tell the model who it should be. (e.g., `You are a marketing expert. Write an announcement for a new smartphone...`).
+-   **Define the Output Format:** Explicitly ask for the format you want. (e.g., `List the pros and cons of coffee in a two-column markdown table`).
+-   **For Images (`/imagine`):** Use descriptive adjectives, specify artistic styles (e.g., `cyberpunk`, `watercolor painting`), and set the scene (e.g., `dramatic cinematic lighting`, `macro shot`).
+-   **For Videos (`/create-video`):** Focus on action and movement. Use camera work terms like "time-lapse," "slow motion," or "aerial shot."
