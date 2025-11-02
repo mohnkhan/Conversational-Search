@@ -32,10 +32,10 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
 
   if (!inline && match) {
     return (
-      <div className="bg-[#1e1e1e] rounded-lg my-4 border border-[var(--border-color)] overflow-hidden not-prose relative font-mono text-sm">
-        <div className="flex items-center justify-between bg-black/20 px-4 py-2 text-xs text-gray-400">
+      <div className="bg-[var(--bg-secondary)] rounded-lg my-4 border border-[var(--border-color)] overflow-hidden not-prose relative font-mono text-sm">
+        <div className="flex items-center justify-between bg-[var(--bg-tertiary)]/40 px-4 py-2 text-xs text-[var(--text-muted)]">
           <span>{language}</span>
-          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-white transition-colors text-xs">
+          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-[var(--text-primary)] transition-colors text-xs">
             {isCodeCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
             <span>{isCodeCopied ? 'Copied!' : 'Copy code'}</span>
           </button>
@@ -317,10 +317,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                               <table className="w-full text-sm" {...props} />
                             </div>
                           ),
-                        thead: ({node, ...props}) => <thead className="bg-[var(--bg-secondary)]" {...props} />,
-                        th: ({node, ...props}) => <th className="px-4 py-3 text-left font-bold text-[var(--text-secondary)] border-r border-[var(--border-color)] last:border-r-0" {...props} />,
+                        thead: ({node, ...props}) => <thead className="bg-[var(--bg-secondary)]/60" {...props} />,
+                        th: ({node, ...props}) => <th className="px-4 py-3 text-left font-semibold text-[var(--text-secondary)]" {...props} />,
                         tr: ({node, ...props}) => <tr className="border-b border-[var(--border-color)] last:border-b-0 even:bg-[var(--bg-secondary)]/40" {...props} />,
-                        td: ({node, ...props}) => <td className="px-4 py-3 border-r border-[var(--border-color)] last:border-r-0" {...props} />,
+                        td: ({node, ...props}) => <td className="px-4 py-3" {...props} />,
                     }}
                     >
                     {message.text}
