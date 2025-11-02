@@ -331,6 +331,14 @@ const App: React.FC = () => {
                     </div>
                 </div>
              )}
+            {isLoading && !isThinking && (
+                <div className="pl-12 mt-4 animate-fade-in">
+                    <div className="inline-flex items-center space-x-3 text-gray-400 p-2 bg-gray-800/50 rounded-lg">
+                      <SparklesIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />
+                      <span className="text-sm font-medium">Generating response & suggestions...</span>
+                    </div>
+                </div>
+            )}
             {(suggestedPrompts.length > 0 || relatedTopics.length > 0) && !isLoading && (
               <div className="pl-12 animate-fade-in mt-4 space-y-5">
                 {suggestedPrompts.length > 0 && (
