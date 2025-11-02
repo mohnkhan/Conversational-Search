@@ -350,11 +350,18 @@ Return the questions as a JSON object with a single key "questions" which is an 
         if (!cleanedJson) {
             return [];
         }
+        
         const parsed = JSON.parse(cleanedJson);
 
-
-        if (parsed && Array.isArray(parsed.questions)) {
-            return parsed.questions.slice(0, 3); // Ensure max 3 questions
+        if (parsed) {
+            // Handle the expected format: { questions: ["...", "..."] }
+            if (Array.isArray(parsed.questions)) {
+                return parsed.questions.slice(0, 3).filter((q: unknown) => typeof q === 'string');
+            }
+            // Handle the fallback format where the model just returns the array: ["...", "..."]
+            if (Array.isArray(parsed)) {
+                return parsed.slice(0, 3).filter((q: unknown) => typeof q === 'string');
+            }
         }
 
         return [];
@@ -408,8 +415,15 @@ Return the topics as a JSON object with a single key "topics" which is an array 
         }
         const parsed = JSON.parse(cleanedJson);
 
-        if (parsed && Array.isArray(parsed.topics)) {
-            return parsed.topics.slice(0, 4); // Ensure max 4 topics
+        if (parsed) {
+            // Handle the expected format: { topics: ["...", "..."] }
+            if (Array.isArray(parsed.topics)) {
+                return parsed.topics.slice(0, 4).filter((t: unknown) => typeof t === 'string');
+            }
+             // Handle the fallback format where the model just returns the array: ["...", "..."]
+            if (Array.isArray(parsed)) {
+                return parsed.slice(0, 4).filter((t: unknown) => typeof t === 'string');
+            }
         }
 
         return [];
