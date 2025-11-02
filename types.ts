@@ -12,6 +12,7 @@ export interface ChatMessage {
   isError?: boolean;
   feedback?: 'up' | 'down';
   imageUrl?: string;
+  videoUrl?: string;
 }
 
 export type PredefinedDateFilter = 'any' | 'day' | 'week' | 'month' | 'year';

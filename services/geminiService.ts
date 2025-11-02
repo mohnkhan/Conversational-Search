@@ -1,11 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter } from '../types';
 
-if (!process.env.API_KEY) {
-    throw new Error("API_KEY environment variable not set.");
+// A module-level instance for non-Veo calls
+let ai: GoogleGenAI | null = null;
+if (process.env.API_KEY) {
+    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+} else {
+    console.warn("API_KEY environment variable not set for standard models.");
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Translates a raw API error into a user-friendly and actionable message.
@@ -17,7 +20,7 @@ export function parseGeminiError(error: unknown): string {
         const message = error.message.toLowerCase();
 
         // API Key issues
-        if (message.includes('api key not valid') || message.includes('api_key')) {
+        if (message.includes('api key not valid') || message.includes('api_key') || message.includes('requested entity was not found')) {
             return "There's an issue with the API key configuration. Please ensure it's set up correctly. If the problem persists, contact support.";
         }
 
@@ -77,6 +80,7 @@ export async function getGeminiResponseStream(
     filter: DateFilter,
     onStreamUpdate: (text: string) => void
 ): Promise<{ sources: Source[] }> {
+    if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
         const prefix = getDateFilterPrefix(filter);
         const fullPrompt = prefix + prompt;
@@ -124,6 +128,7 @@ export async function getGeminiResponseStream(
 
 
 export async function generateImage(prompt: string): Promise<string> {
+    if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
         const response = await ai.models.generateImages({
             model: 'imagen-4.0-generate-001',
@@ -143,11 +148,54 @@ export async function generateImage(prompt: string): Promise<string> {
     }
 }
 
+export async function generateVideo(prompt: string): Promise<string> {
+    if (!process.env.API_KEY) {
+        throw new Error("API_KEY environment variable not set for video generation.");
+    }
+    // Create a new instance for every Veo call to ensure the latest key is used
+    const videoAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
+    try {
+        let operation = await videoAi.models.generateVideos({
+            model: 'veo-3.1-fast-generate-preview',
+            prompt: prompt,
+            config: {
+              numberOfVideos: 1,
+              resolution: '720p',
+              aspectRatio: '16:9'
+            }
+        });
+
+        while (!operation.done) {
+            await new Promise(resolve => setTimeout(resolve, 10000)); // Poll every 10 seconds
+            operation = await videoAi.operations.getVideosOperation({ operation: operation });
+        }
+
+        const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+        if (!downloadLink) {
+            throw new Error("Video generation completed, but no download link was found.");
+        }
+
+        // The response.body contains the MP4 bytes. You must append an API key when fetching from the download link.
+        const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+        if (!response.ok) {
+            throw new Error(`Failed to download video: ${response.statusText}`);
+        }
+        const videoBlob = await response.blob();
+        return URL.createObjectURL(videoBlob);
+
+    } catch(error) {
+        console.error("Error in generateVideo:", error);
+        throw error;
+    }
+}
+
 
 export async function getSuggestedPrompts(
     prompt: string,
     response: string
 ): Promise<string[]> {
+    if (!ai) return [];
     try {
         const fullPrompt = `Based on this user query and model response, generate 3 concise and relevant follow-up questions a user might ask.
 
@@ -197,6 +245,7 @@ export async function getRelatedTopics(
     prompt: string,
     response: string
 ): Promise<string[]> {
+    if (!ai) return [];
     try {
         const fullPrompt = `Based on the following user query and model response, generate 3-4 broader, related topics for exploration. These should be distinct from simple follow-up questions.
 
@@ -246,6 +295,7 @@ Return the topics as a JSON object with a single key "topics" which is an array 
 export async function getConversationSummary(
     messages: ChatMessage[]
 ): Promise<string> {
+    if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
         const conversationHistory = messages.map(msg => {
             return `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}`;

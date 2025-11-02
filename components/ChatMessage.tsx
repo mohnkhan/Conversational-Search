@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage as ChatMessageType } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon } from './Icons';
 import Sources from './Sources';
 
 interface ChatMessageProps {
   message: ChatMessageType;
   messageIndex: number;
   onFeedback: (index: number, feedback: 'up' | 'down') => void;
+  onImageClick: (url: string) => void;
 }
 
 const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props }) => {
@@ -52,7 +53,7 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
 };
 
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick }) => {
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
   const [isShared, setIsShared] = useState(false);
@@ -148,18 +149,55 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         {message.imageUrl ? (
             <div>
                 <p className="text-gray-400 italic text-sm mb-2">Image generated for: "{message.text}"</p>
-                <div className="relative group/image inline-block">
+                <div 
+                    className="relative group/image inline-block cursor-zoom-in"
+                    onClick={() => onImageClick(message.imageUrl!)}
+                >
                     <img src={message.imageUrl} alt={message.text} className="rounded-lg border border-gray-700 max-w-full h-auto" />
-                    <a
-                        href={message.imageUrl}
-                        download={`gemini-generated-image-${new Date().getTime()}.png`}
-                        className="absolute bottom-3 right-3 bg-gray-900/70 text-white p-2 rounded-full opacity-0 group-hover/image:opacity-100 focus:opacity-100 transition-opacity"
-                        aria-label="Download image"
-                        title="Download image"
+                    <div className="absolute bottom-3 right-3 flex items-center space-x-2 opacity-0 group-hover/image:opacity-100 focus-within:opacity-100 transition-opacity">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onImageClick(message.imageUrl!); }}
+                            className="bg-gray-900/70 text-white p-2 rounded-full hover:bg-gray-800/90 transition-colors"
+                            aria-label="Zoom in"
+                            title="Zoom in"
+                        >
+                            <ZoomInIcon className="w-5 h-5" />
+                        </button>
+                        <a
+                            href={message.imageUrl}
+                            download={`gemini-generated-image.png`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-gray-900/70 text-white p-2 rounded-full hover:bg-gray-800/90 transition-colors"
+                            aria-label="Download image"
+                            title="Download image"
+                        >
+                            <DownloadIcon className="w-5 h-5" />
+                        </a>
+                    </div>
+                </div>
+            </div>
+        ) : message.videoUrl ? (
+            <div>
+                 <p className="text-gray-400 italic text-sm mb-2">Video created for: "{message.text}"</p>
+                 <div className="relative group/video inline-block aspect-video">
+                    <video 
+                        src={message.videoUrl} 
+                        controls 
+                        autoPlay 
+                        muted 
+                        loop
+                        className="rounded-lg border border-gray-700 max-w-full h-auto"
+                    />
+                     <a
+                        href={message.videoUrl}
+                        download={`gemini-generated-video.mp4`}
+                        className="absolute bottom-3 right-3 bg-gray-900/70 text-white p-2 rounded-full opacity-0 group-hover/video:opacity-100 focus:opacity-100 transition-opacity"
+                        aria-label="Download video"
+                        title="Download video"
                     >
                         <DownloadIcon className="w-5 h-5" />
                     </a>
-                </div>
+                 </div>
             </div>
         ) : (
             <>

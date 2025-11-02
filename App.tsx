@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage } from './services/geminiService';
+import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon } from './components/Icons';
+import ApiKeySelector from './components/ApiKeySelector';
+import Lightbox from './components/Lightbox';
 
 const initialMessages: ChatMessageType[] = [
   {
     role: 'model',
-    text: "Hello! I'm a conversational search assistant powered by Gemini. Ask me anything, or try `/imagine <your prompt>` to generate an image.",
+    text: "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, or `/create-video <prompt>` for a short video.",
     sources: []
   }
 ];
@@ -16,12 +18,12 @@ const initialMessages: ChatMessageType[] = [
 const examplePrompts = [
     "What are the latest advancements in AI?",
     "/imagine a photorealistic image of a cat astronaut",
-    "Who won the last Super Bowl?",
+    "/create-video a drone flying over a futuristic city",
 ];
 
 const CHAT_HISTORY_KEY = 'chatHistory';
 
-const loadingTexts = [
+const imageLoadingTexts = [
   "Painting with pixels...",
   "Summoning creativity...",
   "Composing your masterpiece...",
@@ -29,7 +31,16 @@ const loadingTexts = [
   "Asking the digital muse for inspiration...",
 ];
 
-const ImagePlaceholderLoader: React.FC = () => {
+const videoLoadingTexts = [
+    "Directing your short film...",
+    "Warming up the virtual cameras...",
+    "Rendering the first scene...",
+    "Applying special effects...",
+    "Finalizing the cut...",
+];
+
+const PlaceholderLoader: React.FC<{ type: 'image' | 'video' }> = ({ type }) => {
+    const loadingTexts = type === 'image' ? imageLoadingTexts : videoLoadingTexts;
     const [currentText, setCurrentText] = useState(loadingTexts[0]);
 
     useEffect(() => {
@@ -42,7 +53,9 @@ const ImagePlaceholderLoader: React.FC = () => {
         }, 2500);
 
         return () => clearInterval(intervalId);
-    }, []);
+    }, [loadingTexts]);
+
+    const Icon = type === 'image' ? ImageIcon : VideoIcon;
 
     return (
         <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
@@ -50,15 +63,14 @@ const ImagePlaceholderLoader: React.FC = () => {
                 <BotIcon className="w-5 h-5 text-cyan-400" />
             </div>
             <div className="flex-1 group relative pt-1">
-                <div className="w-full max-w-sm aspect-square bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center animate-shimmer">
-                    <ImageIcon className="w-12 h-12 text-gray-500 mb-4" />
+                <div className="w-full max-w-sm aspect-video bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center animate-shimmer">
+                    <Icon className="w-12 h-12 text-gray-500 mb-4" />
                     <p className="text-sm font-medium text-gray-400 text-center px-4">{currentText}</p>
                 </div>
             </div>
         </div>
     );
 };
-
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>(() => {
@@ -80,6 +92,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
+  const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
   const [isAllCopied, setIsAllCopied] = useState<boolean>(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [relatedTopics, setRelatedTopics] = useState<string[]>([]);
@@ -89,7 +102,17 @@ const App: React.FC = () => {
   const [isSummaryCopied, setIsSummaryCopied] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilter>('any');
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState<boolean>(false);
+  const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
+  const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkApiKey = async () => {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setIsKeySelected(hasKey);
+    };
+    checkApiKey();
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -97,7 +120,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, isThinking, suggestedPrompts, relatedTopics, isGeneratingImage]);
+  }, [messages, isLoading, isThinking, suggestedPrompts, relatedTopics, isGeneratingImage, isGeneratingVideo]);
 
   useEffect(() => {
     try {
@@ -172,6 +195,24 @@ const App: React.FC = () => {
             } else {
                  throw new Error("Please provide a prompt after the /imagine command.");
             }
+        } else if (trimmedInput.toLowerCase().startsWith('/create-video ')) {
+            if (!isKeySelected) {
+                throw new Error("API key not selected. Please select an API key before generating videos.");
+            }
+            setIsGeneratingVideo(true);
+            const videoPrompt = trimmedInput.substring(14).trim();
+            if (videoPrompt) {
+                const videoUrl = await generateVideo(videoPrompt);
+                const modelMessage: ChatMessageType = {
+                    role: 'model',
+                    text: videoPrompt,
+                    videoUrl: videoUrl,
+                    sources: []
+                };
+                setMessages(prev => [...prev, modelMessage]);
+            } else {
+                throw new Error("Please provide a prompt after the /create-video command.");
+            }
         } else {
             setIsThinking(true);
             let firstChunkReceived = false;
@@ -231,6 +272,12 @@ const App: React.FC = () => {
     } catch (error) {
         console.error("Failed to get Gemini response:", error);
         const errorText = parseGeminiError(error);
+        
+        // If the error indicates a problem with the API key, reset the selection state
+        if (errorText.toLowerCase().includes('api key')) {
+            setIsKeySelected(false);
+        }
+
         const errorMessage: ChatMessageType = {
             role: 'model',
             text: errorText,
@@ -239,7 +286,7 @@ const App: React.FC = () => {
         };
         
         setMessages(prev => {
-            if (prev[prev.length - 1].role === 'user' || prev[prev.length - 1].imageUrl) {
+            if (prev[prev.length - 1].role === 'user' || prev[prev.length - 1].imageUrl || prev[prev.length - 1].videoUrl) {
                 return [...prev, errorMessage];
             }
             return [...prev.slice(0, -1), errorMessage];
@@ -248,8 +295,9 @@ const App: React.FC = () => {
         setIsLoading(false);
         setIsThinking(false);
         setIsGeneratingImage(false);
+        setIsGeneratingVideo(false);
     }
-  }, [isLoading, dateFilter]);
+  }, [isLoading, dateFilter, isKeySelected]);
 
   const handleCopyAll = () => {
     const conversationText = messages.map(msg => {
@@ -276,6 +324,10 @@ const App: React.FC = () => {
       prevMessages.map((msg, index) => {
         if (index === messageIndex) {
           const newFeedback = msg.feedback === feedback ? undefined : feedback;
+          // Log feedback to console
+          console.log(`Feedback received for message ${index}: ${newFeedback || 'cleared'}`);
+          // In a real application, you would send this to an analytics endpoint.
+          // Example: sendToAnalytics('message_feedback', { messageId: msg.id, feedback: newFeedback });
           return { ...msg, feedback: newFeedback };
         }
         return msg;
@@ -314,6 +366,7 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
+      {!isKeySelected && <ApiKeySelector onKeySelected={() => setIsKeySelected(true)} />}
       <header className="flex items-center justify-between px-2 py-3 sm:px-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
         <div className="flex items-center space-x-3 min-w-0 flex-shrink">
             <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
@@ -362,6 +415,7 @@ const App: React.FC = () => {
                   message={msg}
                   messageIndex={index}
                   onFeedback={handleFeedback}
+                  onImageClick={setLightboxImageUrl}
                 />
             ))}
              {isThinking && (
@@ -374,8 +428,9 @@ const App: React.FC = () => {
                     </div>
                 </div>
              )}
-            {isGeneratingImage && <ImagePlaceholderLoader />}
-            {isLoading && !isThinking && !isGeneratingImage && (
+            {isGeneratingImage && <PlaceholderLoader type="image" />}
+            {isGeneratingVideo && <PlaceholderLoader type="video" />}
+            {isLoading && !isThinking && !isGeneratingImage && !isGeneratingVideo &&(
                 <div className="pl-12 mt-4 animate-fade-in">
                     <div className="inline-flex items-center space-x-3 text-gray-400 p-2 bg-gray-800/50 rounded-lg">
                       <SparklesIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />
@@ -443,7 +498,7 @@ const App: React.FC = () => {
           <ChatInput 
             onSendMessage={handleSendMessage} 
             isLoading={isLoading} 
-            placeholder="Ask me anything, or use /imagine to generate an image..."
+            placeholder="Ask me anything, or use /imagine or /create-video..."
             activeFilter={dateFilter}
             onFilterChange={setDateFilter}
             isFilterMenuOpen={isFilterMenuOpen}
@@ -512,6 +567,13 @@ const App: React.FC = () => {
             </footer>
           </div>
         </div>
+      )}
+
+      {lightboxImageUrl && (
+        <Lightbox 
+          imageUrl={lightboxImageUrl}
+          onClose={() => setLightboxImageUrl(null)}
+        />
       )}
     </div>
   );
