@@ -93,6 +93,51 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
     return 'bg-indigo-500/20';
   };
 
+  const renderActionButtons = () => (
+    <>
+        <button
+            onClick={() => onFeedback(messageIndex, 'up')}
+            className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
+                message.feedback === 'up' ? 'text-green-400 hover:text-green-300' : 'hover:text-white'
+            }`}
+            aria-pressed={message.feedback === 'up'}
+            aria-label="Good response"
+            title="Good response"
+        >
+            <ThumbsUpIcon className={`w-4 h-4 ${message.feedback === 'up' ? 'fill-current' : ''}`} />
+        </button>
+        <button
+            onClick={() => onFeedback(messageIndex, 'down')}
+            className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
+                message.feedback === 'down' ? 'text-red-400 hover:text-red-300' : 'hover:text-white'
+            }`}
+            aria-pressed={message.feedback === 'down'}
+            aria-label="Bad response"
+            title="Bad response"
+        >
+            <ThumbsDownIcon className={`w-4 h-4 ${message.feedback === 'down' ? 'fill-current' : ''}`} />
+        </button>
+
+        <div className="h-4 w-px bg-gray-600 mx-1"></div>
+        
+        <button
+          onClick={handleShare}
+          className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
+          aria-label="Share message"
+          title="Share message"
+        >
+          {isShared ? <CheckIcon className="w-4 h-4 text-green-400" /> : <ShareIcon className="w-4 h-4" />}
+        </button>
+        <button
+          onClick={handleCopy}
+          className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
+          aria-label="Copy message"
+          title="Copy message"
+        >
+          {isCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
+        </button>
+    </>
+  );
 
   return (
     <div className={`flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in`}>
@@ -100,51 +145,6 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         {getIcon()}
       </div>
       <div className="flex-1 group relative">
-        {isModel && !message.isError && (
-            <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
-                <button
-                    onClick={() => onFeedback(messageIndex, 'up')}
-                    className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
-                        message.feedback === 'up' ? 'text-green-400 hover:text-green-300' : 'hover:text-white'
-                    }`}
-                    aria-pressed={message.feedback === 'up'}
-                    aria-label="Good response"
-                    title="Good response"
-                >
-                    <ThumbsUpIcon className={`w-4 h-4 ${message.feedback === 'up' ? 'fill-current' : ''}`} />
-                </button>
-                <button
-                    onClick={() => onFeedback(messageIndex, 'down')}
-                    className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
-                        message.feedback === 'down' ? 'text-red-400 hover:text-red-300' : 'hover:text-white'
-                    }`}
-                    aria-pressed={message.feedback === 'down'}
-                    aria-label="Bad response"
-                    title="Bad response"
-                >
-                    <ThumbsDownIcon className={`w-4 h-4 ${message.feedback === 'down' ? 'fill-current' : ''}`} />
-                </button>
-
-                <div className="h-4 w-px bg-gray-600 mx-1"></div>
-                
-                <button
-                  onClick={handleShare}
-                  className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
-                  aria-label="Share message"
-                  title="Share message"
-                >
-                  {isShared ? <CheckIcon className="w-4 h-4 text-green-400" /> : <ShareIcon className="w-4 h-4" />}
-                </button>
-                <button
-                  onClick={handleCopy}
-                  className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"
-                  aria-label="Copy message"
-                  title="Copy message"
-                >
-                  {isCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
-                </button>
-            </div>
-        )}
         <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
           {message.isError ? (
             <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 not-prose">
@@ -162,6 +162,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             </ReactMarkdown>
           )}
         </div>
+        
+        {isModel && !message.isError && (
+            <div className="mt-3 flex items-center space-x-1 md:absolute md:top-0 md:right-0 md:mt-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+                {renderActionButtons()}
+            </div>
+        )}
+
         {isModel && !message.isError && message.sources && message.sources.length > 0 && (
           <div className="mt-4 border-t border-gray-700 pt-3">
             <Sources sources={message.sources} />

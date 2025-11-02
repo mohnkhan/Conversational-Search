@@ -256,18 +256,18 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
-      <header className="flex items-center justify-between px-4 py-3 sm:p-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
-        <div className="flex items-center space-x-3">
-            <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400" />
-            <div>
-            <h1 className="text-lg sm:text-xl font-bold text-white">Gemini Conversational Search</h1>
-            <p className="text-xs sm:text-sm text-gray-400 flex items-center">
-                <SearchIcon className="w-3.5 h-3.5 mr-1.5" />
-                <span>Powered by Google Search Grounding</span>
-            </p>
+      <header className="flex items-center justify-between px-2 py-3 sm:px-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+        <div className="flex items-center space-x-3 min-w-0 flex-shrink">
+            <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400 flex-shrink-0" />
+            <div className="min-w-0">
+                <h1 className="text-md sm:text-xl font-bold text-white truncate">Gemini Conversational Search</h1>
+                <p className="text-xs sm:text-sm text-gray-400 flex items-center">
+                    <SearchIcon className="w-3.5 h-3.5 mr-1.5 hidden sm:block" />
+                    <span className="truncate">Powered by Google Search Grounding</span>
+                </p>
             </div>
         </div>
-        <div className="flex items-center space-x-1 sm:space-x-2">
+        <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
             <button
                 onClick={handleSummarize}
                 className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0 disabled:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed"
@@ -296,7 +296,7 @@ const App: React.FC = () => {
         </div>
       </header>
       
-      <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+      <main className="flex-1 overflow-y-auto p-2 py-4 sm:p-4 md:p-6 space-y-6">
         <div className="max-w-4xl mx-auto w-full">
             {messages.map((msg, index) => (
                 <ChatMessage 
@@ -353,7 +353,7 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      <footer className="p-4 md:p-6 border-t border-gray-700 bg-gray-900/80 backdrop-blur-sm">
+      <footer className="p-2 sm:p-4 md:p-6 border-t border-gray-700 bg-gray-900/80 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto">
           <ChatInput 
             onSendMessage={handleSendMessage} 
@@ -376,7 +376,7 @@ const App: React.FC = () => {
           onClick={() => setShowSummaryModal(false)}
         >
           <div
-            className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+            className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-md sm:max-w-2xl max-h-[90vh] sm:max-h-[80vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
             <header className="flex items-center justify-between p-4 border-b border-gray-700">
