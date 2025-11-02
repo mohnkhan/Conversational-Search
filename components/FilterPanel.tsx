@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { DateFilter, PredefinedDateFilter, CustomDateFilter } from '../types';
+import { useTranslation } from '../hooks/useTranslation';
 
 type FilterMode = PredefinedDateFilter | 'custom';
 
@@ -9,18 +10,19 @@ interface FilterPanelProps {
     onClose: () => void;
 }
 
-const presetOptions: { key: PredefinedDateFilter, label: string }[] = [
-    { key: 'any', label: 'Any time' },
-    { key: 'day', label: 'Past 24 hours' },
-    { key: 'week', label: 'Past week' },
-    { key: 'month', label: 'Past month' },
-    { key: 'year', label: 'Past year' },
-];
-
 const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, onClose }) => {
     const [mode, setMode] = useState<FilterMode>('any');
     const [customDates, setCustomDates] = useState<CustomDateFilter>({ startDate: null, endDate: null });
     const panelRef = useRef<HTMLDivElement>(null);
+    const { t } = useTranslation();
+
+    const presetOptions: { key: PredefinedDateFilter, label: string }[] = [
+        { key: 'any', label: t('anyTime') },
+        { key: 'day', label: t('pastDay') },
+        { key: 'week', label: t('pastWeek') },
+        { key: 'month', label: t('pastMonth') },
+        { key: 'year', label: t('pastYear') },
+    ];
 
     useEffect(() => {
         if (typeof activeFilter === 'string') {
@@ -111,9 +113,9 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
             <div className="p-4 space-y-4">
                 <div>
                     <h2 id="filter-panel-title" className="text-base font-semibold text-[var(--text-primary)] mb-3">
-                        Filter by date
+                        {t('filterByDate')}
                     </h2>
-                    <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">Quick filters</p>
+                    <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">{t('quickFilters')}</p>
                     <div className="grid grid-cols-2 gap-2">
                         {presetOptions.map(option => (
                         <button
@@ -134,10 +136,10 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
                 <div className="border-t border-[var(--border-color)] my-4"></div>
 
                 <div>
-                    <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">Custom date range</p>
+                    <p className="text-sm font-semibold text-[var(--text-secondary)] mb-2">{t('customDateRange')}</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                        <div>
-                            <label htmlFor="start-date" className="block text-xs text-[var(--text-muted)] mb-1">Start date</label>
+                            <label htmlFor="start-date" className="block text-xs text-[var(--text-muted)] mb-1">{t('startDate')}</label>
                             <input
                                 type="date"
                                 id="start-date"
@@ -148,7 +150,7 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
                             />
                        </div>
                        <div>
-                            <label htmlFor="end-date" className="block text-xs text-[var(--text-muted)] mb-1">End date</label>
+                            <label htmlFor="end-date" className="block text-xs text-[var(--text-muted)] mb-1">{t('endDate')}</label>
                             <input
                                 type="date"
                                 id="end-date"
@@ -168,13 +170,13 @@ const FilterPanel: React.FC<FilterPanelProps> = ({ activeFilter, onApplyFilter, 
                     onClick={handleClear}
                     className="px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
-                    Clear Filter
+                    {t('clearFilter')}
                 </button>
                 <button
                     onClick={handleApply}
                     className="px-5 py-2 rounded-md text-sm font-semibold text-white bg-[var(--accent-primary)] hover:opacity-90 transition-all"
                 >
-                    Apply
+                    {t('apply')}
                 </button>
             </footer>
         </div>

@@ -6,6 +6,7 @@ import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIc
 import { DateFilter, PredefinedDateFilter } from '../types';
 import FilterPanel from './FilterPanel';
 import CodeBlock from './CodeBlock'; // Import the shared CodeBlock component
+import { useTranslation } from '../hooks/useTranslation';
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -19,26 +20,6 @@ interface ChatInputProps {
   isDeepResearch: boolean;
   onToggleDeepResearch: () => void;
 }
-
-const filterOptions: { key: PredefinedDateFilter, label: string }[] = [
-    { key: 'any', label: 'Any time' },
-    { key: 'day', label: 'Past 24 hours' },
-    { key: 'week', label: 'Past week' },
-    { key: 'month', label: 'Past month' },
-    { key: 'year', label: 'Past year' },
-];
-
-const formatFilterLabel = (filter: DateFilter): string => {
-  if (typeof filter === 'string') {
-    const option = filterOptions.find(opt => opt.key === filter);
-    return option?.label || 'Any time';
-  }
-  const { startDate, endDate } = filter;
-  if (startDate && endDate) return `${startDate} to ${endDate}`;
-  if (startDate) return `From ${startDate}`;
-  if (endDate) return `To ${endDate}`;
-  return 'Custom range';
-};
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
     onSendMessage, 
@@ -60,6 +41,36 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { t, locale } = useTranslation();
+
+
+  const formatFilterLabel = (filter: DateFilter): string => {
+    if (typeof filter === 'string') {
+        // FIX: The explicit type `Record<PredefinedDateFilter, string>` was too wide, causing `keyMap[filter]` to be `string`.
+        // Using `as const` lets TypeScript infer the narrowest possible type for the values (e.g., 'anyTime' instead of string),
+        // which matches the expected `TranslationKey` type for the `t` function.
+        const keyMap = {
+            'any': 'anyTime',
+            'day': 'pastDay',
+            'week': 'pastWeek',
+            'month': 'pastMonth',
+            'year': 'pastYear',
+        } as const;
+        return t(keyMap[filter]);
+    }
+    
+    const { startDate, endDate } = filter;
+    const options: Intl.DateTimeFormatOptions = { year: 'numeric', month: 'short', day: 'numeric' };
+    const formatter = new Intl.DateTimeFormat(locale, options);
+
+    const formattedStart = startDate ? formatter.format(new Date(startDate)) : null;
+    const formattedEnd = endDate ? formatter.format(new Date(endDate)) : null;
+
+    if (formattedStart && formattedEnd) return t('dateRange', { startDate: formattedStart, endDate: formattedEnd });
+    if (formattedStart) return t('dateRangeFrom', { startDate: formattedStart });
+    if (formattedEnd) return t('dateRangeTo', { endDate: formattedEnd });
+    return t('customDateRange');
+  };
 
   // Set cursor position after formatting
   useEffect(() => {
@@ -151,7 +162,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     const recognition = new SpeechRecognition();
     recognitionRef.current = recognition;
     recognition.interimResults = true;
-    recognition.lang = 'en-US';
+    recognition.lang = locale;
 
     let currentTranscript = text;
 
