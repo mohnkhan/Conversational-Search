@@ -2,14 +2,14 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon, SparklesIconFilled } from './Icons';
-import { DateFilter, PredefinedDateFilter } from '../types';
+import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon, SparklesIconFilled, PaperclipIcon, FileTextIcon } from './Icons';
+import { DateFilter, PredefinedDateFilter, AttachedFile } from '../types';
 import FilterPanel from './FilterPanel';
 import CodeBlock from './CodeBlock'; // Import the shared CodeBlock component
 import { useTranslation } from '../hooks/useTranslation';
 
 interface ChatInputProps {
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, file?: AttachedFile | null) => void;
   isLoading: boolean;
   activeFilter: DateFilter;
   onFilterChange: (filter: DateFilter) => void;
@@ -19,6 +19,8 @@ interface ChatInputProps {
   placeholder?: string;
   isDeepResearch: boolean;
   onToggleDeepResearch: () => void;
+  attachedFile: AttachedFile | null;
+  onSetAttachedFile: (file: AttachedFile | null) => void;
 }
 
 const ChatInput: React.FC<ChatInputProps> = ({ 
@@ -32,6 +34,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     placeholder,
     isDeepResearch,
     onToggleDeepResearch,
+    attachedFile,
+    onSetAttachedFile,
 }) => {
   const [text, setText] = useState('');
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
@@ -41,6 +45,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { t, locale } = useTranslation();
 
 
@@ -91,12 +96,49 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (text.trim()) {
-      onSendMessage(text);
+    if (text.trim() || attachedFile) {
+      onSendMessage(text, attachedFile);
       setText('');
-      setActiveTab('write'); // Switch back to write tab after sending
+      // Attached file is cleared in App.tsx
     }
   };
+
+  const handleFileSelect = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+  
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        alert("File is too large. Please select a file smaller than 5MB.");
+        return;
+      }
+  
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = e.target?.result as string;
+        const base64 = dataUrl.split(',')[1];
+        onSetAttachedFile({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUrl,
+          base64,
+        });
+      };
+      reader.readAsDataURL(file);
+  
+      if (event.target) {
+        event.target.value = '';
+      }
+  };
+  
+  const handleRemoveFile = () => {
+      onSetAttachedFile(null);
+  };
+
 
   const applyFormatting = (format: 'bold' | 'italic' | 'code' | 'code-block') => {
     const textarea = textareaRef.current;
@@ -329,6 +371,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="relative">
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/jpeg, image/png, image/webp, image/heic, image/heif" />
       {isFilterMenuOpen && (
         <div ref={filterMenuRef}>
             <FilterPanel 
@@ -360,8 +403,28 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
         <div className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)] transition-shadow duration-200 overflow-hidden ${
-          isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
-        }`}>
+          isFilterActive || attachedFile ? 'rounded-b-lg' : 'rounded-lg'
+        } ${ isFilterActive && attachedFile ? 'rounded-t-none' : ''}`}>
+             {attachedFile && (
+                <div className="bg-[var(--bg-tertiary)]/30 border-b border-[var(--border-color)] px-3 py-2 flex items-center justify-between animate-fade-in">
+                    <div className="flex items-center space-x-2 overflow-hidden">
+                        {attachedFile.type.startsWith('image/') ? (
+                            <img src={attachedFile.dataUrl} alt={attachedFile.name} className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                        ) : (
+                            <div className="w-8 h-8 flex items-center justify-center bg-[var(--bg-primary)] rounded flex-shrink-0">
+                                <FileTextIcon className="w-5 h-5 text-[var(--text-muted)]" />
+                            </div>
+                        )}
+                        <div className="text-sm overflow-hidden">
+                            <p className="font-medium text-[var(--text-primary)] truncate">{attachedFile.name}</p>
+                            <p className="text-xs text-[var(--text-muted)]">{Math.round(attachedFile.size / 1024)} KB</p>
+                        </div>
+                    </div>
+                    <button type="button" onClick={handleRemoveFile} className="p-1 rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] flex-shrink-0 ml-2">
+                        <XIcon className="w-4 h-4" />
+                    </button>
+                </div>
+            )}
             <div className="flex items-center justify-between p-2 border-b border-[var(--border-color)]">
                 <div className="flex items-center space-x-1">
                     <button type="button" onClick={() => setActiveTab('write')} className={`px-3 py-1 text-sm rounded-md transition-colors ${activeTab === 'write' ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/60'}`}>
@@ -392,7 +455,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={placeholder || "Ask me anything... (Markdown supported)"}
+                    placeholder={placeholder || "Ask me anything, or attach an image... (Markdown supported)"}
                     className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none px-3 py-3 text-sm sm:text-base resize-y overflow-y-auto"
                     disabled={isLoading}
                     style={{ minHeight: '8rem', maxHeight: '40vh' }}
@@ -413,7 +476,18 @@ const ChatInput: React.FC<ChatInputProps> = ({
             )}
             
             <div className="flex items-center justify-between px-2 pb-2">
-                 <div></div> {/* Spacer */}
+                 <div className="flex items-center space-x-1">
+                    <button
+                        type="button"
+                        onClick={handleFileSelect}
+                        disabled={isLoading}
+                        aria-label="Attach file"
+                        title="Attach file"
+                        className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors"
+                    >
+                        <PaperclipIcon className="w-5 h-5" />
+                    </button>
+                 </div>
                 <div className="flex items-center space-x-1">
                     <button
                         type="button"
@@ -459,7 +533,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     </button>
                     <button
                     type="submit"
-                    disabled={isLoading || !text.trim()}
+                    disabled={isLoading || (!text.trim() && !attachedFile)}
                     className="p-2 rounded-md bg-[var(--accent-primary)] text-white hover:opacity-90 disabled:bg-[var(--bg-tertiary)] disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
                     aria-label="Send message (Enter)"
                     title="Send message (Enter)"

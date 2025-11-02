@@ -5,6 +5,14 @@ export interface Source {
   };
 }
 
+export interface AttachedFile {
+  name: string;
+  type: string; // mimeType
+  size: number;
+  dataUrl: string; // for preview
+  base64: string; // for API
+}
+
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
@@ -16,6 +24,7 @@ export interface ChatMessage {
   originalText?: string;
   isThinking?: boolean;
   timestamp?: string;
+  attachment?: AttachedFile;
 }
 
 export interface Task {

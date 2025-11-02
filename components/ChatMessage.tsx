@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage as ChatMessageType } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon } from './Icons';
 import Sources from './Sources';
 import CodeBlock from './CodeBlock'; // Use the shared CodeBlock component
 
@@ -234,6 +234,21 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             </div>
         ) : (
             <>
+                {message.role === 'user' && message.attachment && (
+                    <div className="mb-2 border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2 rounded-lg inline-flex items-center space-x-2 max-w-xs">
+                        {message.attachment.type.startsWith('image/') ? (
+                            <img src={message.attachment.dataUrl} alt={message.attachment.name} className="w-10 h-10 rounded object-cover" />
+                        ) : (
+                            <div className="w-10 h-10 flex items-center justify-center bg-[var(--bg-primary)] rounded flex-shrink-0">
+                                <FileTextIcon className="w-6 h-6 text-[var(--text-muted)]" />
+                            </div>
+                        )}
+                        <div className="text-sm overflow-hidden">
+                            <p className="font-medium text-[var(--text-primary)] truncate">{message.attachment.name}</p>
+                            <p className="text-xs text-[var(--text-muted)]">{Math.round(message.attachment.size / 1024)} KB</p>
+                        </div>
+                    </div>
+                )}
                 <div className={`prose prose-themed max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 md:pr-40`}>
                 {message.isError ? (
                     <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 not-prose">

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
 import { playSendSound, playReceiveSound } from './services/audioService';
-import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task, AttachedFile } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon } from './components/Icons';
@@ -230,6 +230,7 @@ const App: React.FC = () => {
     }
   });
   const [apiKeySelectorProps, setApiKeySelectorProps] = useState<ApiKeySelectorPropsState>({ show: false });
+  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
@@ -324,9 +325,9 @@ const App: React.FC = () => {
     });
   };
 
-  const handleSendMessage = async (prompt: string) => {
+  const handleSendMessage = async (prompt: string, file: AttachedFile | null = attachedFile) => {
     const trimmedPrompt = prompt.trim();
-    if (!trimmedPrompt) return;
+    if (!trimmedPrompt && !file) return;
 
     const isImageCommand = trimmedPrompt.startsWith('/imagine ');
     const isVideoCommand = trimmedPrompt.startsWith('/create-video ');
@@ -334,12 +335,14 @@ const App: React.FC = () => {
         role: 'user', 
         text: trimmedPrompt,
         timestamp: new Date().toISOString(),
+        attachment: file,
     };
 
     // Common state updates
     setSuggestedPrompts([]);
     setRelatedTopics([]);
     playSendSound();
+    setAttachedFile(null); // Clear attached file from input area
 
     // IMAGE COMMAND LOGIC
     if (isImageCommand) {
@@ -412,7 +415,7 @@ const App: React.FC = () => {
 
     // STANDARD TEXT COMMAND LOGIC
     setIsLoading(true);
-    addRecentQuery(trimmedPrompt);
+    if (trimmedPrompt) addRecentQuery(trimmedPrompt);
 
     // Create the history for the API call. It's the current state + the new message.
     const historyForApi = [...messages, userMessage];
@@ -433,7 +436,8 @@ const App: React.FC = () => {
             },
             model,
             isDeepResearch,
-            prioritizeAuthoritative
+            prioritizeAuthoritative,
+            file ? { base64: file.base64, mimeType: file.type } : undefined
         );
 
         playReceiveSound();
@@ -660,6 +664,8 @@ const App: React.FC = () => {
                     onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
                     isDeepResearch={isDeepResearch}
                     onToggleDeepResearch={() => setIsDeepResearch(p => !p)}
+                    attachedFile={attachedFile}
+                    onSetAttachedFile={setAttachedFile}
                 />
               </div>
             </div>

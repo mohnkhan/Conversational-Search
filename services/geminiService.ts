@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId } from '../types';
+import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, AttachedFile } from '../types';
 
 // A module-level instance for non-Veo calls
 let ai: GoogleGenAI | null = null;
@@ -176,7 +176,8 @@ export async function getGeminiResponseStream(
     onStreamUpdate: (text: string) => void,
     model: ModelId,
     isDeepResearch: boolean = false,
-    prioritizeAuthoritative: boolean = false
+    prioritizeAuthoritative: boolean = false,
+    file?: { base64: string; mimeType: string }
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
@@ -186,17 +187,30 @@ export async function getGeminiResponseStream(
                 if (index === 0 && msg.role === 'model') {
                     return false;
                 }
-                // Include only valid, text-based user and model messages
-                return (msg.role === 'user' || msg.role === 'model') && msg.text && !msg.isError && !msg.imageUrl && !msg.videoUrl;
+                // Include only valid, non-generated user and model messages
+                return (msg.role === 'user' || msg.role === 'model') && !msg.isError && !msg.imageUrl && !msg.videoUrl;
             }
         );
 
-        const contents: { role: 'user' | 'model'; parts: { text: string }[] }[] = processedHistory.map(msg => ({
+        const contents: any[] = processedHistory.map(msg => ({
             role: msg.role,
             parts: [{ text: msg.text }],
         }));
 
-        // Apply date filter and/or deep research prefix ONLY to the last user message
+        // If a file is attached, add it as a new part to the last user message.
+        if (contents.length > 0 && file) {
+            const lastContent = contents[contents.length - 1];
+            if (lastContent.role === 'user') {
+                lastContent.parts.push({
+                    inlineData: {
+                        mimeType: file.mimeType,
+                        data: file.base64,
+                    },
+                });
+            }
+        }
+
+        // Apply date filter and/or deep research prefix ONLY to the text part of the last user message
         if (contents.length > 0) {
             const lastContent = contents[contents.length - 1];
             if (lastContent.role === 'user') {
@@ -205,7 +219,12 @@ export async function getGeminiResponseStream(
                     prefix += 'Conduct a deep research analysis on the following topic, providing a comprehensive and detailed response with multiple perspectives if applicable. Topic: ';
                 }
                 prefix += getDateFilterPrefix(filter);
-                lastContent.parts[0].text = prefix + lastContent.parts[0].text;
+                // Ensure the text part exists before prepending
+                if(lastContent.parts[0].text) {
+                    lastContent.parts[0].text = prefix + lastContent.parts[0].text;
+                } else {
+                    lastContent.parts[0].text = prefix;
+                }
             }
         }
 
