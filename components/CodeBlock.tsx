@@ -20,10 +20,10 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
 
   if (!inline && match) {
     return (
-      <div className="bg-[var(--bg-secondary)] rounded-lg my-4 border border-[var(--border-color)] overflow-hidden not-prose relative font-mono text-sm">
+      <div className="group bg-[var(--bg-secondary)] rounded-lg my-4 border border-[var(--border-color)] overflow-hidden not-prose relative font-mono text-sm">
         <div className="flex items-center justify-between bg-[var(--bg-tertiary)]/40 px-4 py-2 text-xs text-[var(--text-muted)]">
           <span>{language}</span>
-          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-[var(--text-primary)] transition-colors text-xs">
+          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-[var(--text-primary)] transition-colors text-xs opacity-0 group-hover:opacity-100 transition-opacity duration-200">
             {isCodeCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
             <span>{isCodeCopied ? 'Copied!' : 'Copy code'}</span>
           </button>
