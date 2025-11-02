@@ -10,4 +10,5 @@ export interface ChatMessage {
   text: string;
   sources?: Source[];
   isError?: boolean;
+  feedback?: 'up' | 'down';
 }

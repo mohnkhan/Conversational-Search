@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage as ChatMessageType } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon } from './Icons';
 import Sources from './Sources';
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  messageIndex: number;
+  onFeedback: (index: number, feedback: 'up' | 'down') => void;
 }
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback }) => {
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
   const [isShared, setIsShared] = useState(false);
@@ -58,6 +60,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
       <div className="flex-1 group relative">
         {isModel && !message.isError && (
             <div className="absolute top-0 right-0 flex items-center space-x-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+                <button
+                    onClick={() => onFeedback(messageIndex, 'up')}
+                    className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
+                        message.feedback === 'up' ? 'text-green-400 hover:text-green-300' : 'hover:text-white'
+                    }`}
+                    aria-pressed={message.feedback === 'up'}
+                    aria-label="Good response"
+                    title="Good response"
+                >
+                    <ThumbsUpIcon className={`w-4 h-4 ${message.feedback === 'up' ? 'fill-current' : ''}`} />
+                </button>
+                <button
+                    onClick={() => onFeedback(messageIndex, 'down')}
+                    className={`p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 transition-colors duration-200 ${
+                        message.feedback === 'down' ? 'text-red-400 hover:text-red-300' : 'hover:text-white'
+                    }`}
+                    aria-pressed={message.feedback === 'down'}
+                    aria-label="Bad response"
+                    title="Bad response"
+                >
+                    <ThumbsDownIcon className={`w-4 h-4 ${message.feedback === 'down' ? 'fill-current' : ''}`} />
+                </button>
+
+                <div className="h-4 w-px bg-gray-600 mx-1"></div>
+                
                 <button
                   onClick={handleShare}
                   className="p-1.5 rounded-md text-gray-400 bg-gray-800/50 hover:bg-gray-700 hover:text-white transition-colors duration-200"

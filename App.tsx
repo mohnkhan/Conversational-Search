@@ -142,6 +142,19 @@ const App: React.FC = () => {
     });
   };
 
+  const handleFeedback = (messageIndex: number, feedback: 'up' | 'down') => {
+    setMessages(prevMessages => 
+      prevMessages.map((msg, index) => {
+        if (index === messageIndex) {
+          // If the same feedback is clicked again, remove it. Otherwise, set it.
+          const newFeedback = msg.feedback === feedback ? undefined : feedback;
+          return { ...msg, feedback: newFeedback };
+        }
+        return msg;
+      })
+    );
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
       <header className="flex items-center justify-between px-4 py-3 sm:p-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
@@ -178,7 +191,12 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
         <div className="max-w-4xl mx-auto w-full">
             {messages.map((msg, index) => (
-                <ChatMessage key={index} message={msg} />
+                <ChatMessage 
+                  key={index} 
+                  message={msg}
+                  messageIndex={index}
+                  onFeedback={handleFeedback}
+                />
             ))}
              {isThinking && (
                 <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
