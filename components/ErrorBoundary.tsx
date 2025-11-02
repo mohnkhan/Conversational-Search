@@ -11,6 +11,10 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
+    // FIX: Replaced constructor with a direct state initializer.
+    // This is a more modern syntax and can resolve complex type inference issues
+    // that sometimes occur with constructors in class components, fixing the
+    // "Property 'props' does not exist" error.
     public state: State = {
         hasError: false,
     };

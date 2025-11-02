@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { ChatMessage as ChatMessageType } from '../types';
 import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon } from './Icons';
 import Sources from './Sources';
@@ -212,7 +213,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             </div>
         ) : (
             <>
-                <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
+                <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
                 {message.isError ? (
                     <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 not-prose">
                     <p className="font-semibold text-red-300">An Error Occurred</p>
@@ -220,9 +221,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                     </div>
                 ) : (
                     <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
                     components={{
                         a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
                         code: CodeBlock,
+                        table: ({node, ...props}) => (
+                            <div className="overflow-x-auto my-4 border border-gray-700 rounded-lg not-prose">
+                              <table className="w-full text-sm" {...props} />
+                            </div>
+                          ),
+                        thead: ({node, ...props}) => <thead className="bg-gray-800/50" {...props} />,
+                        th: ({node, ...props}) => <th className="px-4 py-2.5 text-left font-semibold" {...props} />,
+                        tr: ({node, ...props}) => <tr className="border-b border-gray-700 last:border-b-0" {...props} />,
+                        td: ({node, ...props}) => <td className="px-4 py-2.5" {...props} />,
                     }}
                     >
                     {message.text}
