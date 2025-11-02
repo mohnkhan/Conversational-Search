@@ -3,7 +3,7 @@ import { getGeminiResponseStream, getSuggestedPrompts } from './services/geminiS
 import { ChatMessage as ChatMessageType, Source } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon } from './components/Icons';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -23,6 +23,7 @@ const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [isAllCopied, setIsAllCopied] = useState<boolean>(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -120,6 +121,26 @@ const App: React.FC = () => {
     setMessages(initialMessages);
     setSuggestedPrompts([]);
   };
+  
+  const handleCopyAll = () => {
+    const conversationText = messages.map(msg => {
+      let formattedMessage = `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}`;
+      if (msg.role === 'model' && msg.sources && msg.sources.length > 0) {
+        const sourcesText = msg.sources
+          .map(source => `- ${source.web?.title}: ${source.web?.uri}`)
+          .join('\n');
+        formattedMessage += `\n\nSources:\n${sourcesText}`;
+      }
+      return formattedMessage;
+    }).join('\n\n---\n\n');
+  
+    navigator.clipboard.writeText(conversationText).then(() => {
+      setIsAllCopied(true);
+      setTimeout(() => setIsAllCopied(false), 2000);
+    }).catch(err => {
+      console.error("Failed to copy conversation:", err);
+    });
+  };
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
@@ -134,14 +155,24 @@ const App: React.FC = () => {
             </p>
             </div>
         </div>
-        <button
-          onClick={handleClearChat}
-          className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
-          aria-label="Clear chat history"
-          title="Clear chat"
-        >
-          <TrashIcon className="w-5 h-5" />
-        </button>
+        <div className="flex items-center space-x-1 sm:space-x-2">
+            <button
+                onClick={handleCopyAll}
+                className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
+                aria-label="Copy entire chat"
+                title="Copy chat"
+            >
+                {isAllCopied ? <CheckIcon className="w-5 h-5 text-green-400" /> : <ClipboardListIcon className="w-5 h-5" />}
+            </button>
+            <button
+              onClick={handleClearChat}
+              className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
+              aria-label="Clear chat history"
+              title="Clear chat"
+            >
+              <TrashIcon className="w-5 h-5" />
+            </button>
+        </div>
       </header>
       
       <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
