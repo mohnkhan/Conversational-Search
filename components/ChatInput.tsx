@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { SendIcon, FilterIcon, XIcon } from './Icons';
+import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon } from './Icons';
 import { DateFilter, PredefinedDateFilter } from '../types';
 import FilterPanel from './FilterPanel';
 
@@ -45,6 +45,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     placeholder
 }) => {
   const [text, setText] = useState('');
+  const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -58,6 +59,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [text]);
 
+  // Set cursor position after formatting
+  useEffect(() => {
+    if (cursorPosition && textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.setSelectionRange(cursorPosition.start, cursorPosition.end);
+        setCursorPosition(null); // Reset after applying
+    }
+  }, [cursorPosition]);
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (text.trim()) {
@@ -66,10 +76,64 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   };
 
+  const applyFormatting = (format: 'bold' | 'italic' | 'code-block') => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = text.substring(start, end);
+
+    let prefix = '';
+    let suffix = '';
+
+    switch (format) {
+      case 'bold':
+        prefix = '**';
+        suffix = '**';
+        break;
+      case 'italic':
+        prefix = '*';
+        suffix = '*';
+        break;
+      case 'code-block':
+        const prefixNewline = (start > 0 && text[start - 1] !== '\n') ? '\n' : '';
+        prefix = `${prefixNewline}\`\`\`\n`;
+        suffix = '\n```';
+        break;
+    }
+
+    const newText = `${text.substring(0, start)}${prefix}${selectedText}${suffix}${text.substring(end)}`;
+    setText(newText);
+    
+    setCursorPosition({
+        start: selectedText ? start + prefix.length : start + prefix.length,
+        end: selectedText ? end + prefix.length : start + prefix.length,
+    });
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
+      return;
+    }
+
+    if (e.ctrlKey || e.metaKey) {
+        switch (e.key.toLowerCase()) {
+            case 'b':
+                e.preventDefault();
+                applyFormatting('bold');
+                break;
+            case 'i':
+                e.preventDefault();
+                applyFormatting('italic');
+                break;
+            case 'e':
+                e.preventDefault();
+                applyFormatting('code-block');
+                break;
+        }
     }
   };
 
@@ -128,45 +192,56 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
         )}
-        <div className={`flex items-start space-x-2 sm:space-x-3 bg-gray-800 border border-gray-700 p-2 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200 ${
+        <div className={`bg-gray-800 border border-gray-700 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200 ${
           isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
         }`}>
             <textarea
-            ref={textareaRef}
-            rows={1}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder || "Ask me anything..."}
-            className="flex-1 bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-2 text-sm sm:text-base resize-none overflow-y-hidden"
-            disabled={isLoading}
-            style={{ maxHeight: '120px' }}
+                ref={textareaRef}
+                rows={1}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder={placeholder || "Ask me anything..."}
+                className="w-full bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-3 pt-3 text-sm sm:text-base resize-none overflow-y-auto"
+                disabled={isLoading}
+                style={{ maxHeight: '120px' }}
             />
-            <div className="flex flex-col self-end h-full justify-end">
-                <button
-                type="button"
-                onClick={onToggleFilterMenu}
-                aria-expanded={isFilterMenuOpen}
-                aria-controls="filter-menu"
-                aria-label="Open search filters (F)"
-                title="Open search filters (F)"
-                className={`p-2 rounded-md hover:bg-gray-700/80 transition-colors duration-200 ${
-                    isFilterActive ? 'text-cyan-400' : 'text-gray-400'
-                }`}
-                >
-                <FilterIcon className="w-5 h-5" />
-                </button>
-            </div>
-            <div className="flex flex-col self-end h-full justify-end">
-                <button
-                type="submit"
-                disabled={isLoading || !text.trim()}
-                className="p-2 rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
-                aria-label="Send message (Enter)"
-                title="Send message (Enter)"
-                >
-                <SendIcon className="w-5 h-5" />
-                </button>
+            <div className="flex items-center justify-between px-2 pb-2 mt-1">
+                <div className="flex items-center space-x-1">
+                    <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Bold (Ctrl+B)">
+                        <BoldIcon className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Italic (Ctrl+I)">
+                        <ItalicIcon className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Code Block (Ctrl+E)">
+                        <CodeIcon className="w-4 h-4" />
+                    </button>
+                </div>
+                <div className="flex items-center space-x-1">
+                    <button
+                    type="button"
+                    onClick={onToggleFilterMenu}
+                    aria-expanded={isFilterMenuOpen}
+                    aria-controls="filter-menu"
+                    aria-label="Open search filters (F)"
+                    title="Open search filters (F)"
+                    className={`p-2 rounded-md hover:bg-gray-700/80 transition-colors duration-200 ${
+                        isFilterActive ? 'text-cyan-400' : 'text-gray-400'
+                    }`}
+                    >
+                    <FilterIcon className="w-5 h-5" />
+                    </button>
+                    <button
+                    type="submit"
+                    disabled={isLoading || !text.trim()}
+                    className="p-2 rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+                    aria-label="Send message (Enter)"
+                    title="Send message (Enter)"
+                    >
+                    <SendIcon className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
         </div>
       </form>
