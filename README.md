@@ -2,6 +2,20 @@
 
 This is a powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images and videos, providing a truly interactive and multi-modal experience.
 
+## Table of Contents
+
+- [Key Features](#key-features)
+- [Technology Stack](#technology-stack)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+  - [Special Commands](#special-commands)
+  - [Keyboard Shortcuts](#keyboard-shortcuts)
+- [Prompt Engineering Tips](#prompt-engineering-tips)
+  - [General Tips for Text Generation](#general-tips-for-text-generation)
+  - [Image Generation (`/imagine`)](#image-generation-imagine)
+  - [Video Generation (`/create-video`)](#video-generation-create-video)
+  - [Using Markdown for Structured Prompts](#using-markdown-for-structured-prompts)
+
 ## Key Features
 
 -   **Grounded Conversational Search:** Get reliable answers with sources cited directly from Google Search.
@@ -27,7 +41,34 @@ This is a powerful, feature-rich conversational search tool powered by the Googl
 -   **Secure API Key Flow:** An integrated and secure process for users to select their own billed API key, required for video generation.
 -   **Polished & Responsive UI:** A clean, modern interface that works seamlessly across all devices.
 
-## Commands and Shortcuts
+## Technology Stack
+
+-   **Frontend:** [React](https://react.dev/) (with Hooks) & [TypeScript](https://www.typescriptlang.org/)
+-   **AI:** [Google Gemini API](https://ai.google.dev/gemini-api) (`@google/genai`)
+-   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
+-   **Markdown:** [React Markdown](https://github.com/remarkjs/react-markdown) with [Remark GFM](https://github.com/remarkjs/remark-gfm)
+-   **Syntax Highlighting:** [React Syntax Highlighter](https://github.com/react-syntax-highlighter/react-syntax-highlighter)
+
+## Getting Started
+
+This project is a standard static web application and can be run in any environment that serves static files.
+
+### Prerequisites
+
+1.  **Obtain a Google Gemini API Key:** You'll need an API key from [Google AI Studio](https://ai.google.dev/).
+2.  **Set Environment Variable:** Set your key as an environment variable named `API_KEY` in your deployment environment. Most features, like search and image generation, will use this key.
+
+### Running the Application
+
+1.  Deploy the project files (HTML, TSX, etc.) to your preferred hosting service (like Vercel, Netlify, or a simple web server).
+2.  Ensure the `API_KEY` environment variable is correctly configured in the hosting environment.
+3.  Access the deployed URL to start using the application.
+
+### Enabling Video Generation
+
+The `/create-video` feature uses the Veo model, which requires a billed API key. When you first use this command, a pop-up will appear prompting you to select an API key from a Google Cloud project where billing is enabled. This is a secure, one-time setup step managed within the AI Studio environment.
+
+## Usage
 
 Simply type your question in the input box and press Enter. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message.
 
@@ -114,16 +155,3 @@ Generate the itinerary now.
 ```
 
 This structured approach is much clearer than writing a single, long paragraph and often leads to more accurate and well-formatted responses.
-
-## How to Run This Solution
-
-1.  **Configure API Key:**
-    *   This application requires a Google Gemini API key. Obtain your key from [Google AI Studio](https://ai.google.dev/).
-    *   Set the key as an environment variable named `API_KEY` in your deployment environment. Most features, like search and image generation, will use this key.
-
-2.  **Run the Application:**
-    *   This project is a standard static web application. Deploy it to your preferred hosting service or run it with any local static file server.
-
-3.  **Enable Video Generation:**
-    *   The `/create-video` feature uses the Veo model, which requires a billed API key.
-    *   When you first use this command, a pop-up will appear prompting you to select an API key from a Google Cloud project where billing is enabled. This is a secure, one-time setup step within the app.
