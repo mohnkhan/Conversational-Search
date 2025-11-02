@@ -37,7 +37,7 @@ const Lightbox: React.FC<LightboxProps> = ({ imageUrl, onClose }) => {
   return (
     <div
       ref={modalRef}
-      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"

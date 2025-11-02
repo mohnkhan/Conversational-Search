@@ -48,7 +48,7 @@ const AboutModal: React.FC<AboutModalProps> = ({ onClose }) => {
 
     return (
         <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
             aria-labelledby="about-modal-title"
             role="dialog"
             aria-modal="true"
