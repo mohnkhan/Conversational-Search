@@ -3,9 +3,11 @@ import { BotIcon, SparklesIcon } from './Icons';
 
 interface ApiKeySelectorProps {
     onKeySelected: () => void;
+    title?: string;
+    description?: string;
 }
 
-const ApiKeySelector: React.FC<ApiKeySelectorProps> = ({ onKeySelected }) => {
+const ApiKeySelector: React.FC<ApiKeySelectorProps> = ({ onKeySelected, title, description }) => {
     const modalRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -70,9 +72,9 @@ const ApiKeySelector: React.FC<ApiKeySelectorProps> = ({ onKeySelected }) => {
                         <BotIcon className="w-10 h-10 text-[var(--accent-primary)]" />
                     </div>
                 </div>
-                <h2 id="api-key-modal-title" className="text-2xl font-bold text-[var(--text-primary)] mb-2">API Key Required for Video</h2>
+                <h2 id="api-key-modal-title" className="text-2xl font-bold text-[var(--text-primary)] mb-2">{title || 'API Key Required'}</h2>
                 <p className="text-[var(--text-muted)] mb-6">
-                    To use the video generation feature with the Veo model, you must select an API key from a project with billing enabled.
+                    {description || 'An API key from a project with billing enabled is required for this operation. Please select a valid key to continue.'}
                 </p>
                 <div className="space-y-4">
                     <button

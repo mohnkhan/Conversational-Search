@@ -62,6 +62,12 @@ interface ModelExplanationState {
     modelId: ModelId | null;
 }
 
+interface ApiKeySelectorPropsState {
+    show: boolean;
+    title?: string;
+    description?: string;
+}
+
 interface PlaceholderLoaderProps {
     type: 'image' | 'video';
     prompt?: string | null;
@@ -220,7 +226,7 @@ const App: React.FC = () => {
       return false;
     }
   });
-  const [showApiKeySelector, setShowApiKeySelector] = useState(false);
+  const [apiKeySelectorProps, setApiKeySelectorProps] = useState<ApiKeySelectorPropsState>({ show: false });
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
@@ -343,6 +349,13 @@ const App: React.FC = () => {
             setMessages(prev => [...prev, { role: 'model', text: imagePrompt, imageUrl }]);
         } catch (error) {
             const parsedError = parseGeminiError(error);
+            if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
+                setApiKeySelectorProps({
+                    show: true,
+                    title: 'API Key Error for Image Generation',
+                    description: parsedError.message
+                });
+            }
             setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt }]);
         } finally {
             setIsGeneratingImage(false);
@@ -358,7 +371,11 @@ const App: React.FC = () => {
         setIsKeySelected(hasKey);
         if (!hasKey) {
             setMessages(prev => prev.slice(0, -1)); // Remove user message if key is needed
-            setShowApiKeySelector(true);
+            setApiKeySelectorProps({
+                show: true,
+                title: 'API Key Required for Video',
+                description: "To use the video generation feature with the Veo model, you must select an API key from a project with billing enabled."
+            });
             return;
         }
         const videoPrompt = trimmedPrompt.substring(14).trim();
@@ -372,8 +389,12 @@ const App: React.FC = () => {
             setMessages(prev => [...prev, { role: 'model', text: videoPrompt, videoUrl }]);
         } catch (error) {
             const parsedError = parseGeminiError(error);
-            if (parsedError.type === 'api_key' || parsedError.type === 'permission') {
-                setShowApiKeySelector(true);
+            if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
+                setApiKeySelectorProps({
+                    show: true,
+                    title: 'API Key Issue for Video Generation',
+                    description: parsedError.message
+                });
             }
             setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt }]);
         } finally {
@@ -419,6 +440,13 @@ const App: React.FC = () => {
 
     } catch (error) {
         const parsedError = parseGeminiError(error);
+        if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
+            setApiKeySelectorProps({
+                show: true,
+                title: 'API Key Error',
+                description: parsedError.message
+            });
+        }
         setMessages(prev => prev.map((msg, index) =>
             index === prev.length - 1 ? { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt } : msg
         ));
@@ -452,6 +480,13 @@ const App: React.FC = () => {
         setSummaryText(summary);
     } catch (error) {
         const parsedError = parseGeminiError(error);
+        if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
+            setApiKeySelectorProps({
+                show: true,
+                title: 'API Key Error for Summarization',
+                description: parsedError.message
+            });
+        }
         setSummaryText(`Error generating summary: ${parsedError.message}`);
     } finally {
         setIsSummarizing(false);
@@ -493,7 +528,7 @@ const App: React.FC = () => {
   };
 
   const handleKeySelected = () => {
-    setShowApiKeySelector(false);
+    setApiKeySelectorProps({ show: false });
     setIsKeySelected(true);
   };
 
@@ -625,7 +660,7 @@ const App: React.FC = () => {
     </div>
 
     {/* Modals and Overlays */}
-    {showApiKeySelector && <ApiKeySelector onKeySelected={handleKeySelected} />}
+    {apiKeySelectorProps.show && <ApiKeySelector onKeySelected={handleKeySelected} title={apiKeySelectorProps.title} description={apiKeySelectorProps.description} />}
     {lightboxImageUrl && <Lightbox imageUrl={lightboxImageUrl} onClose={() => setLightboxImageUrl(null)} />}
     {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
     {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} />}
