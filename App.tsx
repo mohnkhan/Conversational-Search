@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo, ParsedError } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
@@ -9,7 +10,6 @@ import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesI
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
-import { useTheme } from './hooks/useTheme';
 import ThemeSelector from './components/ThemeSelector';
 
 const initialMessages: ChatMessageType[] = [
@@ -105,7 +105,6 @@ const PlaceholderLoader: React.FC<PlaceholderLoaderProps> = ({ type, prompt }) =
 };
 
 const App: React.FC = () => {
-  useTheme(); // Initialize and apply the theme
   const [messages, setMessages] = useState<ChatMessageType[]>(() => {
     try {
       const savedMessages = localStorage.getItem(CHAT_HISTORY_KEY);

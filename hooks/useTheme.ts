@@ -1,9 +1,19 @@
-import { useEffect, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { themes, Theme } from '../themes';
 
 const THEME_STORAGE_KEY = 'chat-theme';
 
-export const useTheme = () => {
+// Define the shape of the context value
+interface ThemeContextType {
+  themeId: string;
+  setThemeId: (id: string) => void;
+}
+
+// Create the context with a default undefined value
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+// Create the provider component that will wrap the entire app
+export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [themeId, setThemeId] = useState<string>(() => {
     try {
       const savedThemeId = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -14,12 +24,13 @@ export const useTheme = () => {
     }
   });
 
+  // This effect applies the theme to the document root whenever themeId changes
   useEffect(() => {
     const applyTheme = (id: string) => {
       const selectedTheme: Theme | undefined = themes.find(t => t.id === id);
       if (!selectedTheme) {
         console.warn(`Theme with id "${id}" not found. Applying default.`);
-        applyTheme('abyss');
+        setThemeId('abyss');
         return;
       }
       
@@ -38,5 +49,19 @@ export const useTheme = () => {
     applyTheme(themeId);
   }, [themeId]);
 
-  return [themeId, setThemeId] as const;
+  const value = { themeId, setThemeId };
+
+  // FIX: Replaced JSX with React.createElement because this is a .ts file, not .tsx.
+  // The TypeScript compiler was misinterpreting the JSX syntax as operators, causing parsing errors.
+  return React.createElement(ThemeContext.Provider, { value }, children);
+};
+
+// Create the custom hook that components will use to access the shared state
+// It returns an array to maintain the useState-like signature ([value, setValue])
+export const useTheme = (): [string, (id: string) => void] => {
+  const context = useContext(ThemeContext);
+  if (context === undefined) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return [context.themeId, context.setThemeId];
 };
