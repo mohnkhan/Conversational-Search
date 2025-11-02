@@ -17,6 +17,12 @@ export interface ChatMessage {
   isThinking?: boolean;
 }
 
+export interface Task {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
 export type PredefinedDateFilter = 'any' | 'day' | 'week' | 'month' | 'year';
 
 export interface CustomDateFilter {

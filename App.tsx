@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
-import { ChatMessage as ChatMessageType, DateFilter, ModelId } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -13,6 +13,7 @@ import ModelSelector from './components/ModelSelector';
 import ApiKeyManager from './components/ApiKeyManager';
 import CustomCssModal from './components/CustomCssModal';
 import ModelExplanationTooltip from './components/ModelExplanationTooltip';
+import TodoListModal from './components/TodoListModal';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -31,6 +32,7 @@ const examplePrompts = [
 const CHAT_HISTORY_KEY = 'chatHistory';
 const MODEL_STORAGE_KEY = 'chat-model';
 const CUSTOM_CSS_KEY = 'custom-user-css';
+const TODO_LIST_KEY = 'todo-list-tasks';
 
 const imageLoadingTexts = [
   "Painting with pixels...",
@@ -130,6 +132,16 @@ const App: React.FC = () => {
     return initialMessages;
   });
 
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+        const savedTasks = localStorage.getItem(TODO_LIST_KEY);
+        return savedTasks ? JSON.parse(savedTasks) : [];
+    } catch (error) {
+        console.error("Failed to load tasks from localStorage:", error);
+        return [];
+    }
+  });
+
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
   const [currentImagePrompt, setCurrentImagePrompt] = useState<string | null>(null);
@@ -164,6 +176,7 @@ const App: React.FC = () => {
   const [customCss, setCustomCss] = useState<string>('');
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
   const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, modelId: null });
+  const [isTodoListModalOpen, setIsTodoListModalOpen] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
@@ -250,6 +263,14 @@ const App: React.FC = () => {
       console.error("Failed to save chat history to localStorage:", error);
     }
   }, [messages]);
+
+  useEffect(() => {
+    try {
+        localStorage.setItem(TODO_LIST_KEY, JSON.stringify(tasks));
+    } catch (error) {
+        console.error("Failed to save tasks to localStorage:", error);
+    }
+  }, [tasks]);
 
   useEffect(() => {
     try {
@@ -687,6 +708,28 @@ const App: React.FC = () => {
     setModelExplanation(prev => ({ ...prev, isVisible: false }));
   };
 
+  // To-Do List Handlers
+  const handleAddTask = (text: string) => {
+    const newTask: Task = {
+        id: Date.now().toString(),
+        text,
+        completed: false
+    };
+    setTasks(prevTasks => [...prevTasks, newTask]);
+  };
+
+  const handleToggleTask = (id: string) => {
+    setTasks(prevTasks =>
+        prevTasks.map(task =>
+            task.id === id ? { ...task, completed: !task.completed } : task
+        )
+    );
+  };
+
+  const handleDeleteTask = (id: string) => {
+    setTasks(prevTasks => prevTasks.filter(task => task.id !== id));
+  };
+
 
   return (
     <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
@@ -703,6 +746,14 @@ const App: React.FC = () => {
             </div>
         </div>
         <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+            <button
+                onClick={handleClearChat}
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                aria-label="New Chat (Ctrl+K)"
+                title="New Chat (Ctrl+K)"
+            >
+                <PlusSquareIcon className="w-5 h-5" />
+            </button>
             <div className="relative">
               <button
                   ref={settingsButtonRef}
@@ -729,6 +780,14 @@ const App: React.FC = () => {
                 title="Manage API Key"
             >
                 <KeyIcon className="w-5 h-5" />
+            </button>
+            <button
+                onClick={() => setIsTodoListModalOpen(true)}
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                aria-label="Open to-do list"
+                title="To-Do List"
+            >
+                <CheckSquareIcon className="w-5 h-5" />
             </button>
             <button
                 onClick={() => setIsCustomCssModalOpen(true)}
@@ -787,8 +846,8 @@ const App: React.FC = () => {
             <button
               onClick={handleClearChat}
               className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0"
-              aria-label="Clear chat history (Ctrl+K)"
-              title="Clear chat (Ctrl+K)"
+              aria-label="Clear chat history"
+              title="Clear chat"
             >
               <TrashIcon className="w-5 h-5" />
             </button>
@@ -984,6 +1043,16 @@ const App: React.FC = () => {
             initialCss={customCss}
             onSave={handleSaveCustomCss}
             onClose={() => setIsCustomCssModalOpen(false)}
+        />
+      )}
+
+      {isTodoListModalOpen && (
+        <TodoListModal
+            tasks={tasks}
+            onAddTask={handleAddTask}
+            onToggleTask={handleToggleTask}
+            onDeleteTask={handleDeleteTask}
+            onClose={() => setIsTodoListModalOpen(false)}
         />
       )}
 
