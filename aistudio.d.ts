@@ -2,16 +2,16 @@
 // To augment the global 'Window' type.
 
 declare global {
-  // FIX: Declaring the AIStudio interface within the `declare global` block
-  // ensures it's available for augmenting the Window interface while preventing
-  // "Duplicate identifier" errors that can occur if this file is processed multiple times.
-  // This resolves the error about 'aistudio' needing to be of type 'AIStudio'.
-  interface AIStudio {
-    hasSelectedApiKey(): Promise<boolean>;
-    openSelectKey(): Promise<void>;
-  }
+  // FIX: To resolve "Duplicate identifier" errors, the separate `AIStudio`
+  // interface was removed. The shape of the `aistudio` object is now defined
+  // directly on the `Window` interface. This prevents the TypeScript compiler
+  // from attempting to declare the same named interface multiple times if this
+  // file is accidentally included more than once in the compilation process.
   interface Window {
-    aistudio: AIStudio;
+    aistudio: {
+      hasSelectedApiKey(): Promise<boolean>;
+      openSelectKey(): Promise<void>;
+    };
   }
 }
 

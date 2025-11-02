@@ -1,16 +1,18 @@
 
 
 
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo, ParsedError } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
 import ThemeSelector from './components/ThemeSelector';
+import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -138,6 +140,7 @@ const App: React.FC = () => {
   const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
   const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
+  const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
   const summaryModalRef = useRef<HTMLDivElement>(null);
@@ -198,6 +201,13 @@ const App: React.FC = () => {
       if (event.key.toLowerCase() === 'f' && !isTyping) {
         event.preventDefault();
         setIsFilterMenuOpen(prev => !prev);
+      }
+
+      if (event.key === '?' && !isTyping) {
+        event.preventDefault();
+        setShowSummaryModal(false);
+        setIsFilterMenuOpen(false);
+        setShowShortcutsModal(true);
       }
     };
 
@@ -534,6 +544,14 @@ const App: React.FC = () => {
               {isThemeSelectorOpen && <ThemeSelector onClose={() => setIsThemeSelectorOpen(false)} />}
             </div>
             <button
+                onClick={() => setShowShortcutsModal(true)}
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                aria-label="Show keyboard shortcuts (?)"
+                title="Keyboard shortcuts (?)"
+            >
+                <HelpCircleIcon className="w-5 h-5" />
+            </button>
+            <button
                 ref={summarizeButtonRef}
                 onClick={handleSummarize}
                 className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200 flex-shrink-0 disabled:text-[var(--text-muted)]/50 disabled:hover:bg-transparent disabled:cursor-not-allowed"
@@ -743,6 +761,10 @@ const App: React.FC = () => {
           imageUrl={lightboxImageUrl}
           onClose={() => setLightboxImageUrl(null)}
         />
+      )}
+
+      {showShortcutsModal && (
+        <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />
       )}
     </div>
   );
