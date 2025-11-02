@@ -349,16 +349,18 @@ const App: React.FC = () => {
             });
 
             if (finalModelResponseText.trim()) {
-                const conversationForSuggestions = newMessages.concat({
-                    role: 'model',
-                    text: finalModelResponseText,
-                });
                 const lastUserPrompt = userMessage.text;
+
+                // Truncate response to avoid hitting token limits on suggestion calls
+                const MAX_RESPONSE_LENGTH = 4000; // characters
+                const truncatedResponse = finalModelResponseText.length > MAX_RESPONSE_LENGTH
+                    ? finalModelResponseText.substring(0, MAX_RESPONSE_LENGTH) + "..."
+                    : finalModelResponseText;
 
                 await Promise.all([
                     (async () => {
                         try {
-                            const suggestions = await getSuggestedPrompts(lastUserPrompt, finalModelResponseText, model);
+                            const suggestions = await getSuggestedPrompts(lastUserPrompt, truncatedResponse, model);
                             setSuggestedPrompts(suggestions);
                         } catch (suggestionError) {
                             console.error("Failed to fetch suggested prompts:", suggestionError);
@@ -366,7 +368,7 @@ const App: React.FC = () => {
                     })(),
                     (async () => {
                         try {
-                            const topics = await getRelatedTopics(lastUserPrompt, finalModelResponseText, model);
+                            const topics = await getRelatedTopics(lastUserPrompt, truncatedResponse, model);
                             setRelatedTopics(topics);
                         } catch (topicError) {
                             console.error("Failed to fetch related topics:", topicError);

@@ -13,27 +13,42 @@ if (process.env.API_KEY) {
  * Extracts a JSON string from text that might be wrapped in markdown code fences
  * or have conversational prefixes/suffixes.
  * @param text The raw string from the model.
- * @returns The extracted JSON string, or the original trimmed string as a fallback.
+ * @returns The extracted JSON string, or an empty string if no valid JSON is found.
  */
 function extractJson(text: string): string {
-    const trimmedText = text.trim();
-    
-    // Check for markdown fences first
-    const markdownMatch = trimmedText.match(/```(json)?\s*([\s\S]*?)\s*```/);
+    // Attempt to find JSON within markdown code blocks
+    const markdownMatch = text.match(/```(json)?\s*([\s\S]+?)\s*```/);
     if (markdownMatch && markdownMatch[2]) {
         return markdownMatch[2].trim();
     }
 
-    // If no fences, find the first '{' and last '}'
-    // This handles cases like "Sure, here is the JSON: {...}"
-    const firstBrace = trimmedText.indexOf('{');
-    const lastBrace = trimmedText.lastIndexOf('}');
-    if (firstBrace !== -1 && lastBrace > firstBrace) {
-        return trimmedText.substring(firstBrace, lastBrace + 1);
+    // Fallback for cases where the model doesn't use markdown.
+    // It finds the first '{' or '[' and the last '}' or ']'.
+    const firstBracket = text.indexOf('{');
+    const firstSquare = text.indexOf('[');
+    
+    let startIndex = -1;
+    if (firstBracket === -1) {
+        startIndex = firstSquare;
+    } else if (firstSquare === -1) {
+        startIndex = firstBracket;
+    } else {
+        startIndex = Math.min(firstBracket, firstSquare);
+    }
+
+    if (startIndex === -1) {
+        return ''; // No JSON object/array found
     }
     
-    // Fallback to the original trimmed text
-    return trimmedText;
+    const lastBracket = text.lastIndexOf('}');
+    const lastSquare = text.lastIndexOf(']');
+    const endIndex = Math.max(lastBracket, lastSquare);
+
+    if (endIndex > startIndex) {
+        return text.substring(startIndex, endIndex + 1).trim();
+    }
+
+    return ''; // No valid JSON structure found
 }
 
 /**
