@@ -1,18 +1,13 @@
 // aistudio.d.ts
-// To augment the global 'Window' type within a module, it must be wrapped in a 'declare global' block.
+// To augment the global 'Window' type.
 
-// FIX: Define and use a named interface `AIStudio` to resolve declaration merging conflicts.
-// The error message indicates that another declaration for `window.aistudio` exists and expects the type `AIStudio`.
+// FIX: Converted this file to a global script file by removing `export {}` and the `declare global` block.
+// This simplifies global type augmentation and resolves declaration merging conflicts with `window.aistudio`.
 interface AIStudio {
   hasSelectedApiKey(): Promise<boolean>;
   openSelectKey(): Promise<void>;
 }
 
-declare global {
-  interface Window {
-    aistudio: AIStudio;
-  }
+interface Window {
+  aistudio: AIStudio;
 }
-
-// This ensures the file is treated as a module.
-export {};

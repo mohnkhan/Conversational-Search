@@ -58,6 +58,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
   const [isShared, setIsShared] = useState(false);
+  const [videoError, setVideoError] = useState(false);
 
   const handleCopy = () => {
     if (!message.text) return;
@@ -191,25 +192,41 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         ) : message.videoUrl ? (
             <div>
                  <p className="text-gray-400 italic text-sm mb-2">Video created for: "{message.text}"</p>
-                 <div className="relative group/video inline-block aspect-video">
-                    <video 
-                        src={message.videoUrl} 
-                        controls 
-                        autoPlay 
-                        muted 
-                        loop
-                        className="rounded-lg border border-gray-700 max-w-full h-auto"
-                    />
-                     <a
-                        href={message.videoUrl}
-                        download={`gemini-generated-video.mp4`}
-                        className="absolute bottom-3 right-3 bg-gray-900/70 text-white p-2 rounded-full opacity-0 group-hover/video:opacity-100 focus:opacity-100 transition-opacity"
-                        aria-label="Download video"
-                        title="Download video"
-                    >
-                        <DownloadIcon className="w-5 h-5" />
-                    </a>
-                 </div>
+                 {videoError ? (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 flex flex-col items-center justify-center aspect-video max-w-sm text-center">
+                        <ErrorIcon className="w-8 h-8 text-red-400 mb-2" />
+                        <p className="text-sm text-red-300/90 mb-3">Video failed to load or play.</p>
+                        <a
+                            href={message.videoUrl}
+                            download={`gemini-generated-video.mp4`}
+                            className="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-red-600/80 hover:bg-red-500/80 transition-colors"
+                        >
+                            <DownloadIcon className="w-4 h-4" />
+                            <span>Download Video</span>
+                        </a>
+                    </div>
+                 ) : (
+                    <div className="relative group/video inline-block aspect-video">
+                        <video 
+                            src={message.videoUrl} 
+                            controls 
+                            autoPlay 
+                            muted 
+                            loop
+                            className="rounded-lg border border-gray-700 max-w-full h-auto"
+                            onError={() => setVideoError(true)}
+                        />
+                        <a
+                            href={message.videoUrl}
+                            download={`gemini-generated-video.mp4`}
+                            className="absolute bottom-3 right-3 bg-gray-900/70 text-white p-2 rounded-full opacity-0 group-hover/video:opacity-100 focus:opacity-100 transition-opacity"
+                            aria-label="Download video"
+                            title="Download video"
+                        >
+                            <DownloadIcon className="w-5 h-5" />
+                        </a>
+                    </div>
+                 )}
             </div>
         ) : (
             <>
