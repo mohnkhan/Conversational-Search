@@ -12,3 +12,5 @@ export interface ChatMessage {
   isError?: boolean;
   feedback?: 'up' | 'down';
 }
+
+export type DateFilter = 'any' | 'day' | 'week' | 'month' | 'year';

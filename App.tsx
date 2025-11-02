@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError } from './services/geminiService';
-import { ChatMessage as ChatMessageType } from './types';
+import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon } from './components/Icons';
@@ -29,6 +29,7 @@ const App: React.FC = () => {
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
   const [isSummaryCopied, setIsSummaryCopied] = useState(false);
+  const [dateFilter, setDateFilter] = useState<DateFilter>('any');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -53,6 +54,7 @@ const App: React.FC = () => {
     try {
       const { sources } = await getGeminiResponseStream(
         inputText,
+        dateFilter,
         (chunkText) => {
           if (!firstChunkReceived) {
             firstChunkReceived = true;
@@ -119,7 +121,7 @@ const App: React.FC = () => {
       setIsLoading(false);
       setIsThinking(false);
     }
-  }, [isLoading]);
+  }, [isLoading, dateFilter]);
 
   const handleClearChat = () => {
     setMessages(initialMessages);
@@ -289,7 +291,12 @@ const App: React.FC = () => {
 
       <footer className="p-4 md:p-6 border-t border-gray-700 bg-gray-900/80 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto">
-          <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
+          <ChatInput 
+            onSendMessage={handleSendMessage} 
+            isLoading={isLoading} 
+            activeFilter={dateFilter}
+            onFilterChange={setDateFilter}
+          />
         </div>
       </footer>
 

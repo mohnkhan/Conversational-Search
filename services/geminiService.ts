@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source } from '../types';
+import { ChatMessage, Source, DateFilter } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set.");
@@ -44,14 +44,30 @@ export function parseGeminiError(error: unknown): string {
     return 'An unknown error occurred. Please check your connection and try again.';
 }
 
+const getDateFilterPrefix = (filter: DateFilter): string => {
+    switch (filter) {
+        case 'day': return 'Search for information from the past 24 hours. ';
+        case 'week': return 'Search for information from the past week. ';
+        case 'month': return 'Search for information from the past month. ';
+        case 'year': return 'Search for information from the past year. ';
+        case 'any':
+        default:
+            return '';
+    }
+}
+
 export async function getGeminiResponseStream(
     prompt: string,
+    filter: DateFilter,
     onStreamUpdate: (text: string) => void
 ): Promise<{ sources: Source[] }> {
     try {
+        const prefix = getDateFilterPrefix(filter);
+        const fullPrompt = prefix + prompt;
+
         const responseStream = await ai.models.generateContentStream({
             model: "gemini-2.5-flash",
-            contents: prompt,
+            contents: fullPrompt,
             config: {
                 tools: [{ googleSearch: {} }],
             },
