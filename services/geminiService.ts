@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, AttachedFile } from '../types';
+import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, ResearchScope } from '../types';
 
 // A module-level instance for non-Veo calls
 let ai: GoogleGenAI | null = null;
@@ -142,46 +142,65 @@ export function parseGeminiError(error: unknown): ParsedError {
     };
 }
 
-const getDateFilterPrefix = (filter: DateFilter): string => {
+const getInstructionalPrefix = (filter: DateFilter, scope: ResearchScope | null): string => {
+    let prefix = '';
+
+    if (scope) {
+        switch (scope) {
+            case 'comprehensive':
+                prefix += 'Conduct a deep research analysis on the following topic, providing a comprehensive and detailed response with multiple perspectives if applicable. Topic: ';
+                break;
+            case 'pros-cons':
+                prefix += 'You are an impartial analyst. For the following topic, create a detailed and balanced list of the primary pros and cons. Provide evidence or examples for each point where possible. Topic: ';
+                break;
+            case 'historical':
+                prefix += 'Provide a detailed historical context and timeline for the following topic. Focus on its origins, evolution, and key milestones. Topic: ';
+                break;
+            case 'compare-contrast':
+                prefix += 'Conduct a thorough compare and contrast analysis of the following topics. Structure your response to clearly highlight both similarities and differences in a structured format like a table if appropriate. Topics: ';
+                break;
+            case 'technical':
+                 prefix += 'Provide a highly technical and specific deep-dive into the following topic. Use precise terminology, and include code examples, formulas, or technical specifications where relevant. Topic: ';
+                 break;
+        }
+    }
+
     if (typeof filter === 'string') {
         const predefinedFilter = filter as PredefinedDateFilter;
         switch (predefinedFilter) {
-            case 'day': return 'Search for information from the past 24 hours. ';
-            case 'week': return 'Search for information from the past week. ';
-            case 'month': return 'Search for information from the past month. ';
-            case 'year': return 'Search for information from the past year. ';
-            case 'any':
-            default:
-                return '';
+            case 'day': prefix += 'Search for information from the past 24 hours. '; break;
+            case 'week': prefix += 'Search for information from the past week. '; break;
+            case 'month': prefix += 'Search for information from the past month. '; break;
+            case 'year': prefix += 'Search for information from the past year. '; break;
         }
     } else {
         const customFilter = filter as CustomDateFilter;
         const { startDate, endDate } = customFilter;
         if (startDate && endDate) {
-            return `Search for information between ${startDate} and ${endDate}. `;
+            prefix += `Search for information between ${startDate} and ${endDate}. `;
+        } else if (startDate) {
+            prefix += `Search for information after ${startDate}. `;
+        } else if (endDate) {
+            prefix += `Search for information before ${endDate}. `;
         }
-        if (startDate) {
-            return `Search for information after ${startDate}. `;
-        }
-        if (endDate) {
-            return `Search for information before ${endDate}. `;
-        }
-        return '';
     }
-}
+    return prefix;
+};
+
 
 export async function getGeminiResponseStream(
     history: ChatMessage[],
     filter: DateFilter,
     onStreamUpdate: (text: string) => void,
     model: ModelId,
-    isDeepResearch: boolean = false,
+    researchScope: ResearchScope | null = null,
     prioritizeAuthoritative: boolean = false,
     file?: { base64: string; mimeType: string }
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
 
-    const modelToUse = isDeepResearch ? 'gemini-2.5-pro' : model;
+    const isDeepResearchActive = !!researchScope;
+    const modelToUse = isDeepResearchActive ? 'gemini-2.5-pro' : model;
     
     try {
         const processedHistory = history.filter(
@@ -213,15 +232,11 @@ export async function getGeminiResponseStream(
             }
         }
 
-        // Apply date filter and/or deep research prefix ONLY to the text part of the last user message
+        // Apply instructional prefixes to the text part of the last user message
         if (contents.length > 0) {
             const lastContent = contents[contents.length - 1];
             if (lastContent.role === 'user') {
-                let prefix = '';
-                if (isDeepResearch) {
-                    prefix += 'Conduct a deep research analysis on the following topic, providing a comprehensive and detailed response with multiple perspectives if applicable. Topic: ';
-                }
-                prefix += getDateFilterPrefix(filter);
+                const prefix = getInstructionalPrefix(filter, researchScope);
                 // Ensure the text part exists before prepending
                 if(lastContent.parts[0].text) {
                     lastContent.parts[0].text = prefix + lastContent.parts[0].text;

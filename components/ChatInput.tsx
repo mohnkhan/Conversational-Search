@@ -3,9 +3,10 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon, SparklesIconFilled, PaperclipIcon, FileTextIcon } from './Icons';
-import { DateFilter, PredefinedDateFilter, AttachedFile } from '../types';
+import { DateFilter, PredefinedDateFilter, AttachedFile, ResearchScope } from '../types';
 import FilterPanel from './FilterPanel';
 import CodeBlock from './CodeBlock'; // Import the shared CodeBlock component
+import DeepResearchPanel from './DeepResearchPanel';
 import { useTranslation } from '../hooks/useTranslation';
 
 interface ChatInputProps {
@@ -17,8 +18,8 @@ interface ChatInputProps {
   onToggleFilterMenu: () => void;
   onCloseFilterMenu: () => void;
   placeholder?: string;
-  isDeepResearch: boolean;
-  onToggleDeepResearch: () => void;
+  researchScope: ResearchScope | null;
+  onSetResearchScope: (scope: ResearchScope | null) => void;
   attachedFile: AttachedFile | null;
   onSetAttachedFile: (file: AttachedFile | null) => void;
 }
@@ -32,8 +33,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     onToggleFilterMenu,
     onCloseFilterMenu,
     placeholder,
-    isDeepResearch,
-    onToggleDeepResearch,
+    researchScope,
+    onSetResearchScope,
     attachedFile,
     onSetAttachedFile,
 }) => {
@@ -41,8 +42,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
   const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [isResearchPanelOpen, setIsResearchPanelOpen] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const researchPanelRef = useRef<HTMLDivElement>(null);
+  const researchButtonRef = useRef<HTMLButtonElement>(null);
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -99,7 +103,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     if (text.trim() || attachedFile) {
       onSendMessage(text, attachedFile);
       setText('');
-      // Attached file is cleared in App.tsx
+      // Attached file and research scope are cleared in App.tsx
     }
   };
 
@@ -339,23 +343,23 @@ const ChatInput: React.FC<ChatInputProps> = ({
     filterButtonRef.current?.focus();
   }, [onCloseFilterMenu]);
 
-  // Effect to close filter menu when clicking outside or pressing Escape
+  // Effect to close pop-up menus when clicking outside or pressing Escape
   useEffect(() => {
-    if (!isFilterMenuOpen) return;
-
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        filterMenuRef.current &&
-        !filterMenuRef.current.contains(event.target as Node) &&
-        !filterButtonRef.current?.contains(event.target as Node)
-      ) {
+      // Close Filter Panel
+      if (isFilterMenuOpen && filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node) && !filterButtonRef.current?.contains(event.target as Node)) {
         handleCloseFilterMenu();
+      }
+      // Close Research Panel
+      if (isResearchPanelOpen && researchPanelRef.current && !researchPanelRef.current.contains(event.target as Node) && !researchButtonRef.current?.contains(event.target as Node)) {
+        setIsResearchPanelOpen(false);
       }
     };
     
     const handleKeyDown = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
-            handleCloseFilterMenu();
+            if (isFilterMenuOpen) handleCloseFilterMenu();
+            if (isResearchPanelOpen) setIsResearchPanelOpen(false);
         }
     };
 
@@ -365,10 +369,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isFilterMenuOpen, handleCloseFilterMenu]);
+  }, [isFilterMenuOpen, isResearchPanelOpen, handleCloseFilterMenu]);
+
 
   const isFilterActive = !(typeof activeFilter === 'string' && activeFilter === 'any');
-  const deepResearchTooltip = "Switches to the Gemini 2.5 Pro model for a more comprehensive and detailed analysis. Ideal for complex topics, research questions, and creative tasks. May take slightly longer to respond.";
+  const isDeepResearchActive = researchScope !== null;
+  const deepResearchTooltip = "Engage Gemini 2.5 Pro with a specific research goal for more tailored, in-depth analysis.";
 
   return (
     <div className="relative">
@@ -382,6 +388,21 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     handleCloseFilterMenu();
                 }}
                 onClose={handleCloseFilterMenu}
+            />
+        </div>
+      )}
+      {isResearchPanelOpen && (
+        <div ref={researchPanelRef}>
+            <DeepResearchPanel
+                currentScope={researchScope}
+                onSelect={(scope) => {
+                    onSetResearchScope(scope);
+                    setIsResearchPanelOpen(false);
+                }}
+                onClear={() => {
+                    onSetResearchScope(null);
+                    setIsResearchPanelOpen(false);
+                }}
             />
         </div>
       )}
@@ -491,18 +512,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
                  </div>
                 <div className="flex items-center space-x-1">
                     <button
+                        ref={researchButtonRef}
                         type="button"
-                        onClick={onToggleDeepResearch}
-                        aria-pressed={isDeepResearch}
-                        aria-label={isDeepResearch ? "Disable Deep Research mode (Using Gemini 2.5 Pro)" : "Enable Deep Research mode"}
-                        title={isDeepResearch ? "Deep Research is active (Using Gemini 2.5 Pro)" : deepResearchTooltip}
+                        onClick={() => setIsResearchPanelOpen(p => !p)}
+                        aria-pressed={isDeepResearchActive}
+                        aria-label={isDeepResearchActive ? "Deep Research mode is active" : "Enable Deep Research mode"}
+                        title={isDeepResearchActive ? "Deep Research is active" : deepResearchTooltip}
                         className={`p-2 rounded-md transition-all duration-200 ${
-                            isDeepResearch 
+                            isDeepResearchActive 
                                 ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/30' 
                                 : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80'
                         }`}
                     >
-                        {isDeepResearch ? <SparklesIconFilled className="w-5 h-5" /> : <SparklesIcon className="w-5 h-5" />}
+                        {isDeepResearchActive ? <SparklesIconFilled className="w-5 h-5" /> : <SparklesIcon className="w-5 h-5" />}
                     </button>
                     <button
                     ref={filterButtonRef}

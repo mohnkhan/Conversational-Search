@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
 import { playSendSound, playReceiveSound } from './services/audioService';
-import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task, AttachedFile } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task, AttachedFile, ResearchScope } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon } from './components/Icons';
@@ -213,7 +213,7 @@ const App: React.FC = () => {
     return 'gemini-2.5-flash'; // Default model
   });
   const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
-  const [isDeepResearch, setIsDeepResearch] = useState<boolean>(false);
+  const [researchScope, setResearchScope] = useState<ResearchScope | null>(null);
   const [customCss, setCustomCss] = useState<string>('');
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
   const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, modelId: null });
@@ -336,7 +336,7 @@ const App: React.FC = () => {
         text: trimmedPrompt,
         timestamp: new Date().toISOString(),
         attachment: file,
-        isDeepResearch,
+        researchScope: researchScope,
     };
 
     // Common state updates
@@ -344,6 +344,7 @@ const App: React.FC = () => {
     setRelatedTopics([]);
     playSendSound();
     setAttachedFile(null); // Clear attached file from input area
+    setResearchScope(null); // Clear research scope after sending
 
     // IMAGE COMMAND LOGIC
     if (isImageCommand) {
@@ -436,7 +437,7 @@ const App: React.FC = () => {
                 ));
             },
             model,
-            isDeepResearch,
+            researchScope,
             prioritizeAuthoritative,
             file ? { base64: file.base64, mimeType: file.type } : undefined
         );
@@ -663,8 +664,8 @@ const App: React.FC = () => {
                     isFilterMenuOpen={isFilterMenuOpen}
                     onToggleFilterMenu={() => setIsFilterMenuOpen(prev => !prev)}
                     onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
-                    isDeepResearch={isDeepResearch}
-                    onToggleDeepResearch={() => setIsDeepResearch(p => !p)}
+                    researchScope={researchScope}
+                    onSetResearchScope={setResearchScope}
                     attachedFile={attachedFile}
                     onSetAttachedFile={setAttachedFile}
                 />

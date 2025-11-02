@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { ChatMessage as ChatMessageType } from '../types';
+import { ChatMessage as ChatMessageType, ResearchScope } from '../types';
 import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon } from './Icons';
 import Sources from './Sources';
 import CodeBlock from './CodeBlock'; // Use the shared CodeBlock component
@@ -21,6 +21,17 @@ const thinkingSteps = [
     "Cross-referencing information...",
     "Drafting the answer...",
 ];
+
+const formatScopeName = (scope: ResearchScope): string => {
+    const names: Record<ResearchScope, string> = {
+        'comprehensive': 'Comprehensive Analysis',
+        'pros-cons': 'Pros & Cons',
+        'historical': 'Historical Context',
+        'compare-contrast': 'Compare & Contrast',
+        'technical': 'Technical Deep-Dive',
+    };
+    return names[scope];
+};
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick, onRetry }) => {
   const isModel = message.role === 'model';
@@ -167,8 +178,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
           <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${getIconBgColor()}`}>
               {getIcon()}
           </div>
-          {message.role === 'user' && message.isDeepResearch && (
-              <div className="absolute -bottom-1 -right-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] p-0.5 rounded-full shadow-md" title="Sent with Deep Research">
+          {message.role === 'user' && message.researchScope && (
+              <div className="absolute -bottom-1 -right-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] p-0.5 rounded-full shadow-md" title={`Sent with Deep Research: ${formatScopeName(message.researchScope)}`}>
                   <SparklesIcon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
               </div>
           )}

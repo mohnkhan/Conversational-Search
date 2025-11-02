@@ -13,6 +13,8 @@ export interface AttachedFile {
   base64: string; // for API
 }
 
+export type ResearchScope = 'comprehensive' | 'pros-cons' | 'historical' | 'compare-contrast' | 'technical';
+
 export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
@@ -25,7 +27,7 @@ export interface ChatMessage {
   isThinking?: boolean;
   timestamp?: string;
   attachment?: AttachedFile;
-  isDeepResearch?: boolean;
+  researchScope?: ResearchScope;
 }
 
 export interface Task {
