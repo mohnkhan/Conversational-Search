@@ -14,6 +14,12 @@ const initialMessages: ChatMessageType[] = [
   }
 ];
 
+const examplePrompts = [
+    "What are the latest advancements in AI?",
+    "Explain quantum computing in simple terms",
+    "Who won the last Super Bowl?",
+];
+
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -25,7 +31,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSendMessage = useCallback(async (inputText: string) => {
     if (!inputText.trim() || isLoading) return;
@@ -83,14 +89,30 @@ const App: React.FC = () => {
             {messages.map((msg, index) => (
                 <ChatMessage key={index} message={msg} />
             ))}
+             {messages.length === 1 && !isLoading && (
+              <div className="pl-12 animate-fade-in -mt-2">
+                <div className="flex flex-wrap gap-3">
+                  {examplePrompts.map((prompt, index) => (
+                    <button
+                      key={index}
+                      onClick={() => handleSendMessage(prompt)}
+                      className="text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-full transition-all duration-200"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             {isLoading && (
-                <div className="flex items-center space-x-3 animate-pulse p-4">
-                    <div className="flex-shrink-0">
-                        <BotIcon className="w-8 h-8 text-cyan-400" />
+                 <div className="flex items-start space-x-4 p-4 my-2">
+                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
+                        <BotIcon className="w-5 h-5 text-cyan-400" />
                     </div>
-                    <div className="w-full space-y-2">
-                        <div className="h-4 bg-gray-700 rounded w-3/4"></div>
-                        <div className="h-4 bg-gray-700 rounded w-1/2"></div>
+                    <div className="flex items-center space-x-1.5 pt-3">
+                        <div className="w-2.5 h-2.5 bg-gray-400 rounded-full dot-bounce dot-1"></div>
+                        <div className="w-2.5 h-2.5 bg-gray-400 rounded-full dot-bounce dot-2"></div>
+                        <div className="w-2.5 h-2.5 bg-gray-400 rounded-full dot-bounce"></div>
                     </div>
                 </div>
             )}
