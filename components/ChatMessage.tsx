@@ -40,8 +40,8 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
 
 
   return (
-    <div className={`flex items-start space-x-4 p-4 my-2 animate-fade-in`}>
-      <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${getIconBgColor()}`}>
+    <div className={`flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in`}>
+      <div className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${getIconBgColor()}`}>
         {getIcon()}
       </div>
       <div className="flex-1 group relative">

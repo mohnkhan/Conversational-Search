@@ -64,20 +64,20 @@ const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
-      <header className="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
-        <div className="flex items-center">
-            <BotIcon className="w-8 h-8 text-cyan-400 mr-3" />
+      <header className="flex items-center justify-between px-4 py-3 sm:p-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
+        <div className="flex items-center space-x-3">
+            <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-cyan-400" />
             <div>
-            <h1 className="text-xl font-bold text-white">Gemini Conversational Search</h1>
-            <p className="text-sm text-gray-400 flex items-center">
-                <SearchIcon className="w-4 h-4 mr-1.5" />
+            <h1 className="text-lg sm:text-xl font-bold text-white">Gemini Conversational Search</h1>
+            <p className="text-xs sm:text-sm text-gray-400 flex items-center">
+                <SearchIcon className="w-3.5 h-3.5 mr-1.5" />
                 <span>Powered by Google Search Grounding</span>
             </p>
             </div>
         </div>
         <button
           onClick={handleClearChat}
-          className="p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200"
+          className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
           aria-label="Clear chat history"
           title="Clear chat"
         >
@@ -92,12 +92,12 @@ const App: React.FC = () => {
             ))}
              {messages.length === 1 && !isLoading && (
               <div className="pl-12 animate-fade-in -mt-2">
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   {examplePrompts.map((prompt, index) => (
                     <button
                       key={index}
                       onClick={() => handleSendMessage(prompt)}
-                      className="text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-4 py-2 rounded-full transition-all duration-200"
+                      className="text-xs sm:text-sm bg-gray-800/60 backdrop-blur-sm hover:bg-gray-700/60 border border-gray-700 text-gray-300 hover:text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
                     >
                       {prompt}
                     </button>
