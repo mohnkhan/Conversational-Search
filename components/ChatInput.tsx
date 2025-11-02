@@ -1,8 +1,11 @@
 // FIX: Added 'useCallback' to the import from 'react' to resolve the 'Cannot find name' error.
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon } from './Icons';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon } from './Icons';
 import { DateFilter, PredefinedDateFilter } from '../types';
 import FilterPanel from './FilterPanel';
+import CodeBlock from './CodeBlock'; // Import the shared CodeBlock component
 
 interface ChatInputProps {
   onSendMessage: (text: string) => void;
@@ -50,6 +53,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     onToggleDeepResearch,
 }) => {
   const [text, setText] = useState('');
+  const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
   const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
@@ -66,15 +70,24 @@ const ChatInput: React.FC<ChatInputProps> = ({
     }
   }, [cursorPosition]);
 
+  useEffect(() => {
+    // When switching to the write tab, focus the textarea
+    if (activeTab === 'write' && textareaRef.current) {
+        textareaRef.current.focus();
+    }
+  }, [activeTab]);
+
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (text.trim()) {
       onSendMessage(text);
       setText('');
+      setActiveTab('write'); // Switch back to write tab after sending
     }
   };
 
-  const applyFormatting = (format: 'bold' | 'italic' | 'code-block') => {
+  const applyFormatting = (format: 'bold' | 'italic' | 'code' | 'code-block') => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -94,20 +107,33 @@ const ChatInput: React.FC<ChatInputProps> = ({
         prefix = '*';
         suffix = '*';
         break;
+      case 'code':
+        prefix = '`';
+        suffix = '`';
+        break;
       case 'code-block':
         const prefixNewline = (start > 0 && text[start - 1] !== '\n') ? '\n' : '';
         prefix = `${prefixNewline}\`\`\`\n`;
         suffix = '\n```';
         break;
     }
-
-    const newText = `${text.substring(0, start)}${prefix}${selectedText}${suffix}${text.substring(end)}`;
-    setText(newText);
     
-    setCursorPosition({
-        start: selectedText ? start + prefix.length : start + prefix.length,
-        end: selectedText ? end + prefix.length : start + prefix.length,
-    });
+    // If there's a selection, wrap it
+    if (selectedText) {
+        const newText = `${text.substring(0, start)}${prefix}${selectedText}${suffix}${text.substring(end)}`;
+        setText(newText);
+        setCursorPosition({
+            start: start + prefix.length,
+            end: end + prefix.length,
+        });
+    } else { // If no selection, insert the pair and place cursor in middle
+        const newText = `${text.substring(0, start)}${prefix}${suffix}${text.substring(end)}`;
+        setText(newText);
+        setCursorPosition({
+            start: start + prefix.length,
+            end: start + prefix.length,
+        });
+    }
   };
 
   const handleVoiceInputClick = () => {
@@ -176,11 +202,66 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    const textarea = e.currentTarget;
+    const { selectionStart, selectionEnd, value } = textarea;
+
+    // Send on Enter (not Shift+Enter)
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
       return;
     }
+
+    // Smart auto-completion and formatting
+    
+    // Auto-continue lists
+    if (e.key === 'Enter') {
+        const currentLine = value.substring(0, selectionStart).split('\n').pop() || '';
+        const listMatch = /^\s*([-*+]|\d+\.)\s+/.exec(currentLine);
+        if (listMatch) {
+            e.preventDefault();
+            let newText = '';
+            // If the list item is empty, remove it and de-indent
+            if (currentLine.trim() === listMatch[0].trim()) {
+                newText = value.substring(0, selectionStart - currentLine.length) + value.substring(selectionStart);
+                setCursorPosition({ start: selectionStart - currentLine.length, end: selectionStart - currentLine.length });
+            } else {
+                let nextMarker = listMatch[1];
+                if (/\d+\./.test(nextMarker)) {
+                    const nextNumber = parseInt(nextMarker, 10) + 1;
+                    nextMarker = `${nextNumber}.`;
+                }
+                const newListItem = `\n${listMatch[0].replace(listMatch[1], nextMarker)} `;
+                newText = `${value.substring(0, selectionStart)}${newListItem}${value.substring(selectionEnd)}`;
+                setCursorPosition({ start: selectionStart + newListItem.length, end: selectionStart + newListItem.length });
+            }
+            setText(newText);
+            return;
+        }
+    }
+
+    const pairs: { [key: string]: string } = { '(': ')', '[': ']', '{': '}', "'": "'", '"': '"', '`': '`', '*': '*', '_': '_' };
+
+    if (pairs[e.key]) {
+        e.preventDefault();
+        const opening = e.key;
+        const closing = pairs[opening];
+        const selectedText = value.substring(selectionStart, selectionEnd);
+        let newText;
+        let newCursorPos;
+
+        if (selectedText) {
+            newText = `${value.substring(0, selectionStart)}${opening}${selectedText}${closing}${value.substring(selectionEnd)}`;
+            newCursorPos = { start: selectionStart + opening.length, end: selectionEnd + opening.length };
+        } else {
+            newText = `${value.substring(0, selectionStart)}${opening}${closing}${value.substring(selectionEnd)}`;
+            newCursorPos = { start: selectionStart + opening.length, end: selectionStart + opening.length };
+        }
+        setText(newText);
+        setCursorPosition(newCursorPos);
+        return;
+    }
+
 
     if (e.ctrlKey || e.metaKey) {
         switch (e.key.toLowerCase()) {
@@ -194,7 +275,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 break;
             case 'e':
                 e.preventDefault();
-                applyFormatting('code-block');
+                applyFormatting('code');
                 break;
         }
     }
@@ -270,28 +351,56 @@ const ChatInput: React.FC<ChatInputProps> = ({
         <div className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)] transition-shadow duration-200 overflow-hidden ${
           isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
         }`}>
-            <div className="flex items-center space-x-1 p-2 border-b border-[var(--border-color)]">
-                <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Bold (Ctrl+B)" title="Bold (Ctrl+B)">
-                    <BoldIcon className="w-4 h-4" />
-                </button>
-                <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Italic (Ctrl+I)" title="Italic (Ctrl+I)">
-                    <ItalicIcon className="w-4 h-4" />
-                </button>
-                <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Code Block (Ctrl+E)" title="Code Block (Ctrl+E)">
-                    <CodeIcon className="w-4 h-4" />
-                </button>
+            <div className="flex items-center justify-between p-2 border-b border-[var(--border-color)]">
+                <div className="flex items-center space-x-1">
+                    <button type="button" onClick={() => setActiveTab('write')} className={`px-3 py-1 text-sm rounded-md transition-colors ${activeTab === 'write' ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/60'}`}>
+                        Write
+                    </button>
+                    <button type="button" onClick={() => setActiveTab('preview')} className={`px-3 py-1 text-sm rounded-md transition-colors flex items-center space-x-1.5 ${activeTab === 'preview' ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]' : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/60'}`}>
+                        <EyeIcon className="w-4 h-4" />
+                        <span>Preview</span>
+                    </button>
+                </div>
+                <div className="flex items-center space-x-1">
+                    <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Bold (Ctrl+B)" title="Bold (Ctrl+B)">
+                        <BoldIcon className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Italic (Ctrl+I)" title="Italic (Ctrl+I)">
+                        <ItalicIcon className="w-4 h-4" />
+                    </button>
+                    <button type="button" onClick={() => applyFormatting('code')} className="p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80 hover:text-[var(--text-primary)] transition-colors" aria-label="Inline Code (Ctrl+E)" title="Inline Code (Ctrl+E)">
+                        <CodeIcon className="w-4 h-4" />
+                    </button>
+                </div>
             </div>
-            <textarea
-                ref={textareaRef}
-                rows={2}
-                value={text}
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder={placeholder || "Ask me anything..."}
-                className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none px-3 py-3 text-sm sm:text-base resize-y overflow-y-auto"
-                disabled={isLoading}
-                style={{ minHeight: '5rem', maxHeight: '40vh' }}
-            />
+            
+            {activeTab === 'write' ? (
+                <textarea
+                    ref={textareaRef}
+                    rows={4}
+                    value={text}
+                    onChange={(e) => setText(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder={placeholder || "Ask me anything... (Markdown supported)"}
+                    className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none px-3 py-3 text-sm sm:text-base resize-y overflow-y-auto"
+                    disabled={isLoading}
+                    style={{ minHeight: '8rem', maxHeight: '40vh' }}
+                />
+            ) : (
+                <div className="prose prose-themed max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 p-3 bg-[var(--bg-primary)] overflow-y-auto" style={{ minHeight: '8rem', maxHeight: '40vh' }}>
+                    {text.trim() ? (
+                        <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{ code: CodeBlock }}
+                        >
+                            {text}
+                        </ReactMarkdown>
+                    ) : (
+                        <p className="text-[var(--text-muted)] italic">Preview will appear here...</p>
+                    )}
+                </div>
+            )}
+            
             <div className="flex items-center justify-between px-2 pb-2">
                  <div></div> {/* Spacer */}
                 <div className="flex items-center space-x-1">
