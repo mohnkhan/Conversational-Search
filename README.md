@@ -1,4 +1,3 @@
-
 # Gemini Conversational Search
 
 This is a powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images and videos, providing a truly interactive and multi-modal experience.
@@ -30,6 +29,19 @@ Simply type your question in the input box and press Enter. The assistant will p
     -   *Example:* `/imagine a majestic lion wearing a crown, cinematic lighting`
 -   **/create-video &lt;prompt&gt;**: Creates a short video based on the text prompt. This requires selecting a billed API key.
     -   *Example:* `/create-video a hummingbird flying in slow motion`
+
+## How to Run This Solution
+
+1.  **Configure API Key:**
+    *   This application requires a Google Gemini API key. Obtain your key from [Google AI Studio](https://ai.google.dev/).
+    *   Set the key as an environment variable named `API_KEY` in your deployment environment. Most features, like search and image generation, will use this key.
+
+2.  **Run the Application:**
+    *   This project is a standard static web application. Deploy it to your preferred hosting service or run it with any local static file server.
+
+3.  **Enable Video Generation:**
+    *   The `/create-video` feature uses the Veo model, which requires a billed API key.
+    *   When you first use this command, a pop-up will appear prompting you to select an API key from a Google Cloud project where billing is enabled. This is a secure, one-time setup step within the app.
 
 ---
 
