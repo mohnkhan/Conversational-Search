@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary } from './services/geminiService';
+import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError } from './services/geminiService';
 import { ChatMessage as ChatMessageType } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -98,7 +98,7 @@ const App: React.FC = () => {
   
     } catch (error) {
       console.error("Failed to get Gemini response:", error);
-      const errorText = error instanceof Error ? error.message : 'Sorry, an unknown error occurred. Please try again.';
+      const errorText = parseGeminiError(error);
       const errorMessage: ChatMessageType = {
         role: 'model',
         text: errorText,
@@ -171,7 +171,7 @@ const App: React.FC = () => {
         setSummaryText(summary);
     } catch (error) {
         console.error("Failed to get summary:", error);
-        const errorText = error instanceof Error ? error.message : 'Sorry, an unknown error occurred while generating the summary.';
+        const errorText = parseGeminiError(error);
         setSummaryText(errorText);
     } finally {
         setIsSummarizing(false);

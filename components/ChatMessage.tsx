@@ -103,9 +103,12 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                 </button>
             </div>
         )}
-        <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${message.isError ? 'text-red-300' : (isModel ? 'text-gray-200' : 'text-gray-100')}`}>
+        <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
           {message.isError ? (
-            <p><strong>Error:</strong> {message.text}</p>
+            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 not-prose">
+              <p className="font-semibold text-red-300">An Error Occurred</p>
+              <p className="text-red-300/90 mt-1 text-sm">{message.text}</p>
+            </div>
           ) : (
             <ReactMarkdown
               components={{
