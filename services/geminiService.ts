@@ -7,9 +7,12 @@ if (!process.env.API_KEY) {
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-export async function getGeminiResponse(prompt: string): Promise<{ text: string; sources: Source[] }> {
+export async function getGeminiResponseStream(
+    prompt: string,
+    onStreamUpdate: (text: string) => void
+): Promise<{ sources: Source[] }> {
     try {
-        const response = await ai.models.generateContent({
+        const responseStream = await ai.models.generateContentStream({
             model: "gemini-2.5-flash",
             contents: prompt,
             config: {
@@ -17,24 +20,34 @@ export async function getGeminiResponse(prompt: string): Promise<{ text: string;
             },
         });
 
-        const text = response.text;
-        const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-        
-        const sources: Source[] = groundingChunks
-            .filter((chunk: any) => chunk.web && chunk.web.uri && chunk.web.title)
-            .map((chunk: any) => ({
-                web: {
-                    uri: chunk.web.uri,
-                    title: chunk.web.title,
-                }
-            }));
-        
-        // Deduplicate sources based on URI
-        const uniqueSources = Array.from(new Map(sources.map(item => [item.web?.uri, item])).values());
+        const allSources: Source[] = [];
 
-        return { text, sources: uniqueSources };
+        for await (const chunk of responseStream) {
+            const text = chunk.text;
+            if (text) {
+                onStreamUpdate(text);
+            }
+            
+            const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+            if (groundingChunks.length > 0) {
+                 const sourcesFromChunk: Source[] = groundingChunks
+                    .filter((chunk: any) => chunk.web && chunk.web.uri && chunk.web.title)
+                    .map((chunk: any) => ({
+                        web: {
+                            uri: chunk.web.uri,
+                            title: chunk.web.title,
+                        }
+                    }));
+                allSources.push(...sourcesFromChunk);
+            }
+        }
+        
+        // Deduplicate sources based on URI after the stream is complete
+        const uniqueSources = Array.from(new Map(allSources.map(item => [item.web?.uri, item])).values());
+
+        return { sources: uniqueSources };
     } catch (error) {
-        console.error("Error in getGeminiResponse:", error);
+        console.error("Error in getGeminiResponseStream:", error);
         if (error instanceof Error) {
             // Re-throw the original error to be caught by the UI component
             throw error;

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponse } from './services/geminiService';
+import { getGeminiResponseStream } from './services/geminiService';
 import { ChatMessage as ChatMessageType, Source } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -34,15 +34,34 @@ const App: React.FC = () => {
 
   const handleSendMessage = useCallback(async (inputText: string) => {
     if (!inputText.trim() || isLoading) return;
-
+  
     const userMessage: ChatMessageType = { role: 'user', text: inputText };
-    setMessages(prevMessages => [...prevMessages, userMessage]);
+    setMessages(prevMessages => [
+      ...prevMessages,
+      userMessage,
+      { role: 'model', text: '', sources: [] } // Start with an empty model message
+    ]);
     setIsLoading(true);
-
+  
     try {
-      const { text, sources } = await getGeminiResponse(inputText);
-      const modelMessage: ChatMessageType = { role: 'model', text, sources };
-      setMessages(prevMessages => [...prevMessages, modelMessage]);
+      const { sources } = await getGeminiResponseStream(
+        inputText,
+        (chunkText) => {
+          setMessages(prevMessages => {
+            const lastMessage = prevMessages[prevMessages.length - 1];
+            const updatedLastMessage = { ...lastMessage, text: lastMessage.text + chunkText };
+            return [...prevMessages.slice(0, -1), updatedLastMessage];
+          });
+        }
+      );
+  
+      // After the stream, update the last message with the final sources
+      setMessages(prevMessages => {
+        const lastMessage = prevMessages[prevMessages.length - 1];
+        const updatedLastMessage = { ...lastMessage, sources: sources };
+        return [...prevMessages.slice(0, -1), updatedLastMessage];
+      });
+  
     } catch (error) {
       console.error("Failed to get Gemini response:", error);
       const errorText = error instanceof Error ? error.message : 'Sorry, an unknown error occurred. Please try again.';
@@ -52,7 +71,8 @@ const App: React.FC = () => {
         sources: [],
         isError: true,
       };
-      setMessages(prevMessages => [...prevMessages, errorMessage]);
+      // Replace the placeholder with an error message
+      setMessages(prevMessages => [...prevMessages.slice(0, -1), errorMessage]);
     } finally {
       setIsLoading(false);
     }
@@ -104,18 +124,6 @@ const App: React.FC = () => {
                   ))}
                 </div>
               </div>
-            )}
-            {isLoading && (
-                 <div className="flex items-start space-x-4 p-4 my-2">
-                    <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
-                        <BotIcon className="w-5 h-5 text-cyan-400" />
-                    </div>
-                    <div className="flex items-center space-x-1.5 pt-3">
-                        <div className="w-2.5 h-2.5 bg-gray-400 rounded-full dot-bounce dot-1"></div>
-                        <div className="w-2.5 h-2.5 bg-gray-400 rounded-full dot-bounce dot-2"></div>
-                        <div className="w-2.5 h-2.5 bg-gray-400 rounded-full dot-bounce"></div>
-                    </div>
-                </div>
             )}
             <div ref={messagesEndRef} />
         </div>
