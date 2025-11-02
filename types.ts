@@ -1,4 +1,3 @@
-
 export interface Source {
   web?: {
     uri: string;
@@ -10,4 +9,5 @@ export interface ChatMessage {
   role: 'user' | 'model';
   text: string;
   sources?: Source[];
+  isError?: boolean;
 }

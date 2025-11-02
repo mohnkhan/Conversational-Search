@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponse } from './services/geminiService';
 import { ChatMessage as ChatMessageType, Source } from './types';
@@ -46,10 +45,12 @@ const App: React.FC = () => {
       setMessages(prevMessages => [...prevMessages, modelMessage]);
     } catch (error) {
       console.error("Failed to get Gemini response:", error);
+      const errorText = error instanceof Error ? error.message : 'Sorry, an unknown error occurred. Please try again.';
       const errorMessage: ChatMessageType = {
         role: 'model',
-        text: 'Sorry, I encountered an error. Please try again.',
-        sources: []
+        text: errorText,
+        sources: [],
+        isError: true,
       };
       setMessages(prevMessages => [...prevMessages, errorMessage]);
     } finally {

@@ -1,4 +1,3 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { Source } from '../types';
 
@@ -36,6 +35,11 @@ export async function getGeminiResponse(prompt: string): Promise<{ text: string;
         return { text, sources: uniqueSources };
     } catch (error) {
         console.error("Error in getGeminiResponse:", error);
-        throw new Error("Failed to fetch response from Gemini API.");
+        if (error instanceof Error) {
+            // Re-throw the original error to be caught by the UI component
+            throw error;
+        }
+        // Fallback for non-Error objects
+        throw new Error("An unknown error occurred while fetching the response.");
     }
 }
