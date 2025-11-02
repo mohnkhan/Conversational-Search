@@ -3,7 +3,7 @@ import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, p
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon } from './components/Icons';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -21,6 +21,45 @@ const examplePrompts = [
 
 const CHAT_HISTORY_KEY = 'chatHistory';
 
+const loadingTexts = [
+  "Painting with pixels...",
+  "Summoning creativity...",
+  "Composing your masterpiece...",
+  "Reticulating splines...",
+  "Asking the digital muse for inspiration...",
+];
+
+const ImagePlaceholderLoader: React.FC = () => {
+    const [currentText, setCurrentText] = useState(loadingTexts[0]);
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setCurrentText(prevText => {
+                const currentIndex = loadingTexts.indexOf(prevText);
+                const nextIndex = (currentIndex + 1) % loadingTexts.length;
+                return loadingTexts[nextIndex];
+            });
+        }, 2500);
+
+        return () => clearInterval(intervalId);
+    }, []);
+
+    return (
+        <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
+             <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
+                <BotIcon className="w-5 h-5 text-cyan-400" />
+            </div>
+            <div className="flex-1 group relative pt-1">
+                <div className="w-full max-w-sm aspect-square bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center animate-shimmer">
+                    <ImageIcon className="w-12 h-12 text-gray-500 mb-4" />
+                    <p className="text-sm font-medium text-gray-400 text-center px-4">{currentText}</p>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>(() => {
     try {
@@ -33,7 +72,6 @@ const App: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to load chat history from localStorage:", error);
-      // If loading fails, clear corrupted data
       localStorage.removeItem(CHAT_HISTORY_KEY);
     }
     return initialMessages;
@@ -41,6 +79,7 @@ const App: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isThinking, setIsThinking] = useState<boolean>(false);
+  const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
   const [isAllCopied, setIsAllCopied] = useState<boolean>(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [relatedTopics, setRelatedTopics] = useState<string[]>([]);
@@ -58,12 +97,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, isThinking, suggestedPrompts, relatedTopics]);
+  }, [messages, isLoading, isThinking, suggestedPrompts, relatedTopics, isGeneratingImage]);
 
-  // Save chat history to localStorage whenever messages change
   useEffect(() => {
     try {
-      // Don't save the default initial message by itself
       if (messages.length > 1 || (messages.length === 1 && messages[0].text !== initialMessages[0].text)) {
         localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
       } else {
@@ -91,13 +128,11 @@ const App: React.FC = () => {
       const target = event.target as HTMLElement;
       const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
-      // Ctrl+K to clear chat
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         handleClearChat();
       }
 
-      // 'F' to open/close filters, but not when typing
       if (event.key.toLowerCase() === 'f' && !isTyping) {
         event.preventDefault();
         setIsFilterMenuOpen(prev => !prev);
@@ -117,18 +152,19 @@ const App: React.FC = () => {
     const userMessage: ChatMessageType = { role: 'user', text: trimmedInput };
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsLoading(true);
-    setSuggestedPrompts([]); // Clear previous suggestions
-    setRelatedTopics([]); // Clear previous topics
-    setIsFilterMenuOpen(false); // Close filter menu on send
+    setSuggestedPrompts([]);
+    setRelatedTopics([]);
+    setIsFilterMenuOpen(false);
   
     try {
         if (trimmedInput.toLowerCase().startsWith('/imagine ')) {
+            setIsGeneratingImage(true);
             const imagePrompt = trimmedInput.substring(8).trim();
             if (imagePrompt) {
                 const imageUrl = await generateImage(imagePrompt);
                 const modelMessage: ChatMessageType = {
                     role: 'model',
-                    text: imagePrompt, // Store prompt for context
+                    text: imagePrompt,
                     imageUrl: imageUrl,
                     sources: []
                 };
@@ -137,7 +173,6 @@ const App: React.FC = () => {
                  throw new Error("Please provide a prompt after the /imagine command.");
             }
         } else {
-            // Standard search query logic
             setIsThinking(true);
             let firstChunkReceived = false;
             const { sources } = await getGeminiResponseStream(
@@ -147,13 +182,11 @@ const App: React.FC = () => {
                     if (!firstChunkReceived) {
                         firstChunkReceived = true;
                         setIsThinking(false);
-                        // First chunk, so create the message
                         setMessages(prev => [
                             ...prev,
                             { role: 'model', text: chunkText, sources: [] }
                         ]);
                     } else {
-                        // Subsequent chunks, append to the last message
                         setMessages(prev => {
                             const lastMessage = prev[prev.length - 1];
                             const updatedLastMessage = { ...lastMessage, text: lastMessage.text + chunkText };
@@ -164,18 +197,16 @@ const App: React.FC = () => {
             );
 
             let finalModelResponseText = '';
-            // After the stream, update the last message with the final sources
             setMessages(prevMessages => {
                 const lastMessage = prevMessages[prevMessages.length - 1];
                 if (lastMessage?.role === 'model') {
-                    finalModelResponseText = lastMessage.text; // Get the full text
+                    finalModelResponseText = lastMessage.text;
                     const updatedLastMessage = { ...lastMessage, sources: sources };
                     return [...prevMessages.slice(0, -1), updatedLastMessage];
                 }
                 return prevMessages;
             });
 
-            // Now, get suggested prompts and topics if we have a response
             if (finalModelResponseText.trim()) {
                 await Promise.all([
                     (async () => {
@@ -216,6 +247,7 @@ const App: React.FC = () => {
     } finally {
         setIsLoading(false);
         setIsThinking(false);
+        setIsGeneratingImage(false);
     }
   }, [isLoading, dateFilter]);
 
@@ -243,7 +275,6 @@ const App: React.FC = () => {
     setMessages(prevMessages => 
       prevMessages.map((msg, index) => {
         if (index === messageIndex) {
-          // If the same feedback is clicked again, remove it. Otherwise, set it.
           const newFeedback = msg.feedback === feedback ? undefined : feedback;
           return { ...msg, feedback: newFeedback };
         }
@@ -343,7 +374,8 @@ const App: React.FC = () => {
                     </div>
                 </div>
              )}
-            {isLoading && !isThinking && (
+            {isGeneratingImage && <ImagePlaceholderLoader />}
+            {isLoading && !isThinking && !isGeneratingImage && (
                 <div className="pl-12 mt-4 animate-fade-in">
                     <div className="inline-flex items-center space-x-3 text-gray-400 p-2 bg-gray-800/50 rounded-lg">
                       <SparklesIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />

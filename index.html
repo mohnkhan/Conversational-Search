@@ -43,6 +43,16 @@
   .animate-fade-in {
     animation: fade-in 0.5s ease-out forwards;
   }
+
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  .animate-shimmer {
+    animation: shimmer 2s infinite linear;
+    background: linear-gradient(to right, #2d3748 4%, #3a475a 25%, #2d3748 36%);
+    background-size: 1000px 100%;
+  }
 </style>
 </head>
   <body class="bg-gray-900 text-white">
