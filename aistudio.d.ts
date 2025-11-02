@@ -14,7 +14,7 @@ interface AIStudio {
 // In a global script file (one without top-level imports/exports), global interfaces like `Window`
 // can be augmented directly without this wrapper.
 interface Window {
-  // FIX: Removed the `readonly` modifier to resolve a conflict with another global declaration of `aistudio`.
+  // FIX: Add `readonly` modifier to match another global declaration of `aistudio`.
   // All declarations for the same property on an interface must have identical modifiers.
-  aistudio: AIStudio;
+  readonly aistudio: AIStudio;
 }

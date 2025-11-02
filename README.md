@@ -23,6 +23,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
     -   **Video Generation:** Generate short, 720p videos from text prompts using the `/create-video` command.
 -   **Productivity Tools:**
     -   **Integrated To-Do List:** Manage tasks that arise during your conversation directly within a dedicated modal. Your tasks are saved locally.
+    -   **Recent Search History:** Automatically saves your last 5 queries, allowing you to quickly revisit or re-run past searches from the start screen.
     -   **Custom CSS Editor:** Inject your own CSS to fully personalize the application's appearance and layout.
 -   **Advanced User Experience:**
     -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
@@ -31,7 +32,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
     -   **Advanced Search Filtering:** Filter results by time, including presets and custom date ranges.
     -   **Smart Suggestions:** AI-powered suggestions for follow-up questions and related topics.
 -   **Comprehensive Chat Management:**
-    -   **Persistent History:** Conversations and tasks are saved locally for continuity.
+    -   **Persistent History:** Conversations, tasks, and recent queries are saved locally for continuity.
     -   **Summarization, Copy & Export:** Summarize your chat, copy individual messages or the full transcript, and export conversations as JSON.
     -   **Feedback Mechanism:** Rate model responses with thumbs-up/down.
     -   **Clear & New Chat:** Easily start a new conversation with dedicated buttons.
@@ -70,7 +71,7 @@ The `/create-video` feature uses the Veo model, which requires an API key associ
 
 ## Usage
 
-Simply type your question in the input box and press Enter. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message.
+Simply type your question in the input box and press Enter. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message. Your most recent searches are displayed on the initial chat screen, allowing you to click and re-run them instantly. You can clear this history at any time.
 
 -   **Deep Research:** For more complex queries, click the **sparkles icon** ✨ in the input bar to activate Deep Research mode. This will use the more powerful Gemini 2.5 Pro model for your next message to provide a more comprehensive response.
 
