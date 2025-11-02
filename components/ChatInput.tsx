@@ -51,16 +51,6 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const filterButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize textarea based on content
-  useEffect(() => {
-    const textarea = textareaRef.current;
-    if (textarea) {
-      textarea.style.height = 'auto'; // Reset height to recalculate
-      const scrollHeight = textarea.scrollHeight;
-      textarea.style.height = `${scrollHeight}px`;
-    }
-  }, [text]);
-
   // Set cursor position after formatting
   useEffect(() => {
     if (cursorPosition && textareaRef.current) {
@@ -222,14 +212,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </div>
             <textarea
                 ref={textareaRef}
-                rows={1}
+                rows={2}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder || "Ask me anything..."}
-                className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none px-3 py-3 text-sm sm:text-base resize-none overflow-y-auto"
+                className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none px-3 py-3 text-sm sm:text-base resize-y overflow-y-auto"
                 disabled={isLoading}
-                style={{ maxHeight: '120px' }}
+                style={{ minHeight: '5rem', maxHeight: '40vh' }}
             />
             <div className="flex items-center justify-end px-2 pb-2">
                 <div className="flex items-center space-x-1">
