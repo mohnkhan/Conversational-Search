@@ -107,6 +107,27 @@ export async function getGeminiResponseStream(
 }
 
 
+export async function generateImage(prompt: string): Promise<string> {
+    try {
+        const response = await ai.models.generateImages({
+            model: 'imagen-4.0-generate-001',
+            prompt: prompt,
+            config: {
+              numberOfImages: 1,
+              outputMimeType: 'image/png',
+            },
+        });
+      
+        const base64ImageBytes: string = response.generatedImages[0].image.imageBytes;
+        return `data:image/png;base64,${base64ImageBytes}`;
+
+    } catch (error) {
+        console.error("Error in generateImage:", error);
+        throw error;
+    }
+}
+
+
 export async function getSuggestedPrompts(
     prompt: string,
     response: string

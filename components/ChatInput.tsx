@@ -10,6 +10,7 @@ interface ChatInputProps {
   isFilterMenuOpen: boolean;
   onToggleFilterMenu: () => void;
   onCloseFilterMenu: () => void;
+  placeholder?: string;
 }
 
 const filterOptions: { key: DateFilter, label: string }[] = [
@@ -27,7 +28,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
     onFilterChange,
     isFilterMenuOpen,
     onToggleFilterMenu,
-    onCloseFilterMenu
+    onCloseFilterMenu,
+    placeholder
 }) => {
   const [text, setText] = useState('');
   const filterMenuRef = useRef<HTMLDivElement>(null);
@@ -117,7 +119,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask me anything..."
+          placeholder={placeholder || "Ask me anything..."}
           className="flex-1 bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-2 text-sm sm:text-base resize-none overflow-y-hidden"
           disabled={isLoading}
           style={{ maxHeight: '120px' }}

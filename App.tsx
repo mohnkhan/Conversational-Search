@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics } from './services/geminiService';
+import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
@@ -8,14 +8,14 @@ import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesI
 const initialMessages: ChatMessageType[] = [
   {
     role: 'model',
-    text: "Hello! I'm a conversational search assistant powered by Gemini. Ask me anything, and I'll use Google Search to find the most up-to-date information for you.",
+    text: "Hello! I'm a conversational search assistant powered by Gemini. Ask me anything, or try `/imagine <your prompt>` to generate an image.",
     sources: []
   }
 ];
 
 const examplePrompts = [
     "What are the latest advancements in AI?",
-    "Explain quantum computing in simple terms",
+    "/imagine a photorealistic image of a cat astronaut",
     "Who won the last Super Bowl?",
 ];
 
@@ -111,99 +111,111 @@ const App: React.FC = () => {
   }, [handleClearChat]);
 
   const handleSendMessage = useCallback(async (inputText: string) => {
-    if (!inputText.trim() || isLoading) return;
+    const trimmedInput = inputText.trim();
+    if (!trimmedInput || isLoading) return;
   
-    const userMessage: ChatMessageType = { role: 'user', text: inputText };
+    const userMessage: ChatMessageType = { role: 'user', text: trimmedInput };
     setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsLoading(true);
-    setIsThinking(true);
     setSuggestedPrompts([]); // Clear previous suggestions
     setRelatedTopics([]); // Clear previous topics
     setIsFilterMenuOpen(false); // Close filter menu on send
   
-    let firstChunkReceived = false;
-  
     try {
-      const { sources } = await getGeminiResponseStream(
-        inputText,
-        dateFilter,
-        (chunkText) => {
-          if (!firstChunkReceived) {
-            firstChunkReceived = true;
-            setIsThinking(false);
-            // First chunk, so create the message
-            setMessages(prev => [
-              ...prev,
-              { role: 'model', text: chunkText, sources: [] }
-            ]);
-          } else {
-            // Subsequent chunks, append to the last message
-            setMessages(prev => {
-              const lastMessage = prev[prev.length - 1];
-              const updatedLastMessage = { ...lastMessage, text: lastMessage.text + chunkText };
-              return [...prev.slice(0, -1), updatedLastMessage];
+        if (trimmedInput.toLowerCase().startsWith('/imagine ')) {
+            const imagePrompt = trimmedInput.substring(8).trim();
+            if (imagePrompt) {
+                const imageUrl = await generateImage(imagePrompt);
+                const modelMessage: ChatMessageType = {
+                    role: 'model',
+                    text: imagePrompt, // Store prompt for context
+                    imageUrl: imageUrl,
+                    sources: []
+                };
+                setMessages(prev => [...prev, modelMessage]);
+            } else {
+                 throw new Error("Please provide a prompt after the /imagine command.");
+            }
+        } else {
+            // Standard search query logic
+            setIsThinking(true);
+            let firstChunkReceived = false;
+            const { sources } = await getGeminiResponseStream(
+                trimmedInput,
+                dateFilter,
+                (chunkText) => {
+                    if (!firstChunkReceived) {
+                        firstChunkReceived = true;
+                        setIsThinking(false);
+                        // First chunk, so create the message
+                        setMessages(prev => [
+                            ...prev,
+                            { role: 'model', text: chunkText, sources: [] }
+                        ]);
+                    } else {
+                        // Subsequent chunks, append to the last message
+                        setMessages(prev => {
+                            const lastMessage = prev[prev.length - 1];
+                            const updatedLastMessage = { ...lastMessage, text: lastMessage.text + chunkText };
+                            return [...prev.slice(0, -1), updatedLastMessage];
+                        });
+                    }
+                }
+            );
+
+            let finalModelResponseText = '';
+            // After the stream, update the last message with the final sources
+            setMessages(prevMessages => {
+                const lastMessage = prevMessages[prevMessages.length - 1];
+                if (lastMessage?.role === 'model') {
+                    finalModelResponseText = lastMessage.text; // Get the full text
+                    const updatedLastMessage = { ...lastMessage, sources: sources };
+                    return [...prevMessages.slice(0, -1), updatedLastMessage];
+                }
+                return prevMessages;
             });
-          }
-        }
-      );
-  
-      let finalModelResponseText = '';
-      // After the stream, update the last message with the final sources
-      setMessages(prevMessages => {
-        const lastMessage = prevMessages[prevMessages.length - 1];
-        if (lastMessage?.role === 'model') {
-            finalModelResponseText = lastMessage.text; // Get the full text
-            const updatedLastMessage = { ...lastMessage, sources: sources };
-            return [...prevMessages.slice(0, -1), updatedLastMessage];
-        }
-        return prevMessages;
-      });
 
-      // Now, get suggested prompts and topics if we have a response
-      if (finalModelResponseText.trim()) {
-        // Fetch suggestions and topics in parallel for performance
-        await Promise.all([
-          (async () => {
-            try {
-              const suggestions = await getSuggestedPrompts(inputText, finalModelResponseText);
-              setSuggestedPrompts(suggestions);
-            } catch (suggestionError) {
-              console.error("Failed to fetch suggested prompts:", suggestionError);
+            // Now, get suggested prompts and topics if we have a response
+            if (finalModelResponseText.trim()) {
+                await Promise.all([
+                    (async () => {
+                        try {
+                            const suggestions = await getSuggestedPrompts(trimmedInput, finalModelResponseText);
+                            setSuggestedPrompts(suggestions);
+                        } catch (suggestionError) {
+                            console.error("Failed to fetch suggested prompts:", suggestionError);
+                        }
+                    })(),
+                    (async () => {
+                        try {
+                            const topics = await getRelatedTopics(trimmedInput, finalModelResponseText);
+                            setRelatedTopics(topics);
+                        } catch (topicError) {
+                            console.error("Failed to fetch related topics:", topicError);
+                        }
+                    })()
+                ]);
             }
-          })(),
-          (async () => {
-            try {
-              const topics = await getRelatedTopics(inputText, finalModelResponseText);
-              setRelatedTopics(topics);
-            } catch (topicError) {
-              console.error("Failed to fetch related topics:", topicError);
-            }
-          })()
-        ]);
-      }
-  
+        }
     } catch (error) {
-      console.error("Failed to get Gemini response:", error);
-      const errorText = parseGeminiError(error);
-      const errorMessage: ChatMessageType = {
-        role: 'model',
-        text: errorText,
-        sources: [],
-        isError: true,
-      };
-      
-      setMessages(prev => {
-        // If the last message is from the user, the model message hasn't been created yet.
-        if (prev[prev.length - 1].role === 'user') {
-            return [...prev, errorMessage];
-        }
-        // Otherwise, the last message is the partial model response, so replace it.
-        return [...prev.slice(0, -1), errorMessage];
-      });
-
+        console.error("Failed to get Gemini response:", error);
+        const errorText = parseGeminiError(error);
+        const errorMessage: ChatMessageType = {
+            role: 'model',
+            text: errorText,
+            sources: [],
+            isError: true,
+        };
+        
+        setMessages(prev => {
+            if (prev[prev.length - 1].role === 'user' || prev[prev.length - 1].imageUrl) {
+                return [...prev, errorMessage];
+            }
+            return [...prev.slice(0, -1), errorMessage];
+        });
     } finally {
-      setIsLoading(false);
-      setIsThinking(false);
+        setIsLoading(false);
+        setIsThinking(false);
     }
   }, [isLoading, dateFilter]);
 
@@ -399,6 +411,7 @@ const App: React.FC = () => {
           <ChatInput 
             onSendMessage={handleSendMessage} 
             isLoading={isLoading} 
+            placeholder="Ask me anything, or use /imagine to generate an image..."
             activeFilter={dateFilter}
             onFilterChange={setDateFilter}
             isFilterMenuOpen={isFilterMenuOpen}

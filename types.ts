@@ -11,6 +11,7 @@ export interface ChatMessage {
   sources?: Source[];
   isError?: boolean;
   feedback?: 'up' | 'down';
+  imageUrl?: string;
 }
 
 export type DateFilter = 'any' | 'day' | 'week' | 'month' | 'year';

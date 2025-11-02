@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { ChatMessage as ChatMessageType } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon } from './Icons';
 import Sources from './Sources';
 
 interface ChatMessageProps {
@@ -145,34 +145,54 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         {getIcon()}
       </div>
       <div className="flex-1 group relative">
-        <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
-          {message.isError ? (
-            <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 not-prose">
-              <p className="font-semibold text-red-300">An Error Occurred</p>
-              <p className="text-red-300/90 mt-1 text-sm">{message.text}</p>
+        {message.imageUrl ? (
+            <div>
+                <p className="text-gray-400 italic text-sm mb-2">Image generated for: "{message.text}"</p>
+                <div className="relative group/image inline-block">
+                    <img src={message.imageUrl} alt={message.text} className="rounded-lg border border-gray-700 max-w-full h-auto" />
+                    <a
+                        href={message.imageUrl}
+                        download={`gemini-generated-image-${new Date().getTime()}.png`}
+                        className="absolute bottom-3 right-3 bg-gray-900/70 text-white p-2 rounded-full opacity-0 group-hover/image:opacity-100 focus:opacity-100 transition-opacity"
+                        aria-label="Download image"
+                        title="Download image"
+                    >
+                        <DownloadIcon className="w-5 h-5" />
+                    </a>
+                </div>
             </div>
-          ) : (
-            <ReactMarkdown
-              components={{
-                a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                code: CodeBlock,
-              }}
-            >
-              {message.text}
-            </ReactMarkdown>
-          )}
-        </div>
-        
-        {isModel && !message.isError && (
-            <div className="mt-3 flex items-center space-x-1 md:absolute md:top-0 md:right-0 md:mt-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
-                {renderActionButtons()}
-            </div>
-        )}
+        ) : (
+            <>
+                <div className={`prose prose-invert max-w-none prose-p:my-2 prose-headings:my-3 prose-li:my-1 prose-a:text-cyan-400 hover:prose-a:text-cyan-300 ${isModel ? 'text-gray-200' : 'text-gray-100'}`}>
+                {message.isError ? (
+                    <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 not-prose">
+                    <p className="font-semibold text-red-300">An Error Occurred</p>
+                    <p className="text-red-300/90 mt-1 text-sm">{message.text}</p>
+                    </div>
+                ) : (
+                    <ReactMarkdown
+                    components={{
+                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                        code: CodeBlock,
+                    }}
+                    >
+                    {message.text}
+                    </ReactMarkdown>
+                )}
+                </div>
+                
+                {isModel && !message.isError && (
+                    <div className="mt-3 flex items-center space-x-1 md:absolute md:top-0 md:right-0 md:mt-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200">
+                        {renderActionButtons()}
+                    </div>
+                )}
 
-        {isModel && !message.isError && message.sources && message.sources.length > 0 && (
-          <div className="mt-4 border-t border-gray-700 pt-3">
-            <Sources sources={message.sources} />
-          </div>
+                {isModel && !message.isError && message.sources && message.sources.length > 0 && (
+                <div className="mt-4 border-t border-gray-700 pt-3">
+                    <Sources sources={message.sources} />
+                </div>
+                )}
+            </>
         )}
       </div>
     </div>
