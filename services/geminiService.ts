@@ -180,6 +180,9 @@ export async function getGeminiResponseStream(
     file?: { base64: string; mimeType: string }
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
+
+    const modelToUse = isDeepResearch ? 'gemini-2.5-pro' : model;
+    
     try {
         const processedHistory = history.filter(
             (msg, index) => {
@@ -237,7 +240,7 @@ export async function getGeminiResponseStream(
         }
 
         const responseStream = await ai.models.generateContentStream({
-            model: model,
+            model: modelToUse,
             contents: contents,
             config: config,
         });

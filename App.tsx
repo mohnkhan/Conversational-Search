@@ -336,6 +336,7 @@ const App: React.FC = () => {
         text: trimmedPrompt,
         timestamp: new Date().toISOString(),
         attachment: file,
+        isDeepResearch,
     };
 
     // Common state updates

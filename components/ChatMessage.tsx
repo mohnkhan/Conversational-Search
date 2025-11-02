@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage as ChatMessageType } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon } from './Icons';
 import Sources from './Sources';
 import CodeBlock from './CodeBlock'; // Use the shared CodeBlock component
 
@@ -163,8 +163,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
 
   return (
     <div className={`flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in`}>
-      <div className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${getIconBgColor()}`}>
-        {getIcon()}
+      <div className="relative flex-shrink-0">
+          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center ${getIconBgColor()}`}>
+              {getIcon()}
+          </div>
+          {message.role === 'user' && message.isDeepResearch && (
+              <div className="absolute -bottom-1 -right-1 bg-[var(--bg-secondary)] border border-[var(--border-color)] p-0.5 rounded-full shadow-md" title="Sent with Deep Research">
+                  <SparklesIcon className="w-3.5 h-3.5 text-[var(--accent-primary)]" />
+              </div>
+          )}
       </div>
       <div className="flex-1 group relative">
         {message.imageUrl ? (

@@ -368,6 +368,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   }, [isFilterMenuOpen, handleCloseFilterMenu]);
 
   const isFilterActive = !(typeof activeFilter === 'string' && activeFilter === 'any');
+  const deepResearchTooltip = "Switches to the Gemini 2.5 Pro model for a more comprehensive and detailed analysis. Ideal for complex topics, research questions, and creative tasks. May take slightly longer to respond.";
 
   return (
     <div className="relative">
@@ -493,8 +494,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
                         type="button"
                         onClick={onToggleDeepResearch}
                         aria-pressed={isDeepResearch}
-                        aria-label={isDeepResearch ? "Disable Deep Research mode" : "Enable Deep Research mode"}
-                        title={isDeepResearch ? "Deep Research is active" : "Enable Deep Research for more comprehensive answers"}
+                        aria-label={isDeepResearch ? "Disable Deep Research mode (Using Gemini 2.5 Pro)" : "Enable Deep Research mode"}
+                        title={isDeepResearch ? "Deep Research is active (Using Gemini 2.5 Pro)" : deepResearchTooltip}
                         className={`p-2 rounded-md transition-all duration-200 ${
                             isDeepResearch 
                                 ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/30' 

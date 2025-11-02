@@ -25,6 +25,7 @@ export interface ChatMessage {
   isThinking?: boolean;
   timestamp?: string;
   attachment?: AttachedFile;
+  isDeepResearch?: boolean;
 }
 
 export interface Task {
