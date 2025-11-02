@@ -192,9 +192,20 @@ const ChatInput: React.FC<ChatInputProps> = ({
             </button>
           </div>
         )}
-        <div className={`bg-gray-800 border border-gray-700 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200 ${
+        <div className={`bg-gray-800 border border-gray-700 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200 overflow-hidden ${
           isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
         }`}>
+            <div className="flex items-center space-x-1 p-2 border-b border-gray-700">
+                <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Bold (Ctrl+B)">
+                    <BoldIcon className="w-4 h-4" />
+                </button>
+                <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Italic (Ctrl+I)">
+                    <ItalicIcon className="w-4 h-4" />
+                </button>
+                <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Code Block (Ctrl+E)">
+                    <CodeIcon className="w-4 h-4" />
+                </button>
+            </div>
             <textarea
                 ref={textareaRef}
                 rows={1}
@@ -202,22 +213,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder || "Ask me anything..."}
-                className="w-full bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-3 pt-3 text-sm sm:text-base resize-none overflow-y-auto"
+                className="w-full bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-3 py-3 text-sm sm:text-base resize-none overflow-y-auto"
                 disabled={isLoading}
                 style={{ maxHeight: '120px' }}
             />
-            <div className="flex items-center justify-between px-2 pb-2 mt-1">
-                <div className="flex items-center space-x-1">
-                    <button type="button" onClick={() => applyFormatting('bold')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Bold (Ctrl+B)">
-                        <BoldIcon className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => applyFormatting('italic')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Italic (Ctrl+I)">
-                        <ItalicIcon className="w-4 h-4" />
-                    </button>
-                    <button type="button" onClick={() => applyFormatting('code-block')} className="p-2 rounded-md text-gray-400 hover:bg-gray-700/80 hover:text-white transition-colors" title="Code Block (Ctrl+E)">
-                        <CodeIcon className="w-4 h-4" />
-                    </button>
-                </div>
+            <div className="flex items-center justify-end px-2 pb-2">
                 <div className="flex items-center space-x-1">
                     <button
                     type="button"
