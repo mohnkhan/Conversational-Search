@@ -175,7 +175,8 @@ export async function getGeminiResponseStream(
     filter: DateFilter,
     onStreamUpdate: (text: string) => void,
     model: ModelId,
-    isDeepResearch: boolean = false
+    isDeepResearch: boolean = false,
+    prioritizeAuthoritative: boolean = false
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
@@ -208,12 +209,18 @@ export async function getGeminiResponseStream(
             }
         }
 
+        const config: any = {
+            tools: [{ googleSearch: {} }],
+        };
+
+        if (prioritizeAuthoritative) {
+            config.systemInstruction = "You are a research assistant. When sourcing information from the web, you must prioritize authoritative, academic, and official sources. These include government websites (.gov), educational institutions (.edu), established news organizations, and peer-reviewed scientific journals. Synthesize information from these high-quality sources in your response. Avoid citing blogs, forums, or social media unless specifically asked.";
+        }
+
         const responseStream = await ai.models.generateContentStream({
             model: model,
             contents: contents,
-            config: {
-                tools: [{ googleSearch: {} }],
-            },
+            config: config,
         });
 
         const allSources: Source[] = [];
@@ -241,7 +248,37 @@ export async function getGeminiResponseStream(
         // Deduplicate sources based on URI after the stream is complete
         const uniqueSources = Array.from(new Map(allSources.map(item => [item.web?.uri, item])).values());
 
-        return { sources: uniqueSources };
+        let finalSources = uniqueSources;
+        if (prioritizeAuthoritative) {
+            const BLOCKED_DOMAINS = [
+                'youtube.com',
+                'facebook.com',
+                'twitter.com',
+                'instagram.com',
+                'reddit.com',
+                'quora.com',
+                'pinterest.com',
+                'tiktok.com',
+                'blogspot.com',
+                'wordpress.com',
+                'medium.com',
+                'forbes.com', // Often has contributor content of varying quality
+                'businessinsider.com',
+            ];
+            
+            finalSources = uniqueSources.filter(source => {
+                if (!source.web?.uri) return false;
+                try {
+                    const domain = new URL(source.web.uri).hostname.replace(/^www\./, '');
+                    return !BLOCKED_DOMAINS.some(blockedDomain => domain.includes(blockedDomain));
+                } catch (e) {
+                    console.warn(`Invalid source URL, filtering out: ${source.web.uri}`, e);
+                    return false; // Invalid URL
+                }
+            });
+        }
+
+        return { sources: finalSources };
     } catch (error) {
         console.error("Error in getGeminiResponseStream:", error);
         // Re-throw the original error to be caught and parsed by the UI component

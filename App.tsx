@@ -34,6 +34,7 @@ const CHAT_HISTORY_KEY = 'chatHistory';
 const MODEL_STORAGE_KEY = 'chat-model';
 const CUSTOM_CSS_KEY = 'custom-user-css';
 const TODO_LIST_KEY = 'todo-list-tasks';
+const AUTHORITATIVE_SOURCES_KEY = 'prioritize-authoritative-sources';
 
 const imageLoadingTexts = [
   "Painting with pixels...",
@@ -179,6 +180,16 @@ const App: React.FC = () => {
   const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, modelId: null });
   const [isTodoListModalOpen, setIsTodoListModalOpen] = useState<boolean>(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
+  const [prioritizeAuthoritative, setPrioritizeAuthoritative] = useState<boolean>(() => {
+    try {
+        const savedSetting = localStorage.getItem(AUTHORITATIVE_SOURCES_KEY);
+        return savedSetting ? JSON.parse(savedSetting) : false;
+    } catch (error) {
+        console.error("Failed to load authoritative sources setting:", error);
+        return false;
+    }
+  });
+
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
@@ -281,6 +292,15 @@ const App: React.FC = () => {
         console.error("Failed to save model to localStorage:", error);
     }
   }, [model]);
+
+  useEffect(() => {
+    try {
+        localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative));
+    } catch (error) {
+        console.error("Failed to save authoritative sources setting:", error);
+    }
+  }, [prioritizeAuthoritative]);
+
 
   const handleClearChat = useCallback(() => {
     setMessages(initialMessages);
@@ -439,7 +459,8 @@ const App: React.FC = () => {
                     }
                 },
                 effectiveModel,
-                isDeepResearch // Pass deep research flag to service
+                isDeepResearch,
+                prioritizeAuthoritative
             );
 
             let finalModelResponseText = '';
@@ -515,7 +536,7 @@ const App: React.FC = () => {
         setCurrentImagePrompt(null);
         setIsGeneratingVideo(false);
     }
-  }, [messages, isLoading, dateFilter, isKeySelected, model, isDeepResearch]);
+  }, [messages, isLoading, dateFilter, isKeySelected, model, isDeepResearch, prioritizeAuthoritative]);
 
   const handleCopyAll = () => {
     const conversationText = messages.map(msg => {
@@ -771,6 +792,8 @@ const App: React.FC = () => {
                       currentModel={model}
                       onSetModel={handleSetModel}
                       onClose={() => setIsModelSelectorOpen(false)}
+                      prioritizeAuthoritative={prioritizeAuthoritative}
+                      onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(prev => !prev)}
                   />
               )}
             </div>
