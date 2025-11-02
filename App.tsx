@@ -3,7 +3,7 @@ import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, p
 import { ChatMessage as ChatMessageType, DateFilter, ModelId } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -11,6 +11,7 @@ import ThemeSelector from './components/ThemeSelector';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import ModelSelector from './components/ModelSelector';
 import ApiKeyManager from './components/ApiKeyManager';
+import CustomCssModal from './components/CustomCssModal';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -28,6 +29,7 @@ const examplePrompts = [
 
 const CHAT_HISTORY_KEY = 'chatHistory';
 const MODEL_STORAGE_KEY = 'chat-model';
+const CUSTOM_CSS_KEY = 'custom-user-css';
 
 const imageLoadingTexts = [
   "Painting with pixels...",
@@ -153,6 +155,8 @@ const App: React.FC = () => {
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
   const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
   const [isDeepResearch, setIsDeepResearch] = useState<boolean>(false);
+  const [customCss, setCustomCss] = useState<string>('');
+  const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
@@ -170,6 +174,42 @@ const App: React.FC = () => {
     };
     checkApiKey();
   }, []);
+
+  // Load custom CSS from localStorage on initial mount
+  useEffect(() => {
+    try {
+        const savedCss = localStorage.getItem(CUSTOM_CSS_KEY);
+        if (savedCss) {
+            setCustomCss(savedCss);
+        }
+    } catch (error) {
+        console.error("Failed to load custom CSS from localStorage:", error);
+    }
+  }, []);
+
+  // Apply custom CSS to a style tag in the document head
+  useEffect(() => {
+      const styleTagId = 'custom-user-styles';
+      let styleTag = document.getElementById(styleTagId) as HTMLStyleElement;
+
+      if (!styleTag) {
+          styleTag = document.createElement('style');
+          styleTag.id = styleTagId;
+          document.head.appendChild(styleTag);
+      }
+
+      styleTag.innerHTML = customCss;
+
+      try {
+          if (customCss) {
+              localStorage.setItem(CUSTOM_CSS_KEY, customCss);
+          } else {
+              localStorage.removeItem(CUSTOM_CSS_KEY);
+          }
+      } catch (error) {
+          console.error("Failed to save custom CSS to localStorage:", error);
+      }
+  }, [customCss]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -611,6 +651,11 @@ const App: React.FC = () => {
       }
   };
 
+  const handleSaveCustomCss = (css: string) => {
+    setCustomCss(css);
+    setIsCustomCssModalOpen(false);
+  };
+
 
   return (
     <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
@@ -653,6 +698,14 @@ const App: React.FC = () => {
                 title="Manage API Key"
             >
                 <KeyIcon className="w-5 h-5" />
+            </button>
+            <button
+                onClick={() => setIsCustomCssModalOpen(true)}
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                aria-label="Edit custom CSS"
+                title="Edit custom CSS"
+            >
+                <FileCodeIcon className="w-5 h-5" />
             </button>
             <div className="relative" ref={themeButtonRef}>
               <button
@@ -892,6 +945,14 @@ const App: React.FC = () => {
             onChangeKey={handleChangeApiKey}
             onClearKey={handleClearApiKey}
             isKeySelected={isKeySelected}
+        />
+      )}
+
+      {isCustomCssModalOpen && (
+        <CustomCssModal
+            initialCss={customCss}
+            onSave={handleSaveCustomCss}
+            onClose={() => setIsCustomCssModalOpen(false)}
         />
       )}
     </div>
