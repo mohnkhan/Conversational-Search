@@ -584,7 +584,7 @@ const App: React.FC = () => {
         <div className="flex items-center space-x-3 min-w-0 flex-shrink">
             <BotIcon className="w-7 h-7 sm:w-8 sm:h-8 text-[var(--accent-primary)] flex-shrink-0" />
             <div className="min-w-0">
-                <h1 className="text-md sm:text-xl font-bold text-[var(--text-primary)] truncate">Gemini Conversational Search</h1>
+                <h1 className="text-md sm:text-xl font-bold text-[var(--text-primary)] truncate">Conversational Search</h1>
                 <p className="text-xs sm:text-sm text-[var(--text-secondary)] flex items-center">
                     <SearchIcon className="w-3.5 h-3.5 mr-1.5 hidden sm:block" />
                     <span className="truncate">Powered by Google Search Grounding</span>

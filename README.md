@@ -1,4 +1,4 @@
-# Gemini Conversational Search
+# Conversational Search
 
 This is a powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images and videos, providing a truly interactive and multi-modal experience.
 

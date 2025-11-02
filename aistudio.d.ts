@@ -7,8 +7,14 @@ interface AIStudio {
     clearSelectedApiKey?(): Promise<void>;
 }
 
-// FIX: Removed `declare global` and `export {}` to resolve declaration conflicts.
-// This allows the file to act as a global script and correctly augment the Window interface.
-interface Window {
-    aistudio: AIStudio;
+// FIX: All declarations of 'aistudio' must have identical modifiers.
+// Use `declare global` to correctly augment the `Window` interface. This ensures
+// that we're merging with the global Window type, which is necessary when the
+// file is treated as a module. Without this, a local `Window` interface is created.
+declare global {
+    interface Window {
+        aistudio: AIStudio;
+    }
 }
+
+export {}; // Treat this file as a module.
