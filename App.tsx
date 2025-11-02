@@ -385,7 +385,7 @@ const App: React.FC = () => {
             text: parsedError.message,
             sources: [],
             isError: true,
-            originalText: trimmedInput,
+            originalText: parsedError.retryable ? trimmedInput : undefined,
         };
         
         setMessages(prev => {

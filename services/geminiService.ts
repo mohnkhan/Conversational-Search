@@ -15,6 +15,7 @@ if (process.env.API_KEY) {
 export interface ParsedError {
     type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'permission' | 'argument' | 'generic' | 'unknown';
     message: string;
+    retryable: boolean;
 }
 
 /**
@@ -23,6 +24,8 @@ export interface ParsedError {
  * @returns A ParsedError object containing an error type and a user-friendly message.
  */
 export function parseGeminiError(error: unknown): ParsedError {
+    console.error("Gemini API Error:", error); // Log the raw error for debugging
+
     if (error instanceof Error) {
         // [GoogleGenerativeAI Error]: usually prefixes specific errors
         const message = error.message.replace('[GoogleGenerativeAI Error]:', '').trim().toLowerCase();
@@ -31,7 +34,8 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('api key not valid') || message.includes('api_key') || message.includes('requested entity was not found')) {
             return {
                 type: 'api_key',
-                message: "Your API key is invalid or not found. Please ensure it's correct. For video generation, you may need to select a new key from a billed project."
+                message: "Your API key is invalid or not found. Please ensure it's correct. For video generation, you may need to select a new key from a billed project.",
+                retryable: false
             };
         }
         
@@ -39,7 +43,8 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('billing') || message.includes('enable billing')) {
             return {
                 type: 'billing',
-                message: "A billing issue was encountered. Please check that the associated Google Cloud project has billing enabled and the account is in good standing."
+                message: "A billing issue was encountered. Please check that the associated Google Cloud project has billing enabled and the account is in good standing.",
+                retryable: false
             };
         }
 
@@ -47,7 +52,8 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('permission denied')) {
             return {
                 type: 'permission',
-                message: "Permission denied. Your API key may not have the necessary permissions for this operation (e.g., video generation). Ensure the 'Vertex AI API' is enabled in your project."
+                message: "Permission denied. Your API key may not have the necessary permissions for this operation (e.g., video generation). Ensure the 'Vertex AI API' is enabled in your project.",
+                retryable: false
             };
         }
 
@@ -55,7 +61,8 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('429') || message.includes('rate limit') || message.includes('resource has been exhausted')) {
             return {
                 type: 'rate_limit',
-                message: "You've exceeded the request limit. Please wait a moment before trying again."
+                message: "You've exceeded the request limit. Please wait a moment before trying again.",
+                retryable: true
             };
         }
         
@@ -63,7 +70,8 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('safety') || message.includes('blocked') || message.includes('finish reason: safety')) {
             return {
                 type: 'safety',
-                message: "The request was blocked due to safety filters. This could be due to the prompt or the model's potential response. Please try rephrasing."
+                message: "The request was blocked due to safety filters. This could be due to the prompt or the model's potential response. Please try rephrasing.",
+                retryable: false
             };
         }
 
@@ -71,21 +79,24 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('invalid argument')) {
              return {
                 type: 'argument',
-                message: `There was an issue with the request format. Error: ${error.message}`
+                message: "The request was invalid, which can happen if the prompt is formatted incorrectly. Please try rephrasing.",
+                retryable: false
              };
         }
 
         // Generic but slightly more helpful
         return { 
             type: 'generic',
-            message: `An unexpected error occurred: ${error.message}.`
+            message: "An unexpected server error occurred. This might be a temporary issue. Please try again in a moment.",
+            retryable: true
         };
     }
 
     // Fallback for non-Error objects
     return {
         type: 'unknown',
-        message: 'An unknown error occurred. Please check the developer console for more details.'
+        message: 'An unknown error occurred. This might be a temporary issue. Please check the developer console for more details.',
+        retryable: true
     };
 }
 

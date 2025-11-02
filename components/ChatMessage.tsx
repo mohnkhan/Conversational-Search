@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import vscDarkPlus from 'react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus';
 import { ChatMessage as ChatMessageType } from '../types';
 import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon } from './Icons';
 import Sources from './Sources';
@@ -30,25 +32,39 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
 
   if (!inline && match) {
     return (
-      <div className="bg-[var(--bg-primary)] rounded-lg my-4 border border-[var(--border-color)] overflow-hidden not-prose">
-        <div className="flex items-center justify-between bg-[var(--bg-secondary)]/80 px-4 py-2 text-xs text-[var(--text-muted)]">
+      <div className="bg-[#1e1e1e] rounded-lg my-4 border border-[var(--border-color)] overflow-hidden not-prose relative font-mono text-sm">
+        <div className="flex items-center justify-between bg-black/20 px-4 py-2 text-xs text-gray-400">
           <span>{language}</span>
-          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-[var(--text-primary)] transition-colors text-xs">
+          <button onClick={handleCopyCode} className="flex items-center space-x-1.5 hover:text-white transition-colors text-xs">
             {isCodeCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
             <span>{isCodeCopied ? 'Copied!' : 'Copy code'}</span>
           </button>
         </div>
-        <pre className="p-4 text-sm overflow-x-auto font-mono">
-          <code className={className} {...props}>
-            {children}
-          </code>
-        </pre>
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={language}
+          PreTag="div"
+          customStyle={{
+            margin: 0,
+            padding: '1rem',
+            backgroundColor: 'transparent',
+          }}
+          codeTagProps={{
+            style: {
+              fontFamily: 'inherit',
+              fontSize: '0.9rem',
+            }
+          }}
+          {...props}
+        >
+          {codeText}
+        </SyntaxHighlighter>
       </div>
     );
   }
   
   return (
-    <code className="text-[var(--accent-secondary)] font-mono text-sm mx-0.5 not-prose" {...props}>
+    <code className="text-[var(--accent-secondary)] font-mono text-sm bg-[var(--bg-secondary)]/80 px-1 py-0.5 rounded not-prose" {...props}>
       {children}
     </code>
   );
@@ -253,10 +269,10 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                               <table className="w-full text-sm" {...props} />
                             </div>
                           ),
-                        thead: ({node, ...props}) => <thead className="bg-[var(--bg-secondary)]/50" {...props} />,
-                        th: ({node, ...props}) => <th className="px-4 py-2.5 text-left font-semibold" {...props} />,
-                        tr: ({node, ...props}) => <tr className="border-b border-[var(--border-color)] last:border-b-0" {...props} />,
-                        td: ({node, ...props}) => <td className="px-4 py-2.5" {...props} />,
+                        thead: ({node, ...props}) => <thead className="bg-[var(--bg-secondary)]" {...props} />,
+                        th: ({node, ...props}) => <th className="px-4 py-3 text-left font-bold text-[var(--text-secondary)] border-r border-[var(--border-color)] last:border-r-0" {...props} />,
+                        tr: ({node, ...props}) => <tr className="border-b border-[var(--border-color)] last:border-b-0 even:bg-[var(--bg-secondary)]/40" {...props} />,
+                        td: ({node, ...props}) => <td className="px-4 py-3 border-r border-[var(--border-color)] last:border-r-0" {...props} />,
                     }}
                     >
                     {message.text}
