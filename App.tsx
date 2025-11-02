@@ -17,6 +17,8 @@ import ModelExplanationTooltip from './components/ModelExplanationTooltip';
 import TodoListModal from './components/TodoListModal';
 import AboutModal from './components/AboutModal';
 import RecentQueries from './components/RecentQueries';
+import SuggestedPrompts from './components/SuggestedPrompts';
+import RelatedTopics from './components/RelatedTopics';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -240,7 +242,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, isGeneratingImage, isGeneratingVideo]);
+  }, [messages, isLoading, isGeneratingImage, isGeneratingVideo, suggestedPrompts, relatedTopics]);
 
   useEffect(() => {
     localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
@@ -583,6 +585,19 @@ const App: React.FC = () => {
                     ))}
                     {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
                     {isGeneratingVideo && <PlaceholderLoader type="video" prompt={null} />}
+                    
+                    {!isLoading && !isGeneratingImage && !isGeneratingVideo && (
+                      <>
+                        <SuggestedPrompts
+                          prompts={suggestedPrompts}
+                          onPromptClick={handleSendMessage}
+                        />
+                        <RelatedTopics
+                          topics={relatedTopics}
+                          onTopicClick={handleSendMessage}
+                        />
+                      </>
+                    )}
                 </ErrorBoundary>
               <div ref={chatEndRef}></div>
             </div>
