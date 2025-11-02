@@ -22,6 +22,7 @@ const examplePrompts = [
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageType[]>(initialMessages);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isThinking, setIsThinking] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -30,36 +31,49 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading]);
+  }, [messages, isLoading, isThinking]);
 
   const handleSendMessage = useCallback(async (inputText: string) => {
     if (!inputText.trim() || isLoading) return;
   
     const userMessage: ChatMessageType = { role: 'user', text: inputText };
-    setMessages(prevMessages => [
-      ...prevMessages,
-      userMessage,
-      { role: 'model', text: '', sources: [] } // Start with an empty model message
-    ]);
+    setMessages(prevMessages => [...prevMessages, userMessage]);
     setIsLoading(true);
+    setIsThinking(true);
+  
+    let firstChunkReceived = false;
   
     try {
       const { sources } = await getGeminiResponseStream(
         inputText,
         (chunkText) => {
-          setMessages(prevMessages => {
-            const lastMessage = prevMessages[prevMessages.length - 1];
-            const updatedLastMessage = { ...lastMessage, text: lastMessage.text + chunkText };
-            return [...prevMessages.slice(0, -1), updatedLastMessage];
-          });
+          if (!firstChunkReceived) {
+            firstChunkReceived = true;
+            setIsThinking(false);
+            // First chunk, so create the message
+            setMessages(prev => [
+              ...prev,
+              { role: 'model', text: chunkText, sources: [] }
+            ]);
+          } else {
+            // Subsequent chunks, append to the last message
+            setMessages(prev => {
+              const lastMessage = prev[prev.length - 1];
+              const updatedLastMessage = { ...lastMessage, text: lastMessage.text + chunkText };
+              return [...prev.slice(0, -1), updatedLastMessage];
+            });
+          }
         }
       );
   
       // After the stream, update the last message with the final sources
       setMessages(prevMessages => {
         const lastMessage = prevMessages[prevMessages.length - 1];
-        const updatedLastMessage = { ...lastMessage, sources: sources };
-        return [...prevMessages.slice(0, -1), updatedLastMessage];
+        if (lastMessage?.role === 'model') {
+            const updatedLastMessage = { ...lastMessage, sources: sources };
+            return [...prevMessages.slice(0, -1), updatedLastMessage];
+        }
+        return prevMessages;
       });
   
     } catch (error) {
@@ -71,10 +85,10 @@ const App: React.FC = () => {
         sources: [],
         isError: true,
       };
-      // Replace the placeholder with an error message
-      setMessages(prevMessages => [...prevMessages.slice(0, -1), errorMessage]);
+      setMessages(prevMessages => [...prevMessages, errorMessage]);
     } finally {
       setIsLoading(false);
+      setIsThinking(false);
     }
   }, [isLoading]);
 
@@ -110,6 +124,20 @@ const App: React.FC = () => {
             {messages.map((msg, index) => (
                 <ChatMessage key={index} message={msg} />
             ))}
+             {isThinking && (
+                <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
+                    <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
+                        <BotIcon className="w-5 h-5 text-cyan-400" />
+                    </div>
+                    <div className="flex-1 group relative pt-1.5 sm:pt-2">
+                        <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full dot-bounce dot-1"></div>
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full dot-bounce dot-2"></div>
+                            <div className="w-2 h-2 bg-cyan-400 rounded-full dot-bounce"></div>
+                        </div>
+                    </div>
+                </div>
+             )}
              {messages.length === 1 && !isLoading && (
               <div className="pl-12 animate-fade-in -mt-2">
                 <div className="flex flex-wrap gap-2 sm:gap-3">
