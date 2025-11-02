@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { Source } from '../types';
+import { ChatMessage, Source } from '../types';
 
 if (!process.env.API_KEY) {
     throw new Error("API_KEY environment variable not set.");
@@ -104,5 +104,36 @@ Return the questions as a JSON object with a single key "questions" which is an 
         console.error("Error generating suggested prompts:", error);
         // Fail silently and return an empty array
         return [];
+    }
+}
+
+export async function getConversationSummary(
+    messages: ChatMessage[]
+): Promise<string> {
+    try {
+        const conversationHistory = messages.map(msg => {
+            return `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}`;
+        }).join('\n\n');
+
+        const fullPrompt = `Please provide a concise summary of the following conversation. Capture the main topics and key takeaways.
+
+--- CONVERSATION START ---
+${conversationHistory}
+--- CONVERSATION END ---
+
+Summary:`;
+
+        const result = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: fullPrompt,
+        });
+
+        return result.text;
+    } catch (error) {
+        console.error("Error generating summary:", error);
+        if (error instanceof Error) {
+            throw new Error(`Failed to generate summary: ${error.message}`);
+        }
+        throw new Error("An unknown error occurred while generating the summary.");
     }
 }

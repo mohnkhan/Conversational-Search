@@ -1,9 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts } from './services/geminiService';
-import { ChatMessage as ChatMessageType, Source } from './types';
+import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary } from './services/geminiService';
+import { ChatMessage as ChatMessageType } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon } from './components/Icons';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -25,6 +25,10 @@ const App: React.FC = () => {
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isAllCopied, setIsAllCopied] = useState<boolean>(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
+  const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
+  const [summaryText, setSummaryText] = useState<string | null>(null);
+  const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
+  const [isSummaryCopied, setIsSummaryCopied] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -155,6 +159,35 @@ const App: React.FC = () => {
     );
   };
 
+  const handleSummarize = useCallback(async () => {
+    if (messages.length <= 1 || isSummarizing) return;
+
+    setShowSummaryModal(true);
+    setIsSummarizing(true);
+    setSummaryText(null);
+
+    try {
+        const summary = await getConversationSummary(messages);
+        setSummaryText(summary);
+    } catch (error) {
+        console.error("Failed to get summary:", error);
+        const errorText = error instanceof Error ? error.message : 'Sorry, an unknown error occurred while generating the summary.';
+        setSummaryText(errorText);
+    } finally {
+        setIsSummarizing(false);
+    }
+  }, [messages, isSummarizing]);
+
+  const handleCopySummary = () => {
+    if (!summaryText) return;
+    navigator.clipboard.writeText(summaryText).then(() => {
+        setIsSummaryCopied(true);
+        setTimeout(() => setIsSummaryCopied(false), 2000);
+    }).catch(err => {
+        console.error("Failed to copy summary:", err);
+    });
+  };
+
   return (
     <div className="flex flex-col h-screen bg-gray-900 text-gray-100 font-sans">
       <header className="flex items-center justify-between px-4 py-3 sm:p-4 border-b border-gray-700 bg-gray-800/50 backdrop-blur-sm">
@@ -169,6 +202,15 @@ const App: React.FC = () => {
             </div>
         </div>
         <div className="flex items-center space-x-1 sm:space-x-2">
+            <button
+                onClick={handleSummarize}
+                className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0 disabled:text-gray-600 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                aria-label="Summarize conversation"
+                title="Summarize conversation"
+                disabled={isLoading || isSummarizing || messages.length <= 1}
+            >
+                <SparklesIcon className="w-5 h-5" />
+            </button>
             <button
                 onClick={handleCopyAll}
                 className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
@@ -250,6 +292,67 @@ const App: React.FC = () => {
           <ChatInput onSendMessage={handleSendMessage} isLoading={isLoading} />
         </div>
       </footer>
+
+      {showSummaryModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
+          aria-labelledby="summary-modal-title"
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowSummaryModal(false)}
+        >
+          <div
+            className="bg-gray-800 border border-gray-700 rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <header className="flex items-center justify-between p-4 border-b border-gray-700">
+              <div className="flex items-center space-x-3">
+                <SparklesIcon className="w-6 h-6 text-cyan-400" />
+                <h2 id="summary-modal-title" className="text-lg font-semibold text-white">
+                  Conversation Summary
+                </h2>
+              </div>
+              <button
+                onClick={() => setShowSummaryModal(false)}
+                className="p-1.5 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+                aria-label="Close summary"
+              >
+                <XIcon className="w-5 h-5" />
+              </button>
+            </header>
+    
+            <main className="p-6 overflow-y-auto prose prose-invert max-w-none">
+              {isSummarizing ? (
+                <div className="flex flex-col items-center justify-center text-gray-400 space-y-3">
+                  <SparklesIcon className="w-10 h-10 text-cyan-400 animate-pulse-icon" />
+                  <p>Generating summary...</p>
+                </div>
+              ) : (
+                <p>{summaryText}</p>
+              )}
+            </main>
+    
+            <footer className="flex items-center justify-end p-4 border-t border-gray-700 bg-gray-800/50">
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setShowSummaryModal(false)}
+                  className="px-4 py-2 rounded-md text-gray-300 bg-gray-700/80 hover:bg-gray-700 transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={handleCopySummary}
+                  disabled={isSummarizing || !summaryText}
+                  className="px-4 py-2 rounded-md text-white bg-cyan-600 hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
+                >
+                  {isSummaryCopied ? <CheckIcon className="w-5 h-5" /> : <CopyIcon className="w-5 h-5" />}
+                  <span>{isSummaryCopied ? 'Copied!' : 'Copy Summary'}</span>
+                </button>
+              </div>
+            </footer>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
