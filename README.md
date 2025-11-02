@@ -5,6 +5,7 @@ This is a powerful, feature-rich conversational search tool powered by the Googl
 ## Key Features
 
 -   **Grounded Conversational Search:** Get reliable answers with sources cited directly from Google Search.
+-   **Model Selection:** Switch between Gemini 2.5 Flash (for speed) and Gemini 2.5 Pro (for complex tasks) to suit your needs.
 -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
 -   **Full Markdown Support:**
     -   **Input Toolbar:** Easily format your messages with buttons for **bold**, *italic*, and `code blocks`.
@@ -20,8 +21,9 @@ This is a powerful, feature-rich conversational search tool powered by the Googl
 -   **Chat Utilities:**
     -   **Persistent Chat History:** Conversations are saved locally for continuity.
     -   **Conversation Summarization:** Get a quick summary of your chat with a single click.
-    -   **Copy to Clipboard:** Easily copy individual messages, code blocks, or the entire chat transcript.
+    -   **Copy & Export:** Easily copy individual messages, code blocks, the entire chat transcript, or export the conversation as a JSON file.
     -   **Feedback Mechanism:** Rate model responses with thumbs-up/down.
+-   **Customizable Themes:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
 -   **Secure API Key Flow:** An integrated and secure process for users to select their own billed API key, required for video generation.
 -   **Polished & Responsive UI:** A clean, modern interface that works seamlessly across all devices.
 
@@ -50,6 +52,7 @@ A list of keyboard shortcuts for power users. *Use `Cmd` instead of `Ctrl` on ma
 | `Ctrl` + `I`      | Apply *italic* formatting     |
 | `Ctrl` + `E`      | Apply `code block` formatting |
 | `Esc`             | Close modals (Summary, Lightbox) |
+| `?`               | Show keyboard shortcuts       |
 
 
 ## How to Run This Solution
