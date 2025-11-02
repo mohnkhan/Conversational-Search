@@ -15,6 +15,7 @@ import CustomCssModal from './components/CustomCssModal';
 import ModelExplanationTooltip from './components/ModelExplanationTooltip';
 import TodoListModal from './components/TodoListModal';
 import AboutModal from './components/AboutModal';
+import RecentQueries from './components/RecentQueries';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -35,6 +36,7 @@ const MODEL_STORAGE_KEY = 'chat-model';
 const CUSTOM_CSS_KEY = 'custom-user-css';
 const TODO_LIST_KEY = 'todo-list-tasks';
 const AUTHORITATIVE_SOURCES_KEY = 'prioritize-authoritative-sources';
+const RECENT_QUERIES_KEY = 'recent-search-queries';
 
 const imageLoadingTexts = [
   "Painting with pixels...",
@@ -140,6 +142,16 @@ const App: React.FC = () => {
         return savedTasks ? JSON.parse(savedTasks) : [];
     } catch (error) {
         console.error("Failed to load tasks from localStorage:", error);
+        return [];
+    }
+  });
+  
+  const [recentQueries, setRecentQueries] = useState<string[]>(() => {
+    try {
+        const savedQueries = localStorage.getItem(RECENT_QUERIES_KEY);
+        return savedQueries ? JSON.parse(savedQueries) : [];
+    } catch (error) {
+        console.error("Failed to load recent queries from localStorage:", error);
         return [];
     }
   });
@@ -285,6 +297,14 @@ const App: React.FC = () => {
         console.error("Failed to save tasks to localStorage:", error);
     }
   }, [tasks]);
+  
+  useEffect(() => {
+    try {
+        localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(recentQueries));
+    } catch (error) {
+        console.error("Failed to save recent queries to localStorage:", error);
+    }
+  }, [recentQueries]);
 
   useEffect(() => {
     try {
@@ -311,6 +331,15 @@ const App: React.FC = () => {
       localStorage.removeItem(CHAT_HISTORY_KEY);
     } catch (error) {
       console.error("Failed to clear chat history from localStorage:", error);
+    }
+  }, []);
+  
+  const handleClearRecentQueries = useCallback(() => {
+    setRecentQueries([]);
+    try {
+        localStorage.removeItem(RECENT_QUERIES_KEY);
+    } catch (error) {
+        console.error("Failed to clear recent queries from localStorage:", error);
     }
   }, []);
 
@@ -375,6 +404,16 @@ const App: React.FC = () => {
     const trimmedInput = inputText.trim();
     if (!trimmedInput || isLoading) return;
   
+    // Add to recent queries if it's not a command
+    if (!trimmedInput.startsWith('/')) {
+        setRecentQueries(prev => {
+            // Remove existing entry if it exists to move it to the front
+            const filtered = prev.filter(q => q.toLowerCase() !== trimmedInput.toLowerCase());
+            const newQueries = [trimmedInput, ...filtered];
+            return newQueries.slice(0, 5); // Keep only the last 5
+        });
+    }
+
     const userMessage: ChatMessageType = { role: 'user', text: trimmedInput };
     const isImagine = trimmedInput.toLowerCase().startsWith('/imagine ');
     const isVideo = trimmedInput.toLowerCase().startsWith('/create-video ');
@@ -969,18 +1008,27 @@ const App: React.FC = () => {
               </div>
             )}
              {messages.length === 1 && !isLoading && suggestedPrompts.length === 0 && (
-              <div className="pl-12 animate-fade-in -mt-2">
-                <div className="flex flex-wrap gap-2 sm:gap-3">
-                  {examplePrompts.map((prompt, index) => (
-                    <button
-                      key={index}
-                      onClick={() => handleSendMessage(prompt)}
-                      className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
-                    >
-                      {prompt}
-                    </button>
-                  ))}
-                </div>
+                <div className="space-y-6">
+                    {recentQueries.length > 0 && (
+                        <RecentQueries
+                            queries={recentQueries}
+                            onQueryClick={handleSendMessage}
+                            onClear={handleClearRecentQueries}
+                        />
+                    )}
+                    <div className="pl-12 animate-fade-in">
+                        <div className="flex flex-wrap gap-2 sm:gap-3">
+                            {examplePrompts.map((prompt, index) => (
+                                <button
+                                key={index}
+                                onClick={() => handleSendMessage(prompt)}
+                                className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                                >
+                                {prompt}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
               </div>
             )}
             <div ref={messagesEndRef} />
