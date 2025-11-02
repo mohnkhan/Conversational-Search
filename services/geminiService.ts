@@ -10,6 +10,33 @@ if (process.env.API_KEY) {
 }
 
 /**
+ * Extracts a JSON string from text that might be wrapped in markdown code fences
+ * or have conversational prefixes/suffixes.
+ * @param text The raw string from the model.
+ * @returns The extracted JSON string, or the original trimmed string as a fallback.
+ */
+function extractJson(text: string): string {
+    const trimmedText = text.trim();
+    
+    // Check for markdown fences first
+    const markdownMatch = trimmedText.match(/```(json)?\s*([\s\S]*?)\s*```/);
+    if (markdownMatch && markdownMatch[2]) {
+        return markdownMatch[2].trim();
+    }
+
+    // If no fences, find the first '{' and last '}'
+    // This handles cases like "Sure, here is the JSON: {...}"
+    const firstBrace = trimmedText.indexOf('{');
+    const lastBrace = trimmedText.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+        return trimmedText.substring(firstBrace, lastBrace + 1);
+    }
+    
+    // Fallback to the original trimmed text
+    return trimmedText;
+}
+
+/**
  * A structured error object for better handling in the UI.
  */
 export interface ParsedError {
@@ -304,7 +331,12 @@ Return the questions as a JSON object with a single key "questions" which is an 
         });
 
         const jsonString = result.text;
-        const parsed = JSON.parse(jsonString);
+        const cleanedJson = extractJson(jsonString);
+        if (!cleanedJson) {
+            return [];
+        }
+        const parsed = JSON.parse(cleanedJson);
+
 
         if (parsed && Array.isArray(parsed.questions)) {
             return parsed.questions.slice(0, 3); // Ensure max 3 questions
@@ -355,7 +387,11 @@ Return the topics as a JSON object with a single key "topics" which is an array 
         });
 
         const jsonString = result.text;
-        const parsed = JSON.parse(jsonString);
+        const cleanedJson = extractJson(jsonString);
+        if (!cleanedJson) {
+            return [];
+        }
+        const parsed = JSON.parse(cleanedJson);
 
         if (parsed && Array.isArray(parsed.topics)) {
             return parsed.topics.slice(0, 4); // Ensure max 4 topics

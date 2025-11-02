@@ -3,7 +3,7 @@ import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, p
 import { ChatMessage as ChatMessageType, DateFilter, ModelId } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -713,15 +713,16 @@ const App: React.FC = () => {
               <div className="pl-12 animate-fade-in mt-4 space-y-5">
                 {suggestedPrompts.length > 0 && (
                   <div>
-                    <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-2">Next questions</h2>
-                    <div className="flex flex-wrap gap-2 sm:gap-3">
+                    <h2 className="text-sm font-semibold text-[var(--text-muted)] mb-3">People also ask</h2>
+                    <div className="space-y-2">
                       {suggestedPrompts.map((prompt, index) => (
                         <button
                           key={`suggestion-${index}`}
                           onClick={() => handleSendMessage(prompt)}
-                          className="text-xs sm:text-sm bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] px-3 py-1.5 sm:px-4 sm:py-2 rounded-full transition-all duration-200"
+                          className="w-full text-left text-sm flex items-center justify-between p-3 rounded-lg bg-[var(--bg-secondary)]/60 backdrop-blur-sm hover:bg-[var(--bg-tertiary)]/60 border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all duration-200 group"
                         >
-                          {prompt}
+                          <span className="pr-2">{prompt}</span>
+                          <ChevronRightIcon className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--text-primary)] transition-colors flex-shrink-0" />
                         </button>
                       ))}
                     </div>
