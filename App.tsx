@@ -189,6 +189,7 @@ const App: React.FC = () => {
         return false;
     }
   });
+  const [isFetchingSuggestions, setIsFetchingSuggestions] = useState<boolean>(false);
 
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -483,24 +484,29 @@ const App: React.FC = () => {
                     ? finalModelResponseText.substring(0, MAX_RESPONSE_LENGTH) + "..."
                     : finalModelResponseText;
 
-                await Promise.all([
-                    (async () => {
-                        try {
-                            const suggestions = await getSuggestedPrompts(lastUserPrompt, truncatedResponse, model);
-                            setSuggestedPrompts(suggestions);
-                        } catch (suggestionError) {
-                            console.error("Failed to fetch suggested prompts:", suggestionError);
-                        }
-                    })(),
-                    (async () => {
-                        try {
-                            const topics = await getRelatedTopics(lastUserPrompt, truncatedResponse, model);
-                            setRelatedTopics(topics);
-                        } catch (topicError) {
-                            console.error("Failed to fetch related topics:", topicError);
-                        }
-                    })()
-                ]);
+                setIsFetchingSuggestions(true);
+                try {
+                    await Promise.all([
+                        (async () => {
+                            try {
+                                const suggestions = await getSuggestedPrompts(lastUserPrompt, truncatedResponse, model);
+                                setSuggestedPrompts(suggestions);
+                            } catch (suggestionError) {
+                                console.error("Failed to fetch suggested prompts:", suggestionError);
+                            }
+                        })(),
+                        (async () => {
+                            try {
+                                const topics = await getRelatedTopics(lastUserPrompt, truncatedResponse, model);
+                                setRelatedTopics(topics);
+                            } catch (topicError) {
+                                console.error("Failed to fetch related topics:", topicError);
+                            }
+                        })()
+                    ]);
+                } finally {
+                    setIsFetchingSuggestions(false);
+                }
             }
         }
     } catch (error) {
@@ -906,13 +912,21 @@ const App: React.FC = () => {
             ))}
             {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
             {isGeneratingVideo && <PlaceholderLoader type="video" />}
-            {isLoading && !isGeneratingImage && !isGeneratingVideo && messages[messages.length - 1]?.isThinking !== true && (
+            {isLoading && !isFetchingSuggestions && !isGeneratingImage && !isGeneratingVideo && messages[messages.length - 1]?.isThinking !== true && (
                 <div className="pl-12 mt-4 animate-fade-in" role="status" aria-live="polite">
                     <div className="inline-flex items-center space-x-3 text-[var(--text-muted)] p-2 bg-[var(--bg-secondary)]/50 rounded-lg">
                       <SparklesIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />
-                      <span className="text-sm font-medium">Generating response & suggestions...</span>
+                      <span className="text-sm font-medium">Generating response...</span>
                     </div>
                 </div>
+            )}
+            {isFetchingSuggestions && (
+              <div className="pl-12 mt-4 animate-fade-in" role="status" aria-live="polite">
+                <div className="inline-flex items-center space-x-3 text-[var(--text-muted)] p-2 bg-[var(--bg-secondary)]/50 rounded-lg">
+                  <SparklesIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />
+                  <span className="text-sm font-medium">Fetching suggestions & topics...</span>
+                </div>
+              </div>
             )}
             {(suggestedPrompts.length > 0 || relatedTopics.length > 0) && !isLoading && (
               <div className="pl-12 animate-fade-in mt-4 space-y-5">
