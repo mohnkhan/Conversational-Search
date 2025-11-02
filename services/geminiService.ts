@@ -76,18 +76,40 @@ const getDateFilterPrefix = (filter: DateFilter): string => {
 }
 
 export async function getGeminiResponseStream(
-    prompt: string,
+    history: ChatMessage[],
     filter: DateFilter,
     onStreamUpdate: (text: string) => void
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
-        const prefix = getDateFilterPrefix(filter);
-        const fullPrompt = prefix + prompt;
+        const processedHistory = history.filter(
+            (msg, index) => {
+                // Ignore the very first message if it's the initial model greeting to ensure conversation starts with a user prompt
+                if (index === 0 && msg.role === 'model') {
+                    return false;
+                }
+                // Include only valid, text-based user and model messages
+                return (msg.role === 'user' || msg.role === 'model') && msg.text && !msg.isError && !msg.imageUrl && !msg.videoUrl;
+            }
+        );
+
+        const contents: { role: 'user' | 'model'; parts: { text: string }[] }[] = processedHistory.map(msg => ({
+            role: msg.role,
+            parts: [{ text: msg.text }],
+        }));
+
+        // Apply date filter prefix ONLY to the last user message
+        if (contents.length > 0) {
+            const lastContent = contents[contents.length - 1];
+            if (lastContent.role === 'user') {
+                const prefix = getDateFilterPrefix(filter);
+                lastContent.parts[0].text = prefix + lastContent.parts[0].text;
+            }
+        }
 
         const responseStream = await ai.models.generateContentStream({
             model: "gemini-2.5-flash",
-            contents: fullPrompt,
+            contents: contents,
             config: {
                 tools: [{ googleSearch: {} }],
             },

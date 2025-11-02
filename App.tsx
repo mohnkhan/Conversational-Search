@@ -202,7 +202,8 @@ const App: React.FC = () => {
     if (!trimmedInput || isLoading) return;
   
     const userMessage: ChatMessageType = { role: 'user', text: trimmedInput };
-    setMessages(prevMessages => [...prevMessages, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setIsLoading(true);
     setSuggestedPrompts([]);
     setRelatedTopics([]);
@@ -247,7 +248,7 @@ const App: React.FC = () => {
             setIsThinking(true);
             let firstChunkReceived = false;
             const { sources } = await getGeminiResponseStream(
-                trimmedInput,
+                newMessages,
                 dateFilter,
                 (chunkText) => {
                     if (!firstChunkReceived) {
@@ -279,10 +280,16 @@ const App: React.FC = () => {
             });
 
             if (finalModelResponseText.trim()) {
+                const conversationForSuggestions = newMessages.concat({
+                    role: 'model',
+                    text: finalModelResponseText,
+                });
+                const lastUserPrompt = userMessage.text;
+
                 await Promise.all([
                     (async () => {
                         try {
-                            const suggestions = await getSuggestedPrompts(trimmedInput, finalModelResponseText);
+                            const suggestions = await getSuggestedPrompts(lastUserPrompt, finalModelResponseText);
                             setSuggestedPrompts(suggestions);
                         } catch (suggestionError) {
                             console.error("Failed to fetch suggested prompts:", suggestionError);
@@ -290,7 +297,7 @@ const App: React.FC = () => {
                     })(),
                     (async () => {
                         try {
-                            const topics = await getRelatedTopics(trimmedInput, finalModelResponseText);
+                            const topics = await getRelatedTopics(lastUserPrompt, finalModelResponseText);
                             setRelatedTopics(topics);
                         } catch (topicError) {
                             console.error("Failed to fetch related topics:", topicError);
@@ -316,9 +323,16 @@ const App: React.FC = () => {
         };
         
         setMessages(prev => {
-            if (prev[prev.length - 1].role === 'user' || prev[prev.length - 1].imageUrl || prev[prev.length - 1].videoUrl) {
+            // Check if the last message is the user's prompt
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage.role === 'user' && lastMessage.text === trimmedInput) {
                 return [...prev, errorMessage];
             }
+            // If the last message is already a model response (e.g. from /imagine), append the error.
+            if (lastMessage.role === 'model' && (lastMessage.imageUrl || lastMessage.videoUrl)) {
+                 return [...prev, errorMessage];
+            }
+             // This case handles when streaming fails after starting
             return [...prev.slice(0, -1), errorMessage];
         });
     } finally {
@@ -328,7 +342,7 @@ const App: React.FC = () => {
         setCurrentImagePrompt(null);
         setIsGeneratingVideo(false);
     }
-  }, [isLoading, dateFilter, isKeySelected]);
+  }, [messages, isLoading, dateFilter, isKeySelected]);
 
   const handleCopyAll = () => {
     const conversationText = messages.map(msg => {
