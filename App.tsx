@@ -1,18 +1,15 @@
-
-
-
-
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo, ParsedError } from './services/geminiService';
-import { ChatMessage as ChatMessageType, DateFilter } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, ModelId } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
 import ThemeSelector from './components/ThemeSelector';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
+import ModelSelector from './components/ModelSelector';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -29,6 +26,7 @@ const examplePrompts = [
 ];
 
 const CHAT_HISTORY_KEY = 'chatHistory';
+const MODEL_STORAGE_KEY = 'chat-model';
 
 const imageLoadingTexts = [
   "Painting with pixels...",
@@ -141,12 +139,24 @@ const App: React.FC = () => {
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
   const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
+  const [model, setModel] = useState<ModelId>(() => {
+    try {
+        const savedModel = localStorage.getItem(MODEL_STORAGE_KEY) as ModelId;
+        if (savedModel && (savedModel === 'gemini-2.5-flash' || savedModel === 'gemini-2.5-pro')) {
+            return savedModel;
+        }
+    } catch (error) {
+        console.error("Failed to load model from localStorage:", error);
+    }
+    return 'gemini-2.5-flash'; // Default model
+  });
+  const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
   const summaryModalRef = useRef<HTMLDivElement>(null);
-  // FIX: The ref is attached to a div element, so its type must be HTMLDivElement.
-  // This resolves the error about assigning an incompatible ref type.
   const themeButtonRef = useRef<HTMLDivElement>(null);
+  const settingsButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -176,6 +186,13 @@ const App: React.FC = () => {
     }
   }, [messages]);
 
+  useEffect(() => {
+    try {
+        localStorage.setItem(MODEL_STORAGE_KEY, model);
+    } catch (error) {
+        console.error("Failed to save model to localStorage:", error);
+    }
+  }, [model]);
 
   const handleClearChat = useCallback(() => {
     setMessages(initialMessages);
@@ -230,6 +247,20 @@ const App: React.FC = () => {
         document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isThemeSelectorOpen]);
+
+  // Close model selector on outside click
+  useEffect(() => {
+    if (!isModelSelectorOpen) return;
+    const handleClickOutside = (event: MouseEvent) => {
+        if (settingsButtonRef.current && !settingsButtonRef.current.contains(event.target as Node)) {
+            setIsModelSelectorOpen(false);
+        }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isModelSelectorOpen]);
 
   const handleSendMessage = useCallback(async (inputText: string) => {
     const trimmedInput = inputText.trim();
@@ -299,7 +330,8 @@ const App: React.FC = () => {
                             return [...prev.slice(0, -1), updatedLastMessage];
                         });
                     }
-                }
+                },
+                model
             );
 
             let finalModelResponseText = '';
@@ -323,7 +355,7 @@ const App: React.FC = () => {
                 await Promise.all([
                     (async () => {
                         try {
-                            const suggestions = await getSuggestedPrompts(lastUserPrompt, finalModelResponseText);
+                            const suggestions = await getSuggestedPrompts(lastUserPrompt, finalModelResponseText, model);
                             setSuggestedPrompts(suggestions);
                         } catch (suggestionError) {
                             console.error("Failed to fetch suggested prompts:", suggestionError);
@@ -331,7 +363,7 @@ const App: React.FC = () => {
                     })(),
                     (async () => {
                         try {
-                            const topics = await getRelatedTopics(lastUserPrompt, finalModelResponseText);
+                            const topics = await getRelatedTopics(lastUserPrompt, finalModelResponseText, model);
                             setRelatedTopics(topics);
                         } catch (topicError) {
                             console.error("Failed to fetch related topics:", topicError);
@@ -374,7 +406,7 @@ const App: React.FC = () => {
         setCurrentImagePrompt(null);
         setIsGeneratingVideo(false);
     }
-  }, [messages, isLoading, dateFilter, isKeySelected]);
+  }, [messages, isLoading, dateFilter, isKeySelected, model]);
 
   const handleCopyAll = () => {
     const conversationText = messages.map(msg => {
@@ -496,7 +528,7 @@ const App: React.FC = () => {
     setSummaryText(null);
 
     try {
-        const summary = await getConversationSummary(messages);
+        const summary = await getConversationSummary(messages, model);
         setSummaryText(summary);
     } catch (error) {
         console.error("Failed to get summary:", error);
@@ -505,7 +537,7 @@ const App: React.FC = () => {
     } finally {
         setIsSummarizing(false);
     }
-  }, [messages, isSummarizing]);
+  }, [messages, isSummarizing, model]);
 
   const handleCopySummary = () => {
     if (!summaryText) return;
@@ -532,6 +564,24 @@ const App: React.FC = () => {
             </div>
         </div>
         <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
+            <div className="relative">
+              <button
+                  ref={settingsButtonRef}
+                  onClick={() => setIsModelSelectorOpen(prev => !prev)}
+                  className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                  aria-label="Model settings"
+                  title="Model settings"
+              >
+                  <SettingsIcon className="w-5 h-5" />
+              </button>
+              {isModelSelectorOpen && (
+                  <ModelSelector
+                      currentModel={model}
+                      onSetModel={setModel}
+                      onClose={() => setIsModelSelectorOpen(false)}
+                  />
+              )}
+            </div>
             <div className="relative" ref={themeButtonRef}>
               <button
                   onClick={() => setIsThemeSelectorOpen(prev => !prev)}

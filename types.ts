@@ -24,3 +24,5 @@ export interface CustomDateFilter {
 }
 
 export type DateFilter = PredefinedDateFilter | CustomDateFilter;
+
+export type ModelId = 'gemini-2.5-flash' | 'gemini-2.5-pro';

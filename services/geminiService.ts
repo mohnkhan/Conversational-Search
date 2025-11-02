@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter } from '../types';
+import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId } from '../types';
 
 // A module-level instance for non-Veo calls
 let ai: GoogleGenAI | null = null;
@@ -120,7 +120,8 @@ const getDateFilterPrefix = (filter: DateFilter): string => {
 export async function getGeminiResponseStream(
     history: ChatMessage[],
     filter: DateFilter,
-    onStreamUpdate: (text: string) => void
+    onStreamUpdate: (text: string) => void,
+    model: ModelId
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
@@ -150,7 +151,7 @@ export async function getGeminiResponseStream(
         }
 
         const responseStream = await ai.models.generateContentStream({
-            model: "gemini-2.5-flash",
+            model: model,
             contents: contents,
             config: {
                 tools: [{ googleSearch: {} }],
@@ -257,7 +258,8 @@ export async function generateVideo(prompt: string): Promise<string> {
 
 export async function getSuggestedPrompts(
     prompt: string,
-    response: string
+    response: string,
+    model: ModelId
 ): Promise<string[]> {
     if (!ai) return [];
     try {
@@ -270,7 +272,7 @@ Model Response: "${response}"
 Return the questions as a JSON object with a single key "questions" which is an array of strings.`;
 
         const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: model,
             contents: fullPrompt,
             config: {
                 responseMimeType: "application/json",
@@ -307,7 +309,8 @@ Return the questions as a JSON object with a single key "questions" which is an 
 
 export async function getRelatedTopics(
     prompt: string,
-    response: string
+    response: string,
+    model: ModelId
 ): Promise<string[]> {
     if (!ai) return [];
     try {
@@ -320,7 +323,7 @@ Model Response: "${response}"
 Return the topics as a JSON object with a single key "topics" which is an array of strings.`;
 
         const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: model,
             contents: fullPrompt,
             config: {
                 responseMimeType: "application/json",
@@ -357,7 +360,8 @@ Return the topics as a JSON object with a single key "topics" which is an array 
 
 
 export async function getConversationSummary(
-    messages: ChatMessage[]
+    messages: ChatMessage[],
+    model: ModelId
 ): Promise<string> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
@@ -374,7 +378,7 @@ ${conversationHistory}
 Summary:`;
 
         const result = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+            model: model,
             contents: fullPrompt,
         });
 
