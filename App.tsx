@@ -6,6 +6,7 @@ import ChatInput from './components/ChatInput';
 import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -39,12 +40,18 @@ const videoLoadingTexts = [
     "Finalizing the cut...",
 ];
 
-const PlaceholderLoader: React.FC<{ type: 'image' | 'video' }> = ({ type }) => {
+interface PlaceholderLoaderProps {
+    type: 'image' | 'video';
+    prompt?: string | null;
+}
+
+const PlaceholderLoader: React.FC<PlaceholderLoaderProps> = ({ type, prompt }) => {
     const loadingTexts = type === 'image' ? imageLoadingTexts : videoLoadingTexts;
     const [currentText, setCurrentText] = useState(loadingTexts[0]);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
     useEffect(() => {
-        const intervalId = setInterval(() => {
+        const textIntervalId = setInterval(() => {
             setCurrentText(prevText => {
                 const currentIndex = loadingTexts.indexOf(prevText);
                 const nextIndex = (currentIndex + 1) % loadingTexts.length;
@@ -52,8 +59,21 @@ const PlaceholderLoader: React.FC<{ type: 'image' | 'video' }> = ({ type }) => {
             });
         }, 2500);
 
-        return () => clearInterval(intervalId);
+        const timerId = setInterval(() => {
+            setElapsedSeconds(prev => prev + 1);
+        }, 1000);
+
+        return () => {
+            clearInterval(textIntervalId);
+            clearInterval(timerId);
+        };
     }, [loadingTexts]);
+
+    const formatTime = (seconds: number) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    };
 
     const Icon = type === 'image' ? ImageIcon : VideoIcon;
 
@@ -63,9 +83,17 @@ const PlaceholderLoader: React.FC<{ type: 'image' | 'video' }> = ({ type }) => {
                 <BotIcon className="w-5 h-5 text-cyan-400" />
             </div>
             <div className="flex-1 group relative pt-1">
-                <div className="w-full max-w-sm aspect-video bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center animate-shimmer">
-                    <Icon className="w-12 h-12 text-gray-500 mb-4" />
-                    <p className="text-sm font-medium text-gray-400 text-center px-4">{currentText}</p>
+                <div className="w-full max-w-sm aspect-video bg-gray-800 rounded-lg border border-gray-700 flex flex-col items-center justify-center p-4 animate-shimmer">
+                    <Icon className="w-10 h-10 text-gray-500 mb-3" />
+                    {type === 'image' && prompt && (
+                         <p className="text-sm font-medium text-gray-300 text-center px-4 italic truncate" title={prompt}>
+                            "{prompt}"
+                         </p>
+                    )}
+                    {type === 'image' && (
+                        <p className="text-xs font-mono text-gray-500 mt-2">{formatTime(elapsedSeconds)}</p>
+                    )}
+                    <p className="text-sm text-gray-400 text-center px-4 mt-3">{currentText}</p>
                 </div>
             </div>
         </div>
@@ -92,6 +120,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
+  const [currentImagePrompt, setCurrentImagePrompt] = useState<string | null>(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
   const [isAllCopied, setIsAllCopied] = useState<boolean>(false);
   const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
@@ -181,9 +210,10 @@ const App: React.FC = () => {
   
     try {
         if (trimmedInput.toLowerCase().startsWith('/imagine ')) {
-            setIsGeneratingImage(true);
             const imagePrompt = trimmedInput.substring(8).trim();
             if (imagePrompt) {
+                setIsGeneratingImage(true);
+                setCurrentImagePrompt(imagePrompt);
                 const imageUrl = await generateImage(imagePrompt);
                 const modelMessage: ChatMessageType = {
                     role: 'model',
@@ -295,6 +325,7 @@ const App: React.FC = () => {
         setIsLoading(false);
         setIsThinking(false);
         setIsGeneratingImage(false);
+        setCurrentImagePrompt(null);
         setIsGeneratingVideo(false);
     }
   }, [isLoading, dateFilter, isKeySelected]);
@@ -410,13 +441,14 @@ const App: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-2 py-4 sm:p-4 md:p-6 space-y-6">
         <div className="max-w-4xl mx-auto w-full">
             {messages.map((msg, index) => (
-                <ChatMessage 
-                  key={index} 
-                  message={msg}
-                  messageIndex={index}
-                  onFeedback={handleFeedback}
-                  onImageClick={setLightboxImageUrl}
-                />
+                <ErrorBoundary key={index}>
+                    <ChatMessage 
+                        message={msg}
+                        messageIndex={index}
+                        onFeedback={handleFeedback}
+                        onImageClick={setLightboxImageUrl}
+                    />
+                </ErrorBoundary>
             ))}
              {isThinking && (
                 <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
@@ -428,7 +460,7 @@ const App: React.FC = () => {
                     </div>
                 </div>
              )}
-            {isGeneratingImage && <PlaceholderLoader type="image" />}
+            {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
             {isGeneratingVideo && <PlaceholderLoader type="video" />}
             {isLoading && !isThinking && !isGeneratingImage && !isGeneratingVideo &&(
                 <div className="pl-12 mt-4 animate-fade-in">
@@ -495,16 +527,18 @@ const App: React.FC = () => {
 
       <footer className="p-2 sm:p-4 md:p-6 border-t border-gray-700 bg-gray-900/80 backdrop-blur-sm">
         <div className="max-w-4xl mx-auto">
-          <ChatInput 
-            onSendMessage={handleSendMessage} 
-            isLoading={isLoading} 
-            placeholder="Ask me anything, or use /imagine or /create-video..."
-            activeFilter={dateFilter}
-            onFilterChange={setDateFilter}
-            isFilterMenuOpen={isFilterMenuOpen}
-            onToggleFilterMenu={() => setIsFilterMenuOpen(prev => !prev)}
-            onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
-          />
+          <ErrorBoundary fallbackMessage="The chat input component has crashed. Please reload the page to continue.">
+            <ChatInput 
+              onSendMessage={handleSendMessage} 
+              isLoading={isLoading} 
+              placeholder="Ask me anything, or use /imagine or /create-video..."
+              activeFilter={dateFilter}
+              onFilterChange={setDateFilter}
+              isFilterMenuOpen={isFilterMenuOpen}
+              onToggleFilterMenu={() => setIsFilterMenuOpen(prev => !prev)}
+              onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
+            />
+          </ErrorBoundary>
         </div>
       </footer>
 
