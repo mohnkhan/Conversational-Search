@@ -1,0 +1,5 @@
+{
+  "name": "Conversational Search",
+  "description": "A conversational search tool powered by the Gemini API with Google Search grounding for up-to-date and accurate information.",
+  "requestFramePermissions": []
+}
