@@ -2,14 +2,16 @@
 // To augment the global 'Window' type.
 
 declare global {
-  // FIX: To resolve "Duplicate identifier" errors, the separate `AIStudio` interface
-  // has been removed. The type for `window.aistudio` is now defined inline to prevent
-  // naming conflicts with other potential global declarations of `AIStudio`.
+  // FIX: The `AIStudio` interface is defined here and used for `window.aistudio`
+  // to resolve errors about mismatching types and modifiers across declarations.
+  // Defining it within the global scope prevents potential module-level naming conflicts.
+  interface AIStudio {
+    hasSelectedApiKey(): Promise<boolean>;
+    openSelectKey(): Promise<void>;
+  }
+
   interface Window {
-    aistudio: {
-      hasSelectedApiKey(): Promise<boolean>;
-      openSelectKey(): Promise<void>;
-    };
+    aistudio: AIStudio;
   }
 }
 

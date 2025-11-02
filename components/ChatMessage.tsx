@@ -227,7 +227,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
             </div>
         ) : (
             <>
-                <div className={`prose prose-themed max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ul:list-disc prose-ul:pl-5 prose-ol:my-2 prose-ol:list-decimal prose-ol:pl-5 prose-li:my-1 md:pr-40`}>
+                <div className={`prose prose-themed max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 md:pr-40`}>
                 {message.isError ? (
                     <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 not-prose">
                         <p className="font-semibold text-red-100">An Error Occurred</p>
