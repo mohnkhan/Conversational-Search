@@ -30,6 +30,7 @@ const App: React.FC = () => {
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
   const [isSummaryCopied, setIsSummaryCopied] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilter>('any');
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -40,6 +41,35 @@ const App: React.FC = () => {
     scrollToBottom();
   }, [messages, isLoading, isThinking, suggestedPrompts]);
 
+  const handleClearChat = useCallback(() => {
+    setMessages(initialMessages);
+    setSuggestedPrompts([]);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+      // Ctrl+K to clear chat
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        handleClearChat();
+      }
+
+      // 'F' to open/close filters, but not when typing
+      if (event.key.toLowerCase() === 'f' && !isTyping) {
+        event.preventDefault();
+        setIsFilterMenuOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleClearChat]);
+
   const handleSendMessage = useCallback(async (inputText: string) => {
     if (!inputText.trim() || isLoading) return;
   
@@ -48,6 +78,7 @@ const App: React.FC = () => {
     setIsLoading(true);
     setIsThinking(true);
     setSuggestedPrompts([]); // Clear previous suggestions
+    setIsFilterMenuOpen(false); // Close filter menu on send
   
     let firstChunkReceived = false;
   
@@ -123,11 +154,6 @@ const App: React.FC = () => {
     }
   }, [isLoading, dateFilter]);
 
-  const handleClearChat = () => {
-    setMessages(initialMessages);
-    setSuggestedPrompts([]);
-  };
-  
   const handleCopyAll = () => {
     const conversationText = messages.map(msg => {
       let formattedMessage = `${msg.role === 'user' ? 'User' : 'Model'}: ${msg.text}`;
@@ -224,8 +250,8 @@ const App: React.FC = () => {
             <button
               onClick={handleClearChat}
               className="p-1.5 sm:p-2 rounded-md text-gray-400 hover:bg-gray-700 hover:text-white transition-colors duration-200 flex-shrink-0"
-              aria-label="Clear chat history"
-              title="Clear chat"
+              aria-label="Clear chat history (Ctrl+K)"
+              title="Clear chat (Ctrl+K)"
             >
               <TrashIcon className="w-5 h-5" />
             </button>
@@ -296,6 +322,9 @@ const App: React.FC = () => {
             isLoading={isLoading} 
             activeFilter={dateFilter}
             onFilterChange={setDateFilter}
+            isFilterMenuOpen={isFilterMenuOpen}
+            onToggleFilterMenu={() => setIsFilterMenuOpen(prev => !prev)}
+            onCloseFilterMenu={() => setIsFilterMenuOpen(false)}
           />
         </div>
       </footer>

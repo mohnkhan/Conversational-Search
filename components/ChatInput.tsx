@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { SendIcon, FilterIcon } from './Icons';
 import { DateFilter } from '../types';
@@ -8,6 +7,9 @@ interface ChatInputProps {
   isLoading: boolean;
   activeFilter: DateFilter;
   onFilterChange: (filter: DateFilter) => void;
+  isFilterMenuOpen: boolean;
+  onToggleFilterMenu: () => void;
+  onCloseFilterMenu: () => void;
 }
 
 const filterOptions: { key: DateFilter, label: string }[] = [
@@ -18,39 +20,73 @@ const filterOptions: { key: DateFilter, label: string }[] = [
     { key: 'year', label: 'Past year' },
 ];
 
-const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, activeFilter, onFilterChange }) => {
+const ChatInput: React.FC<ChatInputProps> = ({ 
+    onSendMessage, 
+    isLoading, 
+    activeFilter, 
+    onFilterChange,
+    isFilterMenuOpen,
+    onToggleFilterMenu,
+    onCloseFilterMenu
+}) => {
   const [text, setText] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const filterMenuRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      textarea.style.height = 'auto'; // Reset height to recalculate
+      const scrollHeight = textarea.scrollHeight;
+      textarea.style.height = `${scrollHeight}px`;
+    }
+  }, [text]);
+
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (text.trim()) {
       onSendMessage(text);
       setText('');
     }
   };
 
-  const handleFilterSelect = (filter: DateFilter) => {
-    onFilterChange(filter);
-    setShowFilters(false);
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
   };
 
+  const handleFilterSelect = (filter: DateFilter) => {
+    onFilterChange(filter);
+    onCloseFilterMenu();
+  };
+
+  // Effect to close filter menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (filterMenuRef.current && !filterMenuRef.current.contains(event.target as Node)) {
-        setShowFilters(false);
+      const filterButton = document.querySelector('[aria-label="Open search filters (F)"]');
+      if (
+        filterMenuRef.current &&
+        !filterMenuRef.current.contains(event.target as Node) &&
+        !filterButton?.contains(event.target as Node)
+      ) {
+        onCloseFilterMenu();
       }
     };
-    document.addEventListener('mousedown', handleClickOutside);
+
+    if (isFilterMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, []);
+  }, [isFilterMenuOpen, onCloseFilterMenu]);
 
   return (
     <div className="relative">
-      {showFilters && (
+      {isFilterMenuOpen && (
         <div 
           ref={filterMenuRef}
           className="absolute bottom-full mb-2 w-full sm:w-auto left-0 sm:left-auto sm:right-16 bg-gray-800 border border-gray-700 rounded-lg shadow-lg p-2 z-10 animate-fade-in"
@@ -74,34 +110,44 @@ const ChatInput: React.FC<ChatInputProps> = ({ onSendMessage, isLoading, activeF
           </div>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="flex items-center space-x-2 sm:space-x-3 bg-gray-800 border border-gray-700 rounded-lg p-2 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200">
-        <input
-          type="text"
+      <form onSubmit={handleSubmit} className="flex items-start space-x-2 sm:space-x-3 bg-gray-800 border border-gray-700 rounded-lg p-2 focus-within:ring-2 focus-within:ring-cyan-500 transition-shadow duration-200">
+        <textarea
+          ref={textareaRef}
+          rows={1}
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Ask me anything..."
-          className="flex-1 bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-2 text-sm sm:text-base"
+          className="flex-1 bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none px-2 text-sm sm:text-base resize-none overflow-y-hidden"
           disabled={isLoading}
+          style={{ maxHeight: '120px' }}
         />
-        <button
-          type="button"
-          onClick={() => setShowFilters(!showFilters)}
-          aria-expanded={showFilters}
-          aria-controls="filter-menu"
-          aria-label="Open search filters"
-          className={`p-2 rounded-md hover:bg-gray-700/80 transition-colors duration-200 ${
-            activeFilter !== 'any' ? 'text-cyan-400' : 'text-gray-400'
-          }`}
-        >
-          <FilterIcon className="w-5 h-5" />
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading || !text.trim()}
-          className="p-2 rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
-        >
-          <SendIcon className="w-5 h-5" />
-        </button>
+        <div className="flex flex-col self-end h-full justify-end">
+            <button
+            type="button"
+            onClick={onToggleFilterMenu}
+            aria-expanded={isFilterMenuOpen}
+            aria-controls="filter-menu"
+            aria-label="Open search filters (F)"
+            title="Open search filters (F)"
+            className={`p-2 rounded-md hover:bg-gray-700/80 transition-colors duration-200 ${
+                activeFilter !== 'any' ? 'text-cyan-400' : 'text-gray-400'
+            }`}
+            >
+            <FilterIcon className="w-5 h-5" />
+            </button>
+        </div>
+        <div className="flex flex-col self-end h-full justify-end">
+            <button
+            type="submit"
+            disabled={isLoading || !text.trim()}
+            className="p-2 rounded-md bg-cyan-600 text-white hover:bg-cyan-500 disabled:bg-gray-600 disabled:cursor-not-allowed transition-colors duration-200 flex items-center justify-center"
+            aria-label="Send message (Enter)"
+            title="Send message (Enter)"
+            >
+            <SendIcon className="w-5 h-5" />
+            </button>
+        </div>
       </form>
     </div>
   );
