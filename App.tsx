@@ -127,14 +127,10 @@ const App: React.FC = () => {
              {isThinking && (
                 <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
                     <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-cyan-500/20">
-                        <BotIcon className="w-5 h-5 text-cyan-400" />
+                        <BotIcon className="w-5 h-5 text-cyan-400 animate-pulse-icon" />
                     </div>
                     <div className="flex-1 group relative pt-1.5 sm:pt-2">
-                        <div className="flex items-center space-x-2">
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full dot-bounce dot-1"></div>
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full dot-bounce dot-2"></div>
-                            <div className="w-2 h-2 bg-cyan-400 rounded-full dot-bounce"></div>
-                        </div>
+                        <p className="text-gray-400 italic">Thinking...</p>
                     </div>
                 </div>
              )}
