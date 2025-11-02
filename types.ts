@@ -14,6 +14,7 @@ export interface ChatMessage {
   imageUrl?: string;
   videoUrl?: string;
   originalText?: string;
+  isThinking?: boolean;
 }
 
 export type PredefinedDateFilter = 'any' | 'day' | 'week' | 'month' | 'year';

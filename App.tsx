@@ -123,7 +123,6 @@ const App: React.FC = () => {
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isThinking, setIsThinking] = useState<boolean>(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
   const [currentImagePrompt, setCurrentImagePrompt] = useState<string | null>(null);
   const [isGeneratingVideo, setIsGeneratingVideo] = useState<boolean>(false);
@@ -175,7 +174,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isLoading, isThinking, suggestedPrompts, relatedTopics, isGeneratingImage, isGeneratingVideo]);
+  }, [messages, isLoading, suggestedPrompts, relatedTopics, isGeneratingImage, isGeneratingVideo]);
 
   useEffect(() => {
     try {
@@ -270,15 +269,24 @@ const App: React.FC = () => {
     if (!trimmedInput || isLoading) return;
   
     const userMessage: ChatMessageType = { role: 'user', text: trimmedInput };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    const isImagine = trimmedInput.toLowerCase().startsWith('/imagine ');
+    const isVideo = trimmedInput.toLowerCase().startsWith('/create-video ');
+
+    // For text generation, add a thinking bubble immediately.
+    if (!isImagine && !isVideo) {
+        const thinkingMessage: ChatMessageType = { role: 'model', text: '', isThinking: true, sources: [] };
+        setMessages(prev => [...prev, userMessage, thinkingMessage]);
+    } else {
+        setMessages(prev => [...prev, userMessage]);
+    }
+
     setIsLoading(true);
     setSuggestedPrompts([]);
     setRelatedTopics([]);
     setIsFilterMenuOpen(false);
   
     try {
-        if (trimmedInput.toLowerCase().startsWith('/imagine ')) {
+        if (isImagine) {
             const imagePrompt = trimmedInput.substring(8).trim();
             if (imagePrompt) {
                 setIsGeneratingImage(true);
@@ -294,7 +302,7 @@ const App: React.FC = () => {
             } else {
                  throw new Error("Please provide a prompt after the /imagine command.");
             }
-        } else if (trimmedInput.toLowerCase().startsWith('/create-video ')) {
+        } else if (isVideo) {
             if (!isKeySelected) {
                 throw new Error("API key not selected. Please select an API key before generating videos.");
             }
@@ -313,17 +321,19 @@ const App: React.FC = () => {
                 throw new Error("Please provide a prompt after the /create-video command.");
             }
         } else {
-            setIsThinking(true);
             let firstChunkReceived = false;
+            // The history for the API is the conversation state *before* adding the new user message.
+            // This correctly uses the `messages` from the component's state at the time of sending.
+            const historyForApi: ChatMessageType[] = [...messages, userMessage];
+
             const { sources } = await getGeminiResponseStream(
-                newMessages,
+                historyForApi,
                 dateFilter,
                 (chunkText) => {
                     if (!firstChunkReceived) {
                         firstChunkReceived = true;
-                        setIsThinking(false);
                         setMessages(prev => [
-                            ...prev,
+                            ...prev.slice(0, -1), // Replace the thinking bubble
                             { role: 'model', text: chunkText, sources: [] }
                         ]);
                     } else {
@@ -395,18 +405,17 @@ const App: React.FC = () => {
         
         setMessages(prev => {
             const lastMessage = prev[prev.length - 1];
-            if (lastMessage.role === 'user' && lastMessage.text === trimmedInput) {
-                return [...prev, errorMessage];
+
+            // If the last message is a thinking bubble or a partially streamed response, replace it.
+            if (lastMessage?.isThinking || (lastMessage?.role === 'model' && !lastMessage.imageUrl && !lastMessage.videoUrl)) {
+                return [...prev.slice(0, -1), errorMessage];
             }
-            if (lastMessage.role === 'model' && (lastMessage.imageUrl || lastMessage.videoUrl)) {
-                 return [...prev, errorMessage];
-            }
-            // This case handles when streaming fails after starting
-            return [...prev.slice(0, -1), errorMessage];
+            
+            // Otherwise, append the error message (e.g., after an image/video generation)
+            return [...prev, errorMessage];
         });
     } finally {
         setIsLoading(false);
-        setIsThinking(false);
         setIsGeneratingImage(false);
         setCurrentImagePrompt(null);
         setIsGeneratingVideo(false);
@@ -691,19 +700,9 @@ const App: React.FC = () => {
                     />
                 </ErrorBoundary>
             ))}
-             {isThinking && (
-                <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in" role="status" aria-live="polite">
-                    <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-[var(--bg-accent-translucent)]">
-                        <BotIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />
-                    </div>
-                    <div className="flex-1 group relative pt-1.5 sm:pt-2">
-                        <p className="text-[var(--text-muted)] italic">Thinking...</p>
-                    </div>
-                </div>
-             )}
             {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
             {isGeneratingVideo && <PlaceholderLoader type="video" />}
-            {isLoading && !isThinking && !isGeneratingImage && !isGeneratingVideo &&(
+            {isLoading && !isGeneratingImage && !isGeneratingVideo && messages[messages.length - 1]?.isThinking !== true && (
                 <div className="pl-12 mt-4 animate-fade-in" role="status" aria-live="polite">
                     <div className="inline-flex items-center space-x-3 text-[var(--text-muted)] p-2 bg-[var(--bg-secondary)]/50 rounded-lg">
                       <SparklesIcon className="w-5 h-5 text-[var(--accent-primary)] animate-pulse-icon" />

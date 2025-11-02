@@ -10,6 +10,10 @@ interface AIStudio {
   clearSelectedApiKey?(): Promise<void>;
 }
 
+// FIX: Removed the `declare global` block, which caused an "Augmentations for the global scope" error.
+// In a global script file (one without top-level imports/exports), global interfaces like `Window`
+// can be augmented directly without this wrapper.
 interface Window {
-  aistudio: AIStudio;
+  // FIX: Added the `readonly` modifier to resolve the "All declarations of 'aistudio' must have identical modifiers" error. This commonly occurs when another declaration for the same property exists and is read-only.
+  readonly aistudio: AIStudio;
 }

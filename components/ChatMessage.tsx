@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -70,12 +70,59 @@ const CodeBlock: React.FC<any> = ({ node, inline, className, children, ...props 
   );
 };
 
+const thinkingSteps = [
+    "Analyzing your request...",
+    "Consulting knowledge sources...",
+    "Formulating a response...",
+    "Cross-referencing information...",
+    "Drafting the answer...",
+];
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick, onRetry }) => {
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
   const [isShared, setIsShared] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [currentThinkingStep, setCurrentThinkingStep] = useState(thinkingSteps[0]);
+
+  useEffect(() => {
+    let intervalId: number | undefined;
+    if (message.isThinking) {
+      setCurrentThinkingStep(thinkingSteps[0]); // Reset to first step
+      intervalId = window.setInterval(() => {
+        setCurrentThinkingStep(prevStep => {
+          const currentIndex = thinkingSteps.indexOf(prevStep);
+          const nextIndex = (currentIndex + 1) % thinkingSteps.length;
+          return thinkingSteps[nextIndex];
+        });
+      }, 1800); // Change text every 1.8 seconds
+    }
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [message.isThinking]);
+
+  if (message.isThinking) {
+    return (
+        <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in" role="status" aria-live="polite">
+            <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-[var(--bg-accent-translucent)]">
+                <BotIcon className="w-5 h-5 text-[var(--accent-primary)]" />
+            </div>
+            <div className="flex-1 pt-1.5 sm:pt-2">
+                <div className="flex items-center space-x-2">
+                    <p className="font-medium text-[var(--text-muted)] italic">{currentThinkingStep}</p>
+                    <div className="flex items-center space-x-1">
+                        <div className="w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse" style={{ animationDelay: '0s' }}></div>
+                        <div className="w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+  }
 
   const handleCopy = () => {
     if (!message.text) return;
