@@ -3,13 +3,14 @@ import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, p
 import { ChatMessage as ChatMessageType, DateFilter, ModelId } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
 import ThemeSelector from './components/ThemeSelector';
 import KeyboardShortcutsModal from './components/KeyboardShortcutsModal';
 import ModelSelector from './components/ModelSelector';
+import ApiKeyManager from './components/ApiKeyManager';
 
 const initialMessages: ChatMessageType[] = [
   {
@@ -151,12 +152,14 @@ const App: React.FC = () => {
     return 'gemini-2.5-flash'; // Default model
   });
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState<boolean>(false);
+  const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const summarizeButtonRef = useRef<HTMLButtonElement>(null);
   const summaryModalRef = useRef<HTMLDivElement>(null);
   const themeButtonRef = useRef<HTMLDivElement>(null);
   const settingsButtonRef = useRef<HTMLButtonElement>(null);
+  const apiKeyButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const checkApiKey = async () => {
@@ -549,6 +552,31 @@ const App: React.FC = () => {
     });
   };
 
+  const handleChangeApiKey = async () => {
+      try {
+          await window.aistudio.openSelectKey();
+          setIsKeySelected(true);
+      } catch (error) {
+          console.error("Error opening API key selection:", error);
+      } finally {
+          setIsApiKeyManagerOpen(false);
+      }
+  };
+
+  const handleClearApiKey = async () => {
+      try {
+          if (window.aistudio.clearSelectedApiKey) {
+              await window.aistudio.clearSelectedApiKey();
+          }
+          setIsKeySelected(false);
+      } catch (error) {
+          console.error("Error clearing API key:", error);
+      } finally {
+          setIsApiKeyManagerOpen(false);
+      }
+  };
+
+
   return (
     <div className="flex flex-col h-screen bg-[var(--bg-primary)] text-[var(--text-primary)] font-sans">
       {!isKeySelected && <ApiKeySelector onKeySelected={() => setIsKeySelected(true)} />}
@@ -582,6 +610,15 @@ const App: React.FC = () => {
                   />
               )}
             </div>
+            <button
+                ref={apiKeyButtonRef}
+                onClick={() => setIsApiKeyManagerOpen(true)}
+                className="p-1.5 sm:p-2 rounded-md text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                aria-label="Manage API Key"
+                title="Manage API Key"
+            >
+                <KeyIcon className="w-5 h-5" />
+            </button>
             <div className="relative" ref={themeButtonRef}>
               <button
                   onClick={() => setIsThemeSelectorOpen(prev => !prev)}
@@ -815,6 +852,15 @@ const App: React.FC = () => {
 
       {showShortcutsModal && (
         <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />
+      )}
+
+      {isApiKeyManagerOpen && (
+        <ApiKeyManager
+            onClose={() => setIsApiKeyManagerOpen(false)}
+            onChangeKey={handleChangeApiKey}
+            onClearKey={handleClearApiKey}
+            isKeySelected={isKeySelected}
+        />
       )}
     </div>
   );
