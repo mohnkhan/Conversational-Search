@@ -27,7 +27,7 @@ This is a powerful, feature-rich conversational search tool powered by the Googl
 -   **Secure API Key Flow:** An integrated and secure process for users to select their own billed API key, required for video generation.
 -   **Polished & Responsive UI:** A clean, modern interface that works seamlessly across all devices.
 
-## How to Use
+## Commands and Shortcuts
 
 Simply type your question in the input box and press Enter. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message.
 
@@ -54,6 +54,66 @@ A list of keyboard shortcuts for power users. *Use `Cmd` instead of `Ctrl` on ma
 | `Esc`             | Close modals (Summary, Lightbox) |
 | `?`               | Show keyboard shortcuts       |
 
+## Prompt Engineering Tips
+
+Crafting effective prompts is key to unlocking the full potential of the generative models. Here are some tips to get better results.
+
+### General Tips for Text Generation
+
+-   **Be Specific and Detailed:** The more detail you provide, the better the model can understand your intent.
+    -   **Vague:** `Tell me about space.`
+    -   **Better:** `Explain the concept of a black hole to a 12-year-old, using a simple analogy.`
+-   **Provide Context and Persona:** Tell the model who it should be or what context it should operate in.
+    -   **Vague:** `Write about a new product.`
+    -   **Better:** `You are a marketing expert. Write a short, exciting announcement for a new smartphone with a revolutionary camera. The target audience is tech enthusiasts.`
+-   **Define the Output Format:** Explicitly ask for the format you want.
+    -   **Vague:** `What are the pros and cons of coffee?`
+    -   **Better:** `List the pros and cons of drinking coffee in a two-column markdown table.`
+
+### Image Generation (`/imagine`)
+
+-   **Use Descriptive Adjectives:** Combine subjects with rich adjectives to guide the visual details.
+    -   **Simple:** `/imagine a cat`
+    -   **Better:** `/imagine a fluffy, mischievous ginger tabby cat, with bright green eyes, playfully chasing a laser dot.`
+-   **Specify Styles and Mediums:** Mention artistic styles, mediums, or artists to influence the look and feel.
+    -   **Style:** `/imagine a futuristic city skyline at night, cyberpunk, neon-drenched, Blade Runner style`
+    -   **Medium:** `/imagine a tranquil mountain lake surrounded by pine trees, watercolor painting, impressionistic`
+    -   **Rendering:** `/imagine a cute, friendly robot waving, 3D render, Pixar animation style`
+-   **Set the Scene:** Describe the environment, lighting, and camera angle.
+    -   **Lighting:** `/imagine a medieval knight in shining armor, dramatic cinematic lighting, golden hour`
+    -   **Angle:** `/imagine a tiny mouse eating a piece of cheese, macro shot, shallow depth of field`
+
+### Video Generation (`/create-video`)
+
+-   **Focus on Action and Movement:** Video prompts excel when they describe a scene with clear motion.
+    -   **Static:** `/create-video a beautiful beach`
+    -   **Better:** `/create-video waves gently crashing on a pristine tropical beach at sunset, with palm trees swaying in the breeze.`
+-   **Describe Camera Work:** Use terms like "time-lapse," "slow motion," or "aerial shot" for more dynamic results.
+    -   **Example:** `/create-video a time-lapse of a busy city street, with car light trails and pedestrians hurrying`
+    -   **Example:** `/create-video an eagle soaring over a grand canyon, aerial drone footage, slow motion`
+-   **Combine Subjects and Actions:** Clearly state who or what is doing the action.
+    -   **Example:** `/create-video a chef skillfully tossing pizza dough in a rustic Italian kitchen`
+
+### Using Markdown for Structured Prompts
+
+For complex requests, use markdown in the chat input to structure your prompt. This helps the model differentiate between instructions, context, and the data it needs to work with.
+
+**Example Template:**
+
+```markdown
+You are an expert travel planner. Create a concise, 3-day itinerary based on the following details.
+
+---
+**Destination:** Paris, France
+**Traveler Profile:** A couple on their honeymoon, interested in art and food.
+**Budget:** Moderate
+**Tone:** Romantic and enthusiastic
+---
+
+Generate the itinerary now.
+```
+
+This structured approach is much clearer than writing a single, long paragraph and often leads to more accurate and well-formatted responses.
 
 ## How to Run This Solution
 

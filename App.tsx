@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo, ParsedError } from './services/geminiService';
+import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
 import { ChatMessage as ChatMessageType, DateFilter, ModelId } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
