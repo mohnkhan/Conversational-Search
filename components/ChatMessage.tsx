@@ -306,10 +306,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                         img: ({node, ...props}) => (
                             <button
                                 onClick={() => props.src && onImageClick(props.src)}
-                                className="block my-2 w-full max-w-sm cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] rounded-md text-left"
+                                className="relative group/image block my-2 w-full max-w-sm cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] rounded-lg text-left"
                                 aria-label={`View larger image: ${props.alt}`}
                             >
-                                <img {...props} alt={props.alt || 'Embedded image'} className="max-w-full h-auto rounded-md border border-[var(--border-color)]" />
+                                <img {...props} alt={props.alt || 'Embedded image'} className="max-w-full h-auto rounded-lg border border-[var(--border-color)]" />
+                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/image:opacity-100 group-focus/image:opacity-100 transition-opacity flex items-center justify-center pointer-events-none rounded-lg">
+                                    <ZoomInIcon className="w-10 h-10 text-white" />
+                                </div>
                             </button>
                         ),
                         table: ({node, ...props}) => (
