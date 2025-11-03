@@ -125,7 +125,9 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
       const MAX_FILE_SIZE_MB = 5;
       const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
-      const SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+      const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+      const SUPPORTED_TEXT_TYPES = ['text/plain', 'text/markdown', 'text/csv', 'application/json'];
+      const SUPPORTED_TYPES = [...SUPPORTED_IMAGE_TYPES, ...SUPPORTED_TEXT_TYPES];
   
       if (file.size > MAX_FILE_SIZE_BYTES) {
         setFileError(`File is too large. Please select a file smaller than ${MAX_FILE_SIZE_MB}MB.`);
@@ -134,7 +136,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
       }
   
       if (!SUPPORTED_TYPES.includes(file.type)) {
-          setFileError("Unsupported file type. Please use JPEG, PNG, WEBP, or HEIC.");
+          setFileError("Unsupported file type. Please use a supported image or text file.");
           if (event.target) event.target.value = ''; // Reset the input
           return;
       }
@@ -398,7 +400,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   return (
     <div className="relative">
-      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/jpeg, image/png, image/webp, image/heic, image/heif" />
+      <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,text/plain,text/markdown,text/csv,application/json" />
       {isFilterMenuOpen && (
         <div ref={filterMenuRef}>
             <FilterPanel 
@@ -508,7 +510,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder={placeholder || "Ask me anything, or attach an image... (Markdown supported)"}
+                    placeholder={placeholder || "Ask me anything, or attach an image or text file... (Markdown supported)"}
                     className="w-full bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none px-3 py-3 text-sm sm:text-base resize-y overflow-y-auto"
                     disabled={isLoading}
                     style={{ minHeight: '8rem', maxHeight: '40vh' }}
