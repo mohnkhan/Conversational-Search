@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon, SparklesIconFilled, PaperclipIcon, FileTextIcon } from './Icons';
+import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon, SparklesIconFilled, PaperclipIcon, FileTextIcon, ErrorIcon } from './Icons';
 import { DateFilter, PredefinedDateFilter, AttachedFile, ResearchScope } from '../types';
 import FilterPanel from './FilterPanel';
 import CodeBlock from './CodeBlock'; // Import the shared CodeBlock component
@@ -43,6 +43,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [isResearchPanelOpen, setIsResearchPanelOpen] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const filterMenuRef = useRef<HTMLDivElement>(null);
   const researchPanelRef = useRef<HTMLDivElement>(null);
@@ -103,6 +104,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     if (text.trim() || attachedFile) {
       onSendMessage(text, attachedFile);
       setText('');
+      setFileError(null);
       // Attached file and research scope are cleared in App.tsx
     }
   };
@@ -113,13 +115,30 @@ const ChatInput: React.FC<ChatInputProps> = ({
   
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
-      if (!file) return;
+      setFileError(null); // Clear previous errors on a new attempt.
+
+      if (!file) {
+          return; // User cancelled file selection.
+      }
+      
+      onSetAttachedFile(null); // Clear any existing valid file to process the new one.
+
+      const MAX_FILE_SIZE_MB = 5;
+      const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
+      const SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
   
-      if (file.size > 5 * 1024 * 1024) { // 5MB limit
-        alert("File is too large. Please select a file smaller than 5MB.");
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setFileError(`File is too large. Please select a file smaller than ${MAX_FILE_SIZE_MB}MB.`);
+        if (event.target) event.target.value = ''; // Reset the input to allow re-selection
         return;
       }
   
+      if (!SUPPORTED_TYPES.includes(file.type)) {
+          setFileError("Unsupported file type. Please use JPEG, PNG, WEBP, or HEIC.");
+          if (event.target) event.target.value = ''; // Reset the input
+          return;
+      }
+
       const reader = new FileReader();
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
@@ -135,12 +154,13 @@ const ChatInput: React.FC<ChatInputProps> = ({
       reader.readAsDataURL(file);
   
       if (event.target) {
-        event.target.value = '';
+        event.target.value = ''; // Reset for the success case too.
       }
   };
   
   const handleRemoveFile = () => {
       onSetAttachedFile(null);
+      setFileError(null);
   };
 
 
@@ -425,8 +445,19 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
         <div className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)] transition-shadow duration-200 overflow-hidden ${
-          isFilterActive || attachedFile ? 'rounded-b-lg' : 'rounded-lg'
-        } ${ isFilterActive && attachedFile ? 'rounded-t-none' : ''}`}>
+          isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
+        }`}>
+             {fileError && (
+                <div className="bg-red-900/30 border-b border-red-500/50 px-3 py-2 flex items-center justify-between text-sm animate-fade-in">
+                    <div className="flex items-center space-x-2 text-red-200">
+                        <ErrorIcon className="w-5 h-5 flex-shrink-0" />
+                        <span>{fileError}</span>
+                    </div>
+                    <button type="button" onClick={() => setFileError(null)} className="p-1 rounded-full text-red-200 hover:bg-red-800/50" aria-label="Dismiss file error">
+                        <XIcon className="w-4 h-4" />
+                    </button>
+                </div>
+             )}
              {attachedFile && (
                 <div className="bg-[var(--bg-tertiary)]/30 border-b border-[var(--border-color)] px-3 py-2 flex items-center justify-between animate-fade-in">
                     <div className="flex items-center space-x-2 overflow-hidden">
@@ -442,7 +473,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
                             <p className="text-xs text-[var(--text-muted)]">{Math.round(attachedFile.size / 1024)} KB</p>
                         </div>
                     </div>
-                    <button type="button" onClick={handleRemoveFile} className="p-1 rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] flex-shrink-0 ml-2">
+                    <button type="button" onClick={handleRemoveFile} className="p-1 rounded-full text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] flex-shrink-0 ml-2" aria-label="Remove attached file">
                         <XIcon className="w-4 h-4" />
                     </button>
                 </div>

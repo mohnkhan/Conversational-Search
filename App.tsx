@@ -20,11 +20,13 @@ import RecentQueries from './components/RecentQueries';
 import SuggestedPrompts from './components/SuggestedPrompts';
 import RelatedTopics from './components/RelatedTopics';
 import ExportChatModal from './components/ExportChatModal';
+import SummaryModal from './components/SummaryModal';
+import InitialPrompts from './components/InitialPrompts';
 
 const initialMessages: ChatMessageType[] = [
   {
     role: 'model',
-    text: "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, or `/create-video <prompt>` for a short video.",
+    text: "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, `/create-video <prompt>` for a short video, or `/summarize` to get a summary of our chat.",
     sources: [],
     timestamp: new Date().toISOString(),
   }
@@ -195,7 +197,6 @@ const App: React.FC = () => {
   const [isSummarizing, setIsSummarizing] = useState<boolean>(false);
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
-  const [isSummaryCopied, setIsSummaryCopied] = useState(false);
   const [dateFilter, setDateFilter] = useState<DateFilter>('any');
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState<boolean>(false);
   const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
@@ -328,6 +329,17 @@ const App: React.FC = () => {
   const handleSendMessage = async (prompt: string, file: AttachedFile | null = attachedFile) => {
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt && !file) return;
+
+    if (trimmedPrompt === '/summarize') {
+        const userMessage: ChatMessageType = { 
+            role: 'user', 
+            text: trimmedPrompt,
+            timestamp: new Date().toISOString(),
+        };
+        setMessages(prev => [...prev, userMessage]);
+        handleSummarize();
+        return;
+    }
 
     const isImageCommand = trimmedPrompt.startsWith('/imagine ');
     const isVideoCommand = trimmedPrompt.startsWith('/create-video ');
@@ -488,6 +500,7 @@ const App: React.FC = () => {
   const handleSummarize = async () => {
     setIsSummarizing(true);
     setShowSummaryModal(true);
+    setSummaryText(null); // Clear previous summary
     try {
         const summary = await getConversationSummary(messages, model);
         setSummaryText(summary);
@@ -654,7 +667,11 @@ const App: React.FC = () => {
 
         <div className="p-4 flex-shrink-0 bg-[var(--bg-primary)]">
             <div className="max-w-4xl mx-auto">
-              <RecentQueries queries={recentQueries} onQueryClick={handleSendMessage} onClear={() => setRecentQueries([])} />
+                {recentQueries.length > 0 ? (
+                    <RecentQueries queries={recentQueries} onQueryClick={handleSendMessage} onClear={() => setRecentQueries([])} />
+                ) : (
+                    messages.length <= 1 && <InitialPrompts prompts={examplePrompts} onPromptClick={handleSendMessage} />
+                )}
               <div className="mt-4">
                 <ChatInput
                     onSendMessage={handleSendMessage}
@@ -676,6 +693,7 @@ const App: React.FC = () => {
     </div>
 
     {/* Modals and Overlays */}
+    {showSummaryModal && <SummaryModal onClose={() => setShowSummaryModal(false)} summary={summaryText} isLoading={isSummarizing} />}
     {apiKeySelectorProps.show && <ApiKeySelector onKeySelected={handleKeySelected} title={apiKeySelectorProps.title} description={apiKeySelectorProps.description} />}
     {lightboxImageUrl && <Lightbox imageUrl={lightboxImageUrl} onClose={() => setLightboxImageUrl(null)} />}
     {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}

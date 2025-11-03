@@ -39,6 +39,34 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
   const [isShared, setIsShared] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [currentThinkingStep, setCurrentThinkingStep] = useState(thinkingSteps[0]);
+  // FIX: Added state to handle video URL which might be a Blob object, to satisfy type-checker and ensure it's a string URL.
+  const [videoSrc, setVideoSrc] = useState<string>('');
+
+  useEffect(() => {
+    let objectUrl: string | undefined;
+    if (message.videoUrl) {
+      if (typeof message.videoUrl === 'string') {
+        setVideoSrc(message.videoUrl);
+      } else {
+        // This path is taken if the type is not a string, presumably a Blob.
+        try {
+          objectUrl = URL.createObjectURL(message.videoUrl as unknown as Blob);
+          setVideoSrc(objectUrl);
+        } catch (e) {
+          console.error("Failed to create object URL from videoUrl:", e);
+          setVideoError(true);
+        }
+      }
+    } else {
+        setVideoSrc('');
+    }
+
+    return () => {
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+  }, [message.videoUrl]);
 
   useEffect(() => {
     let intervalId: number | undefined;
@@ -219,7 +247,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                         <ErrorIcon className="w-8 h-8 text-red-400 mb-2" />
                         <p className="text-sm text-red-200 mb-3">Video failed to load or play.</p>
                         <a
-                            href={message.videoUrl}
+                            href={videoSrc}
                             download={`gemini-generated-video.mp4`}
                             className="flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-red-600/80 hover:bg-red-500/80 transition-colors"
                         >
@@ -230,7 +258,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                  ) : (
                     <div className="relative group/video inline-block aspect-video">
                         <video 
-                            src={message.videoUrl} 
+                            src={videoSrc} 
                             controls 
                             autoPlay 
                             muted 
@@ -239,7 +267,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                             onError={() => setVideoError(true)}
                         />
                         <a
-                            href={message.videoUrl}
+                            href={videoSrc}
                             download={`gemini-generated-video.mp4`}
                             className="absolute bottom-3 right-3 bg-black/70 text-white p-2 rounded-full opacity-0 group-hover/video:opacity-100 focus:opacity-100 transition-opacity"
                             aria-label="Download video"
@@ -289,6 +317,15 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                     components={{
                         a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
                         code: CodeBlock,
+                        img: ({node, ...props}) => (
+                            <button
+                                onClick={() => props.src && onImageClick(props.src)}
+                                className="block my-2 w-full max-w-sm cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] rounded-md text-left"
+                                aria-label={`View larger image: ${props.alt}`}
+                            >
+                                <img {...props} alt={props.alt || 'Embedded image'} className="max-w-full h-auto rounded-md border border-[var(--border-color)]" />
+                            </button>
+                        ),
                         table: ({node, ...props}) => (
                             <div className="overflow-x-auto my-4 border border-[var(--border-color)] rounded-lg not-prose">
                               <table className="w-full text-sm" {...props} />

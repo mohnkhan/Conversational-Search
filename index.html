@@ -106,6 +106,53 @@
     padding: 0.1rem 0.25rem;
   }
 
+  /* Custom styles for embedded markdown images */
+  .prose-themed img {
+    border-radius: 0.5rem; /* rounded-lg */
+    border: 1px solid var(--border-color);
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Custom styles for GFM task lists */
+  .prose-themed .task-list-item {
+    list-style-type: none;
+    padding-left: 0.25rem;
+  }
+  .prose-themed .task-list-item input[type="checkbox"] {
+    margin-right: 0.75rem;
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-secondary);
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: default; /* Make it look non-interactive */
+    vertical-align: middle;
+    position: relative;
+    top: -1px;
+  }
+  .prose-themed .task-list-item input[type="checkbox"]:checked {
+    background-color: var(--accent-primary);
+    border-color: var(--accent-primary);
+  }
+  .prose-themed .task-list-item input[type="checkbox"]:checked::after {
+    content: '✔';
+    position: absolute;
+    color: white;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    width: 1rem;
+    text-align: center;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .prose-themed .task-list-item > p {
+      display: inline; /* Keep text on the same line as checkbox */
+  }
+
   /* Custom cursor for zoomable images */
   .cursor-zoom-in {
     cursor: zoom-in;
