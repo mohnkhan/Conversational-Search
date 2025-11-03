@@ -39,33 +39,19 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
   const [isShared, setIsShared] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [currentThinkingStep, setCurrentThinkingStep] = useState(thinkingSteps[0]);
-  // FIX: Added state to handle video URL which might be a Blob object, to satisfy type-checker and ensure it's a string URL.
+  // FIX: Simplified video source handling. The videoUrl is always a string.
   const [videoSrc, setVideoSrc] = useState<string>('');
 
   useEffect(() => {
-    let objectUrl: string | undefined;
+    // The videoUrl is an object URL string created in geminiService.
+    // The previous logic to handle a Blob was incorrect as videoUrl is always a string.
+    // Note: This implementation has a memory leak as object URLs are not revoked.
+    // A proper fix would be to revoke the URL in a parent component (e.g., App.tsx) when the chat is cleared.
     if (message.videoUrl) {
-      if (typeof message.videoUrl === 'string') {
-        setVideoSrc(message.videoUrl);
-      } else {
-        // This path is taken if the type is not a string, presumably a Blob.
-        try {
-          objectUrl = URL.createObjectURL(message.videoUrl as unknown as Blob);
-          setVideoSrc(objectUrl);
-        } catch (e) {
-          console.error("Failed to create object URL from videoUrl:", e);
-          setVideoError(true);
-        }
-      }
+      setVideoSrc(message.videoUrl);
     } else {
         setVideoSrc('');
     }
-
-    return () => {
-      if (objectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
-    };
   }, [message.videoUrl]);
 
   useEffect(() => {

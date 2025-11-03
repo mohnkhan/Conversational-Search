@@ -448,12 +448,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
           isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
         }`}>
              {fileError && (
-                <div className="bg-red-900/30 border-b border-red-500/50 px-3 py-2 flex items-center justify-between text-sm animate-fade-in">
-                    <div className="flex items-center space-x-2 text-red-200">
+                <div className="bg-[var(--accent-danger)]/10 border-b border-[var(--accent-danger)]/30 px-3 py-2 flex items-center justify-between text-sm animate-fade-in">
+                    <div className="flex items-center space-x-2 text-[var(--accent-danger)]">
                         <ErrorIcon className="w-5 h-5 flex-shrink-0" />
-                        <span>{fileError}</span>
+                        <span className="font-medium">{fileError}</span>
                     </div>
-                    <button type="button" onClick={() => setFileError(null)} className="p-1 rounded-full text-red-200 hover:bg-red-800/50" aria-label="Dismiss file error">
+                    <button type="button" onClick={() => setFileError(null)} className="p-1 rounded-full text-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/20 transition-colors" aria-label="Dismiss file error">
                         <XIcon className="w-4 h-4" />
                     </button>
                 </div>
