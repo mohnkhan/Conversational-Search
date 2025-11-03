@@ -11,8 +11,7 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-    // FIX: Re-introduced a constructor to properly initialize the component.
-    // The previous state initialization as a class property was causing type resolution issues for `this.props`.
+    // FIX: Replaced the class property state initialization with a constructor. The previous implementation was causing `this.props` to be unrecognized by the type checker. An explicit constructor ensures that props are passed to the superclass and state is initialized correctly.
     constructor(props: Props) {
         super(props);
         this.state = {

@@ -1,8 +1,6 @@
 # Conversational Search
 
-A powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images and videos, providing a truly interactive and multi-modal experience.
-
-<!-- Add a screenshot or GIF of the application here -->
+A powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images, videos, and understanding user-uploaded images, providing a truly interactive and multi-modal experience.
 
 ## Table of Contents
 
@@ -19,31 +17,39 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 ## Key Features
 
 -   **Grounded Conversational Search:** Get reliable answers with sources cited directly from Google Search.
--   **Dual-Model Support:**
+
+-   **Dual-Model Support & Deep Research:**
     -   **Model Selection:** Manually switch between Gemini 2.5 Flash (for speed) and Gemini 2.5 Pro (for complex tasks).
-    -   **Deep Research Mode:** Instantly toggle to use the more powerful Gemini 2.5 Pro model for in-depth, comprehensive answers to complex questions.
--   **Multi-modal Generation:**
+    -   **Deep Research Mode:** Instantly engage the more powerful Gemini 2.5 Pro model for in-depth answers. Activate specific analysis scopes like *Comprehensive Analysis*, *Pros & Cons*, *Historical Context*, *Compare & Contrast*, and *Technical Deep-Dive*.
+
+-   **Multi-modal Capabilities:**
     -   **Image Generation:** Create stunning, high-quality images using the `/imagine` command with Imagen.
     -   **Video Generation:** Generate short, 720p videos from text prompts using the `/create-video` command with Veo.
--   **Productivity Tools:**
+    -   **Image Understanding:** Attach images to your prompts to ask questions about them or use them as context for your queries.
+
+-   **Productivity & Customization:**
     -   **Integrated To-Do List:** Manage tasks that arise during your conversation directly within a dedicated modal. Your tasks are saved locally.
     -   **Recent Search History:** Automatically saves your last 5 queries, allowing you to quickly revisit or re-run past searches.
     -   **Custom CSS Editor:** Inject your own CSS to fully personalize the application's appearance and layout.
+    -   **Theming Engine:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
+
 -   **Advanced User Experience:**
     -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
-    -   **Text-to-Speech Playback:** Listen to the AI's responses with a single click. A speaker icon appears next to each message, allowing you to have the text read aloud.
-    -   **Full Markdown Support:** An input toolbar and full rendering support for formatted messages, including tables and code blocks with syntax highlighting.
+    -   **Smart Text Editor:** Full Markdown support with a formatting toolbar, live preview, and smart features like auto-completing lists and brackets.
+    -   **Text-to-Speech Playback:** Listen to the AI's responses with a single click.
     -   **Image Lightbox:** Click any generated image to view it in a full-screen, high-resolution lightbox.
     -   **Advanced Search Filtering:** Filter results by time, including presets and custom date ranges.
     -   **Smart Suggestions:** AI-powered suggestions for follow-up questions and related topics.
     -   **Voice Input:** Use your microphone to dictate prompts in multiple languages.
+    -   **Prioritize Authoritative Sources:** A toggle to guide the model to prefer academic, governmental, and other high-quality sources.
+
 -   **Comprehensive Chat Management:**
     -   **Persistent History:** Conversations, tasks, and recent queries are saved locally for continuity.
     -   **Summarization & Copy:** Summarize your chat or copy individual messages/the full transcript.
     -   **Feedback Mechanism:** Rate model responses with thumbs-up/down.
--   **Customization & Security:**
-    -   **Theming Engine:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
-    -   **Secure API Key Flow:** An integrated, secure process for users to select their own billed API key, required for video generation.
+    -   **Chat Export:** Export your entire conversation history to TXT, JSON, or Markdown formats for easy sharing or archiving.
+
+-   **Secure API Key Flow:** An integrated, secure process for users to select their own billed API key, required for video generation.
 
 ## Technology Stack
 
@@ -52,6 +58,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 -   **Markdown:** [React Markdown](https://github.com/remarkjs/react-markdown) with [Remark GFM](https://github.com/remarkjs/remark-gfm)
 -   **Syntax Highlighting:** [React Syntax Highlighter](https://github.com/react-syntax-highlighter/react-syntax-highlighter)
+-   **Internationalization:** Built-in support for multiple languages (EN, ES).
 
 ## Getting Started
 
@@ -83,10 +90,10 @@ This application uses two methods for handling API keys:
 
 ## Usage
 
-Simply type your question in the input box and press Enter. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message. Your most recent searches are displayed on the initial chat screen, allowing you to click and re-run them instantly.
+Simply type your question in the input box, attach an image, or use voice input to start a conversation. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message. Your most recent searches are displayed on the initial chat screen, allowing you to click and re-run them instantly.
 
 -   **Deep Research:** For more complex queries, click the **sparkles icon** ✨ in the input bar to activate Deep Research mode. This will use the more powerful Gemini 2.5 Pro model for your next message to provide a more comprehensive response.
--   **Productivity & Customization:** Access the settings menu in the top-right corner to find the To-Do List, Custom CSS editor, Theme selector, and more.
+-   **Productivity & Customization:** Access the settings menu in the top-right corner to find the To-Do List, Custom CSS editor, Theme selector, Chat Export, and more.
 
 ### Special Commands
 
@@ -94,6 +101,7 @@ Simply type your question in the input box and press Enter. The assistant will p
     -   *Example:* `/imagine a majestic lion wearing a crown, cinematic lighting`
 -   `/create-video <prompt>`: Creates a short video based on the text prompt. This requires selecting a billed API key.
     -   *Example:* `/create-video a hummingbird flying in slow motion`
+-   `/summarize`: Generates a summary of the current conversation.
 
 ### Keyboard Shortcuts
 
