@@ -22,7 +22,9 @@ This is the inaugural release of the Conversational Search application, a powerf
 
 #### 2. Multi-Modal Interaction
 -   **Image Generation:** Create high-quality images directly in the chat using the `/imagine <prompt>` command, powered by the Imagen model.
+    -   **Pro Tip:** For best results, use descriptive adjectives, specify artistic styles (e.g., `photorealistic`, `watercolor`, `cyberpunk`), and set the scene (e.g., `dramatic cinematic lighting`, `a bustling futuristic city`).
 -   **Video Generation:** Generate short 720p videos from text prompts using the `/create-video <prompt>` command, powered by the Veo model.
+    -   **Pro Tip:** Focus on action and movement in your prompts. Use dynamic verbs and camera terms like `a hummingbird flying in slow motion`, `a time-lapse of a flower blooming`, or `an aerial shot of a coastline`.
 -   **Image Understanding:** Attach local image files (JPG, PNG, WEBP, etc.) to your prompts to ask questions about their content.
 
 #### 3. Productivity & Chat Management

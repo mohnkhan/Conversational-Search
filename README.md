@@ -16,40 +16,41 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 
 ## Key Features
 
+### Core AI & Search
 -   **Grounded Conversational Search:** Get reliable answers with sources cited directly from Google Search.
-
 -   **Dual-Model Support & Deep Research:**
     -   **Model Selection:** Manually switch between Gemini 2.5 Flash (for speed) and Gemini 2.5 Pro (for complex tasks).
     -   **Deep Research Mode:** Instantly engage the more powerful Gemini 2.5 Pro model for in-depth answers. Activate specific analysis scopes like *Comprehensive Analysis*, *Pros & Cons*, *Historical Context*, *Compare & Contrast*, and *Technical Deep-Dive*.
+-   **Advanced Search Filtering:** Filter results by time using presets (past day, week, month, year) or a custom date range.
+-   **Authoritative Source Prioritization:** A toggle to guide the model to prefer academic, governmental, and other high-quality sources, while filtering out common social media and blog sites.
 
--   **Multi-modal Capabilities:**
-    -   **Image Generation:** Create stunning, high-quality images using the `/imagine` command with Imagen.
-    -   **Video Generation:** Generate short, 720p videos from text prompts using the `/create-video` command with Veo.
-    -   **Image Understanding:** Attach images to your prompts to ask questions about them or use them as context for your queries.
+### Multi-modal Capabilities
+-   **Image Generation:** Create stunning, high-quality images using the `/imagine` command with Imagen.
+-   **Video Generation:** Generate short, 720p videos from text prompts using the `/create-video` command with Veo.
+-   **Image Understanding:** Attach images to your prompts to ask questions about them or use them as context for your queries.
 
--   **Productivity & Customization:**
-    -   **Integrated To-Do List:** Manage tasks that arise during your conversation directly within a dedicated modal. Your tasks are saved locally.
-    -   **Recent Search History:** Automatically saves your last 5 queries, allowing you to quickly revisit or re-run past searches.
-    -   **Custom CSS Editor:** Inject your own CSS to fully personalize the application's appearance and layout.
-    -   **Theming Engine:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
+### Productivity & Customization
+-   **Integrated To-Do List:** Manage tasks that arise during your conversation directly within a dedicated modal. Your tasks are saved locally.
+-   **Recent Search History:** Automatically saves your last 5 queries, allowing you to quickly revisit or re-run past searches.
+-   **Custom CSS Editor:** Inject your own CSS to fully personalize the application's appearance and layout.
+-   **Theming Engine:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
 
--   **Advanced User Experience:**
-    -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
-    -   **Smart Text Editor:** Full Markdown support with a formatting toolbar, live preview, and smart features like auto-completing lists and brackets.
-    -   **Text-to-Speech Playback:** Listen to the AI's responses with a single click.
-    -   **Image Lightbox:** Click any generated image to view it in a full-screen, high-resolution lightbox.
-    -   **Advanced Search Filtering:** Filter results by time, including presets and custom date ranges.
-    -   **Smart Suggestions:** AI-powered suggestions for follow-up questions and related topics.
-    -   **Voice Input:** Use your microphone to dictate prompts in multiple languages.
-    -   **Prioritize Authoritative Sources:** A toggle to guide the model to prefer academic, governmental, and other high-quality sources.
+### Advanced User Experience
+-   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
+-   **Smart Text Editor:** Full Markdown support with a formatting toolbar, live preview, and smart features like auto-completing lists and brackets.
+-   **Voice & Audio:** Use your microphone to dictate prompts (speech-to-text) and listen to the AI's responses with a single click (text-to-speech).
+-   **Image Lightbox:** Click any generated image to view it in a full-screen, high-resolution lightbox.
+-   **AI-Powered Suggestions:** Receive AI-generated suggestions for follow-up questions and related topics to explore.
 
--   **Comprehensive Chat Management:**
-    -   **Persistent History:** Conversations, tasks, and recent queries are saved locally for continuity.
-    -   **Summarization & Copy:** Summarize your chat or copy individual messages/the full transcript.
-    -   **Feedback Mechanism:** Rate model responses with thumbs-up/down.
-    -   **Chat Export:** Export your entire conversation history to TXT, JSON, or Markdown formats for easy sharing or archiving.
+### Comprehensive Chat Management
+-   **Persistent History:** Conversations, tasks, and recent queries are saved locally for continuity.
+-   **Summarization & Copying:** Summarize your chat on-demand or copy individual messages/the full transcript.
+-   **Chat Export:** Export your entire conversation history to TXT, JSON, or Markdown formats for easy sharing or archiving.
+-   **Feedback Mechanism:** Rate model responses with thumbs-up/down to track quality.
 
--   **Secure API Key Flow:** An integrated, secure process for users to select their own billed API key, required for video generation.
+### Secure API Key Management
+-   **Integrated API Key Flow:** A secure process for users to select their own billed API key, required for features like video generation.
+-   **API Key Manager:** Easily change or clear the selected billed API key.
 
 ## Technology Stack
 
@@ -58,7 +59,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 -   **Markdown:** [React Markdown](https://github.com/remarkjs/react-markdown) with [Remark GFM](https://github.com/remarkjs/remark-gfm)
 -   **Syntax Highlighting:** [React Syntax Highlighter](https://github.com/react-syntax-highlighter/react-syntax-highlighter)
--   **Internationalization:** Built-in support for multiple languages (EN, ES).
+-   **Internationalization (i18n):** Built-in support for multiple languages (EN, ES).
 
 ## Getting Started
 
