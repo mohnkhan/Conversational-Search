@@ -31,9 +31,9 @@ const Sources: React.FC<SourcesProps> = ({ sources }) => {
         />
       </button>
       {isOpen && (
-        <div id="sources-list" className="flex overflow-x-auto gap-2 pb-2 animate-fade-in">
+        <div id="sources-list" className="space-y-1 animate-fade-in">
           {sources.map((source, index) =>
-            source.web ? <SourceLink key={index} source={source.web} /> : null
+            source.web ? <SourceLink key={index} source={source.web} index={index} /> : null
           )}
         </div>
       )}

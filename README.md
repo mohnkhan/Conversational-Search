@@ -31,6 +31,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
     -   **Custom CSS Editor:** Inject your own CSS to fully personalize the application's appearance and layout.
 -   **Advanced User Experience:**
     -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
+    -   **Text-to-Speech Playback:** Listen to the AI's responses with a single click. A speaker icon appears next to each message, allowing you to have the text read aloud.
     -   **Full Markdown Support:** An input toolbar and full rendering support for formatted messages, including tables and code blocks with syntax highlighting.
     -   **Image Lightbox:** Click any generated image to view it in a full-screen, high-resolution lightbox.
     -   **Advanced Search Filtering:** Filter results by time, including presets and custom date ranges.
