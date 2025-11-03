@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage as ChatMessageType, ResearchScope } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon, SpeakerIcon, SpeakerWaveIcon } from './Icons';
 import Sources from './Sources';
 import CodeBlock from './CodeBlock'; // Use the shared CodeBlock component
 
@@ -12,6 +12,8 @@ interface ChatMessageProps {
   onFeedback: (index: number, feedback: 'up' | 'down') => void;
   onImageClick: (url: string) => void;
   onRetry: (prompt: string) => void;
+  speakingMessageIndex: number | null;
+  onToggleAudio: (text: string, index: number) => void;
 }
 
 const thinkingSteps = [
@@ -33,7 +35,22 @@ const formatScopeName = (scope: ResearchScope): string => {
     return names[scope];
 };
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick, onRetry }) => {
+const stripMarkdown = (markdown: string): string => {
+    // This function attempts to strip markdown formatting for cleaner TTS playback.
+    return markdown
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Links: [text](url) -> text
+      .replace(/!\[[^\]]*\]\([^)]+\)/g, 'Image') // Images: ![alt](url) -> "Image"
+      .replace(/#{1,6}\s/g, '') // Headers: # Header -> Header
+      .replace(/`{3}[\s\S]*?`{3}/g, 'Code block') // Code blocks
+      .replace(/`/g, '') // Inline code
+      .replace(/(\*\*|__)(.*?)\1/g, '$2') // Bold: **text** -> text
+      .replace(/(\*|_)(.*?)\1/g, '$2') // Italic: *text* -> text
+      .replace(/~~(.*?)~~/g, '$1') // Strikethrough
+      .replace(/>\s/g, '') // Blockquotes
+      .replace(/^-{3,}\s*$/gm, ''); // Horizontal rules
+  };
+
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick, onRetry, speakingMessageIndex, onToggleAudio }) => {
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
   const [isShared, setIsShared] = useState(false);
@@ -129,62 +146,74 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
     return 'bg-indigo-500/20';
   };
 
-  const renderActionButtons = () => (
-    <>
-        <button
-            onClick={() => onFeedback(messageIndex, 'up')}
-            className={`p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors duration-200 ${
-                message.feedback === 'up' ? 'text-green-400 hover:text-green-300' : 'hover:text-[var(--text-primary)]'
-            }`}
-            aria-pressed={message.feedback === 'up'}
-            aria-label="Good response"
-            title="Good response"
-        >
-            <ThumbsUpIcon className={`w-4 h-4 ${message.feedback === 'up' ? 'fill-current' : ''}`} />
-        </button>
-        <button
-            onClick={() => onFeedback(messageIndex, 'down')}
-            className={`p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors duration-200 ${
-                message.feedback === 'down' ? 'text-red-400 hover:text-red-300' : 'hover:text-[var(--text-primary)]'
-            }`}
-            aria-pressed={message.feedback === 'down'}
-            aria-label="Bad response"
-            title="Bad response"
-        >
-            <ThumbsDownIcon className={`w-4 h-4 ${message.feedback === 'down' ? 'fill-current' : ''}`} />
-        </button>
-
-        <div className="h-4 w-px bg-[var(--border-color)] mx-1"></div>
-        
-        <button
-          onClick={handleShare}
-          className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-          aria-label="Share message"
-          title="Share message"
-        >
-          {isShared ? <CheckIcon className="w-4 h-4 text-green-400" /> : <ShareIcon className="w-4 h-4" />}
-        </button>
-        <button
-          onClick={handleCopy}
-          className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-          aria-label="Copy message"
-          title="Copy message"
-        >
-          {isCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
-        </button>
-        {message.imageUrl && (
-            <a
-                href={message.imageUrl}
-                download={`gemini-generated-image.png`}
-                className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
-                aria-label="Download image"
-                title="Download image"
+  const renderActionButtons = () => {
+    const isSpeaking = speakingMessageIndex === messageIndex;
+    return (
+        <>
+            <button
+                onClick={() => onToggleAudio(stripMarkdown(message.text), messageIndex)}
+                className={`p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors duration-200 ${
+                    isSpeaking ? 'text-[var(--accent-primary)]' : 'hover:text-[var(--text-primary)]'
+                }`}
+                aria-label={isSpeaking ? "Stop reading aloud" : "Read message aloud"}
+                title={isSpeaking ? "Stop reading aloud" : "Read message aloud"}
             >
-                <DownloadIcon className="w-4 h-4" />
-            </a>
-        )}
-    </>
-  );
+                {isSpeaking ? <SpeakerWaveIcon className="w-4 h-4" /> : <SpeakerIcon className="w-4 h-4" />}
+            </button>
+            <button
+                onClick={() => onFeedback(messageIndex, 'up')}
+                className={`p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors duration-200 ${
+                    message.feedback === 'up' ? 'text-green-400 hover:text-green-300' : 'hover:text-[var(--text-primary)]'
+                }`}
+                aria-pressed={message.feedback === 'up'}
+                aria-label="Good response"
+                title="Good response"
+            >
+                <ThumbsUpIcon className={`w-4 h-4 ${message.feedback === 'up' ? 'fill-current' : ''}`} />
+            </button>
+            <button
+                onClick={() => onFeedback(messageIndex, 'down')}
+                className={`p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] transition-colors duration-200 ${
+                    message.feedback === 'down' ? 'text-red-400 hover:text-red-300' : 'hover:text-[var(--text-primary)]'
+                }`}
+                aria-pressed={message.feedback === 'down'}
+                aria-label="Bad response"
+                title="Bad response"
+            >
+                <ThumbsDownIcon className={`w-4 h-4 ${message.feedback === 'down' ? 'fill-current' : ''}`} />
+            </button>
+
+            <div className="h-4 w-px bg-[var(--border-color)] mx-1"></div>
+            
+            <button
+            onClick={handleShare}
+            className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+            aria-label="Share message"
+            title="Share message"
+            >
+            {isShared ? <CheckIcon className="w-4 h-4 text-green-400" /> : <ShareIcon className="w-4 h-4" />}
+            </button>
+            <button
+            onClick={handleCopy}
+            className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+            aria-label="Copy message"
+            title="Copy message"
+            >
+            {isCopied ? <CheckIcon className="w-4 h-4 text-green-400" /> : <CopyIcon className="w-4 h-4" />}
+            </button>
+            {message.imageUrl && (
+                <a
+                    href={message.imageUrl}
+                    download={`gemini-generated-image.png`}
+                    className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                    aria-label="Download image"
+                    title="Download image"
+                >
+                    <DownloadIcon className="w-4 h-4" />
+                </a>
+            )}
+        </>
+    )};
 
   return (
     <div className={`flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in`}>

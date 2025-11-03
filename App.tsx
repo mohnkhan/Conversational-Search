@@ -202,6 +202,7 @@ const App: React.FC = () => {
   const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
+  const [speakingMessageIndex, setSpeakingMessageIndex] = useState<number | null>(null);
   const [model, setModel] = useState<ModelId>(() => {
     try {
         const savedModel = localStorage.getItem(MODEL_STORAGE_KEY) as ModelId;
@@ -249,6 +250,10 @@ const App: React.FC = () => {
   useEffect(() => {
     // Check for API key on initial load for video features
     window.aistudio?.hasSelectedApiKey().then(setIsKeySelected).catch(console.error);
+    // Clean up speech synthesis on unmount
+    return () => {
+        window.speechSynthesis.cancel();
+    };
   }, []);
 
   useEffect(() => {
@@ -329,6 +334,10 @@ const App: React.FC = () => {
   const handleSendMessage = async (prompt: string, file: AttachedFile | null = attachedFile) => {
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt && !file) return;
+    
+    // Stop any ongoing speech synthesis when a new message is sent
+    window.speechSynthesis.cancel();
+    setSpeakingMessageIndex(null);
 
     if (trimmedPrompt === '/summarize') {
         const userMessage: ChatMessageType = { 
@@ -480,7 +489,38 @@ const App: React.FC = () => {
     }
   };
 
+  const handleToggleAudio = (text: string, index: number) => {
+    // If the clicked message is already speaking, stop it.
+    if (speakingMessageIndex === index) {
+      window.speechSynthesis.cancel();
+      setSpeakingMessageIndex(null);
+      return;
+    }
+  
+    // If another message is speaking, cancel it before starting the new one.
+    window.speechSynthesis.cancel();
+  
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // When speech ends, reset the speaking index.
+    utterance.onend = () => {
+      setSpeakingMessageIndex(null);
+    };
+  
+    // Handle any potential errors.
+    utterance.onerror = (event) => {
+      console.error('SpeechSynthesisUtterance.onerror', event);
+      setSpeakingMessageIndex(null);
+    };
+  
+    // Start speaking.
+    window.speechSynthesis.speak(utterance);
+    setSpeakingMessageIndex(index);
+  };
+
   const handleClearChat = () => {
+    window.speechSynthesis.cancel();
+    setSpeakingMessageIndex(null);
     setMessages(initialMessages);
     setSuggestedPrompts([]);
     setRelatedTopics([]);
@@ -643,6 +683,8 @@ const App: React.FC = () => {
                         onFeedback={handleFeedback}
                         onImageClick={setLightboxImageUrl}
                         onRetry={handleRetry}
+                        speakingMessageIndex={speakingMessageIndex}
+                        onToggleAudio={handleToggleAudio}
                         />
                     ))}
                     {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
