@@ -47,7 +47,19 @@ This is the inaugural release of the Conversational Search application, a powerf
 -   **Text-to-Speech:** Listen to any model response with a dedicated read-aloud button.
 -   **Image Lightbox:** View generated or embedded images in a full-screen, high-resolution lightbox.
 -   **AI-Powered Suggestions:** After a response, the model provides suggestions for relevant follow-up questions and related topics for further exploration.
--   **Keyboard Shortcuts:** A full suite of keyboard shortcuts for power users, with a helpful guide accessible via the `?` key.
+-   **Keyboard Shortcuts:** A full suite of keyboard shortcuts for power users, with a helpful guide accessible via the `?` key. *Use `Cmd` instead of `Ctrl` on macOS.*
+
+    | Shortcut          | Action                        |
+    | :---------------- | :---------------------------- |
+    | `Enter`           | Send message                  |
+    | `Shift` + `Enter` | Add a new line                |
+    | `Ctrl` + `K`      | Clear the entire chat         |
+    | `F`               | Toggle the search filter menu |
+    | `Ctrl` + `B`      | Apply **bold** formatting     |
+    | `Ctrl` + `I`      | Apply *italic* formatting     |
+    | `Ctrl` + `E`      | Apply `inline code` formatting |
+    | `Esc`             | Close modals & popups         |
+    | `?`               | Show this help menu           |
 
 ### 🚀 Improvements
 

@@ -91,10 +91,12 @@ This application uses two methods for handling API keys:
 
 ## Usage
 
-Simply type your question in the input box, attach an image, or use voice input to start a conversation. The assistant will provide a grounded answer. Use the toolbar or markdown syntax to format your message. Your most recent searches are displayed on the initial chat screen, allowing you to click and re-run them instantly.
-
--   **Deep Research:** For more complex queries, click the **sparkles icon** ✨ in the input bar to activate Deep Research mode. This will use the more powerful Gemini 2.5 Pro model for your next message to provide a more comprehensive response.
--   **Productivity & Customization:** Access the settings menu in the top-right corner to find the To-Do List, Custom CSS editor, Theme selector, Chat Export, and more.
+-   **Start a conversation:** Simply type your question in the input box, use voice input, or try one of the example prompts.
+-   **Ask about images:** Click the **paperclip icon** 📎 to attach an image from your device. Then, type your question about the image and send the message.
+-   **Format your messages:** Use the toolbar or standard Markdown syntax to format your text. Switch to the "Preview" tab to see how it will look.
+-   **Use Deep Research:** For complex queries, click the **sparkles icon** ✨ to activate Deep Research mode. This engages the more powerful Gemini 2.5 Pro model with a specific analysis goal for a more comprehensive response.
+-   **Access Tools & Settings:** Use the settings menu in the top-right corner to find the To-Do List, Custom CSS editor, Theme selector, Chat Export, and more.
+-   **Revisit Queries:** Your most recent searches are displayed on the initial chat screen, allowing you to click and re-run them instantly.
 
 ### Special Commands
 
@@ -128,8 +130,8 @@ Crafting effective prompts is key to unlocking the full potential of the generat
 -   **Be Specific and Detailed:** The more detail you provide, the better the model can understand your intent. (e.g., `Explain the concept of a black hole to a 12-year-old` vs. `Tell me about space`).
 -   **Provide Context and Persona:** Tell the model who it should be. (e.g., `You are a marketing expert. Write an announcement for a new smartphone...`).
 -   **Define the Output Format:** Explicitly ask for the format you want. (e.g., `List the pros and cons of coffee in a two-column markdown table`).
--   **For Images (`/imagine`):** Use descriptive adjectives, specify artistic styles (e.g., `cyberpunk`, `watercolor painting`), and set the scene (e.g., `dramatic cinematic lighting`, `macro shot`).
--   **For Videos (`/create-video`):** Focus on action and movement. Use camera work terms like "time-lapse," "slow motion," or "aerial shot."
+-   **For Images (`/imagine`):** For best results, use descriptive adjectives, specify artistic styles (e.g., `photorealistic`, `watercolor`, `cyberpunk`), and set the scene (e.g., `dramatic cinematic lighting`, `a bustling futuristic city`).
+-   **For Videos (`/create-video`):** Focus on action and movement in your prompts. Use dynamic verbs and camera terms like `a hummingbird flying in slow motion`, `a time-lapse of a flower blooming`, or `an aerial shot of a coastline`.
 
 ## Contributing
 
