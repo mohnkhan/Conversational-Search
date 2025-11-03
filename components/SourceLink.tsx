@@ -31,7 +31,7 @@ const SourceLink: React.FC<SourceLinkProps> = ({ source, index }) => {
       </div>
       <div className="flex-1">
         <p
-          className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors duration-200 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] [overflow:hidden]"
+          className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] group-hover:underline transition-colors duration-200 [display:-webkit-box] [-webkit-line-clamp:2] [-webkit-box-orient:vertical] [overflow:hidden]"
           title={source.title}
         >
             {source.title}
