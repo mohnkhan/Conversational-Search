@@ -36,6 +36,13 @@ export interface Task {
   completed: boolean;
 }
 
+export interface Persona {
+  id: string;
+  name: string;
+  icon: string; // emoji
+  prompt: string;
+}
+
 export type PredefinedDateFilter = 'any' | 'day' | 'week' | 'month' | 'year';
 
 export interface CustomDateFilter {

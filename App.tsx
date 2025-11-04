@@ -20,10 +20,10 @@ import {
     parseClaudeError
 } from './services/geminiService';
 import { playSendSound, playReceiveSound } from './services/audioService';
-import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider, Persona } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon, UsersIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -41,6 +41,8 @@ import RelatedTopics from './components/RelatedTopics';
 import ExportChatModal from './components/ExportChatModal';
 import SummaryModal from './components/SummaryModal';
 import InitialPrompts from './components/InitialPrompts';
+import PersonaManager from './components/PersonaManager';
+import PersonaSelector from './components/PersonaSelector';
 
 // --- Model Definitions ---
 export const AVAILABLE_MODELS: Model[] = [
@@ -61,6 +63,11 @@ export const DEFAULT_GOOGLE_MODEL = AVAILABLE_MODELS[0];
 export const DEFAULT_OPENAI_MODEL = AVAILABLE_MODELS[2];
 export const DEFAULT_ANTHROPIC_MODEL = AVAILABLE_MODELS[5];
 
+const defaultPersonas: Persona[] = [
+    { id: 'default-1', name: 'Creative Writer', icon: '✍️', prompt: 'You are an acclaimed creative writer. Your responses should be imaginative, evocative, and rich in literary devices. Focus on storytelling and vivid descriptions.' },
+    { id: 'default-2', name: 'Technical Expert', icon: '⚙️', prompt: 'You are a senior software engineer and technical expert. Your answers must be accurate, concise, and technically detailed. Use code blocks for examples and explain complex concepts clearly.' },
+    { id: 'default-3', name: 'Sarcastic Assistant', icon: '😏', prompt: 'You are a witty and sarcastic assistant. Your responses should be helpful but delivered with a dry, humorous, and slightly cynical tone. Don\'t be afraid to poke fun at the user\'s query, but still provide the correct answer.' },
+];
 
 const getInitialMessages = (model: Model): ChatMessageType[] => {
     let text = "Hello! I'm a conversational search assistant. Ask me anything.";
@@ -98,6 +105,8 @@ const OPENAI_API_KEY_STORAGE_KEY = 'openai-api-key';
 const ANTHROPIC_API_KEY_STORAGE_KEY = 'anthropic-api-key';
 const CUSTOM_CSS_KEY = 'custom-user-css';
 const TODO_LIST_KEY = 'todo-list-tasks';
+const PERSONAS_KEY = 'ai-personas';
+const ACTIVE_PERSONA_ID_KEY = 'active-ai-persona-id';
 const AUTHORITATIVE_SOURCES_KEY = 'prioritize-authoritative-sources';
 const RECENT_QUERIES_KEY = 'recent-search-queries';
 
@@ -244,6 +253,24 @@ const App: React.FC = () => {
         return savedTasks ? JSON.parse(savedTasks) : [];
     } catch (error) { console.error("Failed to load tasks from localStorage:", error); return []; }
   });
+
+  const [personas, setPersonas] = useState<Persona[]>(() => {
+    try {
+        const savedPersonas = localStorage.getItem(PERSONAS_KEY);
+        return savedPersonas ? JSON.parse(savedPersonas) : defaultPersonas;
+    } catch (error) { console.error("Failed to load personas from localStorage:", error); return defaultPersonas; }
+  });
+  
+  const [activePersona, setActivePersona] = useState<Persona | null>(() => {
+      try {
+          const savedPersonas = JSON.parse(localStorage.getItem(PERSONAS_KEY) || '[]');
+          const activeId = localStorage.getItem(ACTIVE_PERSONA_ID_KEY);
+          if (activeId) {
+              return savedPersonas.find((p: Persona) => p.id === activeId) || null;
+          }
+      } catch (error) { console.error("Failed to load active persona:", error); }
+      return null;
+  });
   
   const [recentQueries, setRecentQueries] = useState<string[]>(() => {
     try {
@@ -284,6 +311,7 @@ const App: React.FC = () => {
   // --- Modal & Menu State ---
   const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
   const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
+  const [isPersonaManagerOpen, setIsPersonaManagerOpen] = useState(false);
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
   const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, model: null });
   const [isTodoListModalOpen, setIsTodoListModalOpen] = useState<boolean>(false);
@@ -313,6 +341,8 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages)); }, [messages]);
   useEffect(() => { localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(recentQueries)); }, [recentQueries]);
   useEffect(() => { localStorage.setItem(TODO_LIST_KEY, JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem(PERSONAS_KEY, JSON.stringify(personas)); }, [personas]);
+  useEffect(() => { localStorage.setItem(ACTIVE_PERSONA_ID_KEY, activePersona?.id || ''); }, [activePersona]);
   useEffect(() => { localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, openAIApiKey || ''); }, [openAIApiKey]);
   useEffect(() => { localStorage.setItem(ANTHROPIC_API_KEY_STORAGE_KEY, anthropicApiKey || ''); }, [anthropicApiKey]);
   useEffect(() => { localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative)); }, [prioritizeAuthoritative]);
@@ -471,17 +501,18 @@ const App: React.FC = () => {
 
         const fileForApi = file ? { base64: file.base64, mimeType: file.type } : undefined;
         let sources: any[] = [];
+        const systemInstruction = activePersona?.prompt;
 
         switch (model.provider) {
             case 'google':
-                const result = await getGeminiResponseStream(historyForApi, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, fileForApi);
+                const result = await getGeminiResponseStream(historyForApi, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, fileForApi, systemInstruction);
                 sources = result.sources;
                 break;
             case 'openai':
-                await getOpenAIResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi);
+                await getOpenAIResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi, systemInstruction);
                 break;
             case 'anthropic':
-                await getClaudeResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi);
+                await getClaudeResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi, systemInstruction);
                 break;
         }
 
@@ -611,6 +642,28 @@ const App: React.FC = () => {
   const handleAddTask = (text: string) => setTasks(prev => [...prev, { id: Date.now().toString(), text, completed: false }]);
   const handleToggleTask = (id: string) => setTasks(prev => prev.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
   const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(task => task.id !== id));
+
+  // Persona Handlers
+  const handleSavePersona = (personaToSave: Persona) => {
+    setPersonas(prev => {
+        const existing = prev.find(p => p.id === personaToSave.id);
+        if (existing) {
+            return prev.map(p => p.id === personaToSave.id ? personaToSave : p);
+        }
+        return [...prev, personaToSave];
+    });
+    // If the saved persona is the active one, update it
+    if (activePersona?.id === personaToSave.id) {
+        setActivePersona(personaToSave);
+    }
+  };
+  
+  const handleDeletePersona = (id: string) => {
+      setPersonas(prev => prev.filter(p => p.id !== id));
+      if (activePersona?.id === id) {
+          setActivePersona(null);
+      }
+  };
   
   const handleSaveOpenAIKey = (key: string) => setOpenAIApiKey(key);
   const handleSaveAnthropicKey = (key: string) => setAnthropicApiKey(key);
@@ -660,6 +713,7 @@ const App: React.FC = () => {
                             {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)} isOpenAIConfigured={!!openAIApiKey} isAnthropicConfigured={!!anthropicApiKey} />}
                         </div>
                          <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
+                         <button onClick={() => { setIsPersonaManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><UsersIcon className="w-4 h-4" /> <span>Persona Manager</span></button>
                          <button onClick={() => { setIsApiKeyManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><KeyIcon className="w-4 h-4" /> <span>API Key Manager</span></button>
                          <button onClick={() => { setIsCustomCssModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><FileCodeIcon className="w-4 h-4" /> <span>Custom CSS</span></button>
                          <button onClick={() => { setIsTodoListModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><CheckSquareIcon className="w-4 h-4" /> <span>To-Do List</span></button>
@@ -710,12 +764,20 @@ const App: React.FC = () => {
 
         <div className="p-4 flex-shrink-0 bg-[var(--bg-primary)]">
             <div className="max-w-4xl mx-auto">
-                {recentQueries.length > 0 ? (
+                {recentQueries.length > 0 && messages.length > 1 ? (
                     <RecentQueries queries={recentQueries} onQueryClick={handleSendMessage} onClear={() => setRecentQueries([])} />
                 ) : (
                     messages.length <= 1 && <InitialPrompts prompts={getExamplePrompts(model)} onPromptClick={handleSendMessage} />
                 )}
-              <div className="mt-4">
+                <div className="mt-4">
+                    <PersonaSelector 
+                        personas={personas}
+                        activePersona={activePersona}
+                        onSelectPersona={setActivePersona}
+                        onOpenManager={() => setIsPersonaManagerOpen(true)}
+                    />
+                </div>
+              <div className="mt-2">
                 <ChatInput
                     onSendMessage={handleSendMessage}
                     isLoading={isLoading || isGeneratingImage || isGeneratingVideo}
@@ -742,6 +804,7 @@ const App: React.FC = () => {
     {lightboxImageUrl && <Lightbox imageUrl={lightboxImageUrl} onClose={() => setLightboxImageUrl(null)} />}
     {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
     {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} openAIApiKey={openAIApiKey} onSaveOpenAIKey={handleSaveOpenAIKey} anthropicApiKey={anthropicApiKey} onSaveAnthropicKey={handleSaveAnthropicKey} />}
+    {isPersonaManagerOpen && <PersonaManager onClose={() => setIsPersonaManagerOpen(false)} personas={personas} onSave={handleSavePersona} onDelete={handleDeletePersona} />}
     {isCustomCssModalOpen && <CustomCssModal onClose={() => setIsCustomCssModalOpen(false)} onSave={handleSaveCss} initialCss={customCss} />}
     <ModelExplanationTooltip model={modelExplanation.model} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, model: model })}/>
     {isTodoListModalOpen && <TodoListModal onClose={() => setIsTodoListModalOpen(false)} tasks={tasks} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} />}

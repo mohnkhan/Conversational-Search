@@ -195,7 +195,8 @@ export async function getGeminiResponseStream(
     model: ModelId,
     researchScope: ResearchScope | null = null,
     prioritizeAuthoritative: boolean = false,
-    file?: { base64: string; mimeType: string }
+    file?: { base64: string; mimeType: string },
+    systemInstruction?: string,
 ): Promise<{ sources: Source[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
 
@@ -250,8 +251,13 @@ export async function getGeminiResponseStream(
             tools: [{ googleSearch: {} }],
         };
 
-        if (prioritizeAuthoritative) {
-            config.systemInstruction = "You are a research assistant. When sourcing information from the web, you must prioritize authoritative, academic, and official sources. These include government websites (.gov), educational institutions (.edu), established news organizations, and peer-reviewed scientific journals. Synthesize information from these high-quality sources in your response. Avoid citing blogs, forums, or social media unless specifically asked.";
+        const finalSystemInstruction = [
+            systemInstruction || '',
+            prioritizeAuthoritative ? "You are a research assistant. When sourcing information from the web, you must prioritize authoritative, academic, and official sources. These include government websites (.gov), educational institutions (.edu), established news organizations, and peer-reviewed scientific journals. Synthesize information from these high-quality sources in your response. Avoid citing blogs, forums, or social media unless specifically asked." : ''
+        ].filter(Boolean).join('\n\n');
+
+        if (finalSystemInstruction) {
+            config.systemInstruction = finalSystemInstruction;
         }
 
         const responseStream = await ai.models.generateContentStream({
@@ -596,10 +602,16 @@ export function parseOpenAIError(error: unknown): ParsedError {
 }
 
 
-const prepareOpenAIHistory = (history: ChatMessage[], file?: AttachedFile) => {
-    const messages = history
+const prepareOpenAIHistory = (history: ChatMessage[], systemInstruction?: string, file?: AttachedFile) => {
+    const messages = [];
+
+    if (systemInstruction) {
+        messages.push({ role: 'system', content: systemInstruction });
+    }
+
+    history
         .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment))
-        .map(msg => {
+        .forEach(msg => {
             const content: any[] = [];
             if (msg.text) {
                 content.push({ type: 'text', text: msg.text });
@@ -612,10 +624,10 @@ const prepareOpenAIHistory = (history: ChatMessage[], file?: AttachedFile) => {
                      }
                  });
             }
-            return {
+            messages.push({
                 role: msg.role === 'model' ? 'assistant' : 'user',
                 content: content
-            };
+            });
     });
 
     if (file) {
@@ -637,7 +649,8 @@ export async function getOpenAIResponseStream(
     history: ChatMessage[],
     model: string,
     onStreamUpdate: (text: string) => void,
-    file?: { base64: string; mimeType: string; }
+    file?: { base64: string; mimeType: string; },
+    systemInstruction?: string
 ): Promise<void> {
     const apiKey = getOpenAIKey();
     if (!apiKey) {
@@ -645,7 +658,8 @@ export async function getOpenAIResponseStream(
     }
     
     // FIX: The object passed to prepareOpenAIHistory must conform to the AttachedFile interface, which requires a 'type' property.
-    const messages = prepareOpenAIHistory(history, file ? { name: '', size: 0, dataUrl: `data:${file.mimeType};base64,${file.base64}`, base64: file.base64, type: file.mimeType } : undefined);
+    const attachedFileForHistory = file ? { name: '', size: 0, dataUrl: `data:${file.mimeType};base64,${file.base64}`, base64: file.base64, type: file.mimeType } : undefined;
+    const messages = prepareOpenAIHistory(history, systemInstruction, attachedFileForHistory);
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: 'POST',
@@ -903,15 +917,26 @@ export async function getClaudeResponseStream(
     history: ChatMessage[],
     model: string,
     onStreamUpdate: (text: string) => void,
-    file?: { base64: string; mimeType: string; }
+    file?: { base64: string; mimeType: string; },
+    systemInstruction?: string
 ): Promise<void> {
     const apiKey = getAnthropicKey();
     if (!apiKey) {
         throw new Error("Anthropic API key not found. Please set it in the API Key Manager.");
     }
     
-    // FIX: The object passed to prepareClaudeHistory must conform to the AttachedFile interface.
     const messages = prepareClaudeHistory(history, file ? { name: '', size: 0, dataUrl: `data:${file.mimeType};base64,${file.base64}`, base64: file.base64, type: file.mimeType } : undefined);
+
+    const body: any = {
+        model: model,
+        messages: messages,
+        stream: true,
+        max_tokens: 4096,
+    };
+
+    if (systemInstruction) {
+        body.system = systemInstruction;
+    }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: 'POST',
@@ -920,12 +945,7 @@ export async function getClaudeResponseStream(
             'x-api-key': apiKey,
             'anthropic-version': '2023-06-01',
         },
-        body: JSON.stringify({
-            model: model,
-            messages: messages,
-            stream: true,
-            max_tokens: 4096, // max_tokens is required by the Claude API
-        }),
+        body: JSON.stringify(body),
     });
 
     if (!response.ok) {
