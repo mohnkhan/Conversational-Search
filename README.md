@@ -25,7 +25,7 @@ This project is built on three core principles:
 
 -   **Unified Interface:** Stop switching between different AI services. Access the best models from top providers in one place.
 -   **Best-in-Class Features:** Leverage unique, powerful features from each provider, like Google's search grounding and video generation, OpenAI's DALL-E 3, and Anthropic's best-in-class large context models.
--   **User-Centric Tools:** A conversational interface is just the beginning. This app is packed with productivity features like a to-do list, chat export, and deep customization to enhance your workflow.
+-   **User-Centric Tools:** A conversational interface is just the beginning. This app is packed with productivity features like AI personas, a to-do list, chat export, and deep customization to enhance your workflow.
 
 ## Key Features
 
@@ -36,6 +36,7 @@ This project is built on three core principles:
     -   **Video Generation:** Bring prompts to life with short, 720p videos using `/create-video` powered by Google's **Veo** model.
     -   **Image Understanding:** Upload images to have a conversation about them with Gemini, GPT-4o, and Claude 3 models.
 -   **Productivity & Workflow Tools:**
+    -   **AI Personas:** Define and save custom AI personalities with unique system prompts to tailor responses for any task.
     -   **Integrated To-Do List:** Capture and manage tasks without leaving the chat.
     -   **Chat Summary & Export:** Get AI-powered summaries and export conversations to TXT, JSON, or Markdown.
     -   **Persistent History & Drafts:** Your conversations, tasks, and message drafts are saved locally.
@@ -90,10 +91,11 @@ This application uses a multi-key system for maximum flexibility and security.
 ## How to Use
 
 -   **Select Your Model:** Use the **Settings -> Model & Settings** menu to choose your AI provider and the specific model you want to use.
+-   **Set a Persona:** Use the **Persona Selector** at the bottom to choose an AI personality or create your own in the **Persona Manager**.
 -   **Start Chatting:** Type your question, use the microphone for voice input, or try an example prompt.
 -   **Work with Images:** Click the **paperclip icon** 📎 to upload an image. You can then ask questions about it (e.g., "What kind of car is this?") or use it as context for another task (e.g., "Write a story inspired by this picture.").
 -   **Use Deep Research (Google Only):** For complex queries, click the **sparkles icon** ✨ next to the input bar to activate Deep Research mode. Select an analysis type (like "Compare & Contrast") before sending your message to get a highly structured, in-depth response.
--   **Access Productivity Tools:** The settings menu (gear icon ⚙️) is your hub for the To-Do List, Custom CSS editor, Theme selector, and Chat Export.
+-   **Access Productivity Tools:** The settings menu (gear icon ⚙️) is your hub for the To-Do List, Persona Manager, Custom CSS editor, Theme selector, and Chat Export.
 
 ### Special Commands
 
