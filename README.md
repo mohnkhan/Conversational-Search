@@ -1,6 +1,6 @@
 # Conversational Search
 
-A powerful, feature-rich conversational search tool powered by the Google Gemini and OpenAI APIs. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images, videos, and understanding user-uploaded images, providing a truly interactive and multi-modal experience.
+A powerful, feature-rich conversational search tool powered by the Google Gemini, OpenAI, and Anthropic Claude APIs. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images, videos, and understanding user-uploaded images, providing a truly interactive and multi-modal experience.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 ## Key Features
 
 ### Core AI & Search
--   **Dual-Provider AI Engine:** Seamlessly switch between top-tier models from both **Google** (Gemini 2.5 Pro, Gemini 2.5 Flash) and **OpenAI** (GPT-4o, GPT-4 Turbo).
+-   **Tri-Provider AI Engine:** Seamlessly switch between top-tier models from **Google** (Gemini 2.5 Pro, Gemini 2.5 Flash), **OpenAI** (GPT-4o, GPT-4 Turbo), and **Anthropic** (Claude 3.5 Sonnet, Claude 3 Opus).
 -   **Grounded Conversational Search (Google):** Get reliable answers with sources cited directly from Google Search when using Gemini models.
 -   **Deep Research Mode (Google):** Instantly engage Gemini 2.5 Pro for in-depth answers. Activate specific analysis scopes like *Comprehensive Analysis*, *Pros & Cons*, *Historical Context*, *Compare & Contrast*, and *Technical Deep-Dive*.
 -   **Advanced Search Filtering (Google):** Filter results by time using presets (past day, week, month, year) or a custom date range.
@@ -29,7 +29,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
     -   **DALL-E 3 (OpenAI):** Create vibrant, highly creative images with the `/imagine` command.
     -   **Imagen (Google):** Generate stunning, high-quality photorealistic images.
 -   **Video Generation (Google):** Generate short, 720p videos from text prompts using the `/create-video` command with Veo.
--   **Image Understanding:** Attach images to your prompts to ask questions about them or use them as context for your queries with both Gemini and GPT-4o.
+-   **Image Understanding:** Attach images to your prompts to ask questions about them or use them as context for your queries with Gemini, GPT-4o, and Claude 3 models.
 
 ### Productivity & Customization
 -   **Integrated To-Do List:** Manage tasks that arise during your conversation directly within a dedicated modal. Your tasks are saved locally.
@@ -52,8 +52,8 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **Feedback Mechanism:** Rate model responses with thumbs-up/down to track quality.
 
 ### Secure API Key Management
--   **Dual-Key System:** A secure, unified manager for both Google and OpenAI API keys.
-    -   **OpenAI Key:** Enter and save your key directly in the manager. It's stored only in your browser's local storage.
+-   **Multi-Key System:** A secure, unified manager for Google, OpenAI, and Anthropic API keys.
+    -   **OpenAI & Anthropic Keys:** Enter and save your keys directly in the manager. They are stored only in your browser's local storage.
     -   **Google Billed Key (for Video):** A secure process for users to select their own billed API key via the AI Studio pop-up.
 
 ## Technology Stack
@@ -62,6 +62,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **AI:**
     - [Google Gemini API](https://ai.google.dev/gemini-api) (`@google/genai`)
     - [OpenAI API](https://platform.openai.com/docs/api-reference)
+    - [Anthropic Claude API](https://docs.anthropic.com/claude/reference/messages_post)
 -   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 -   **Markdown:** [React Markdown](https://github.com/remarkjs/react-markdown) with [Remark GFM](https://github.com/remarkjs/remark-gfm)
 -   **Syntax Highlighting:** [React Syntax Highlighter](https://github.com/react-syntax-highlighter/react-syntax-highlighter)
@@ -73,7 +74,7 @@ This project is a static web application and can be run in any environment that 
 
 ### Prerequisites
 
-You will need API Keys from both [Google AI Studio](https://ai.google.dev/) and the [OpenAI Platform](https://platform.openai.com/). For video generation with Google, your key must be associated with a Google Cloud project that has billing enabled.
+You will need API Keys from [Google AI Studio](https://ai.google.dev/), the [OpenAI Platform](https://platform.openai.com/), and [Anthropic](https://console.anthropic.com/). For video generation with Google, your key must be associated with a Google Cloud project that has billing enabled.
 
 ### API Key Configuration
 
@@ -88,30 +89,30 @@ This application uses a multi-key system:
     -   The `/create-video` feature uses the Veo model, which requires an API key associated with a billed Google Cloud project.
     -   When you first use this command, a secure pop-up from AI Studio will appear, prompting you to select an appropriate billed API key.
 
-3.  **OpenAI API Key:**
-    -   Required to use any of the OpenAI models (e.g., GPT-4o, DALL-E 3).
-    -   Go to **Settings -> API Key Manager** within the app to enter and save your OpenAI key. It will be stored securely in your browser's local storage.
+3.  **OpenAI & Anthropic API Keys:**
+    -   Required to use any of the OpenAI or Anthropic models.
+    -   Go to **Settings -> API Key Manager** within the app to enter and save your keys. They will be stored securely in your browser's local storage.
 
 ### Setup
 
 1.  **Deploy the Application:** Deploy the project files (HTML, TSX, etc.) to your preferred hosting service (e.g., Vercel, Netlify, or a simple web server).
 2.  **Configure Environment Variable:** Set your standard Google Gemini API Key as an environment variable named `API_KEY` in your hosting service's settings.
-3.  **Access the App:** Open the deployed URL, open the API Key Manager, and add your OpenAI key to unlock all features.
+3.  **Access the App:** Open the deployed URL, go to the API Key Manager, and add your OpenAI and Anthropic keys to unlock all features.
 
 ## Usage
 
--   **Select a Model:** Use the **Settings -> Model & Settings** menu to choose your preferred AI provider and model.
+-   **Select a Model:** Use the **Settings -> Model & Settings** menu to choose your preferred AI provider (Google, OpenAI, or Anthropic) and model.
 -   **Start a conversation:** Simply type your question in the input box, use voice input, or try one of the example prompts.
--   **Ask about images:** Click the **paperclip icon** 📎 to attach an image from your device. Then, type your question about the image and send the message.
+-   **Ask about images:** Click the **paperclip icon** 📎 to attach an image from your device. Then, type your question about the image and send the message. This works with Gemini, GPT-4o, and Claude 3 models.
 -   **Format your messages:** Use the toolbar or standard Markdown syntax to format your text. Switch to the "Preview" tab to see how it will look.
 -   **Use Deep Research (Google Models Only):** For complex queries, click the **sparkles icon** ✨ to activate Deep Research mode. This engages Gemini 2.5 Pro with a specific analysis goal for a more comprehensive response.
 -   **Access Tools & Settings:** Use the settings menu in the top-right corner to find the To-Do List, Custom CSS editor, Theme selector, Chat Export, and more.
 
 ### Special Commands
 
--   `/imagine <prompt>`: Creates an image based on the text prompt that follows. Uses DALL-E 3 for OpenAI models and Imagen for Google models.
+-   `/imagine <prompt>`: (Google & OpenAI only) Creates an image based on the text prompt. Uses DALL-E 3 for OpenAI models and Imagen for Google models.
     -   *Example:* `/imagine a majestic lion wearing a crown, cinematic lighting`
--   `/create-video <prompt>`: (Google Models Only) Creates a short video based on the text prompt. This requires selecting a billed API key.
+-   `/create-video <prompt>`: (Google only) Creates a short video based on the text prompt. Requires selecting a billed API key.
     -   *Example:* `/create-video a hummingbird flying in slow motion`
 -   `/summarize`: Generates a summary of the current conversation using the active model.
 

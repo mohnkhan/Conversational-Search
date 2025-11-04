@@ -4,6 +4,30 @@ This document tracks the major changes, new features, and improvements for the C
 
 ---
 
+## Version 3.0.0 - The Anthropic Integration
+
+This major release adds support for Anthropic's Claude models, evolving the application into a comprehensive tri-provider AI toolkit. Users can now leverage the unique strengths of models from Google, OpenAI, and Anthropic in one unified interface.
+
+### ✨ New Features
+
+-   **Anthropic Model Integration:** Full support for Anthropic's state-of-the-art chat models has been added:
+    -   **Claude 3.5 Sonnet:** Anthropic's latest, most intelligent model, offering top-tier performance at high speeds.
+    -   **Claude 3 Opus:** A highly powerful model for tackling complex, multi-step tasks.
+    -   **Claude 3 Haiku:** The fastest and most compact model for near-instant responsiveness.
+-   **Multi-modal Support for Claude:** Attach images to your prompts to leverage the powerful vision capabilities of the Claude 3 model family.
+-   **Tri-Provider API Key Management:** The API Key Manager now includes a dedicated section for Anthropic. Users can enter and save their Anthropic API key, which is stored securely in their browser's local storage.
+-   **Expanded Provider-Aware UI:**
+    -   The **Model Selector** now features three tabs for Google, OpenAI, and Anthropic, allowing for quick and easy switching between providers. The Anthropic tab is enabled after a key is configured.
+    -   The UI intelligently disables features not supported by Anthropic, such as `/imagine`, `/create-video`, search filters, and deep research mode, ensuring a clean and accurate user experience.
+
+### 🚀 Improvements
+
+-   **Generalized AI Service Layer:** The core service logic has been further modularized to seamlessly handle API requests and streaming responses from all three providers.
+-   **Dynamic UI Content:** The welcome message and initial example prompts now adjust to reflect the capabilities of the selected Anthropic model.
+-   **Updated Documentation:** The `README.md` and all relevant user guides have been updated to include instructions for configuring and using the new Anthropic models.
+
+---
+
 ## Version 2.0.0 - The Multi-Provider Update
 
 This major update introduces support for OpenAI models, transforming the application into a versatile, dual-provider AI tool. Users can now seamlessly switch between Google's and OpenAI's flagship models.
@@ -47,9 +71,7 @@ This is the inaugural release of the Conversational Search application, a powerf
 
 #### 2. Multi-Modal Interaction
 -   **Image Generation:** Create high-quality images directly in the chat using the `/imagine <prompt>` command, powered by the Imagen model.
-    -   **Pro Tip:** For best results, use descriptive adjectives, specify artistic styles (e.g., `photorealistic`, `watercolor`, `cyberpunk`), and set the scene (e.g., `dramatic cinematic lighting`, `a bustling futuristic city`).
 -   **Video Generation:** Generate short 720p videos from text prompts using the `/create-video <prompt>` command, powered by the Veo model.
-    -   **Pro Tip:** Focus on action and movement in your prompts. Use dynamic verbs and camera terms like `a hummingbird flying in slow motion`, `a time-lapse of a flower blooming`, or `an aerial shot of a coastline`.
 -   **Image Understanding:** Attach local image files (JPG, PNG, WEBP, etc.) to your prompts to ask questions about their content.
 
 #### 3. Productivity & Chat Management
@@ -57,43 +79,25 @@ This is the inaugural release of the Conversational Search application, a powerf
 -   **Chat Export:** Export the entire conversation history to multiple formats: Plain Text (`.txt`), JSON, or Markdown (`.md`).
 -   **Integrated To-Do List:** A persistent, in-app to-do list to manage tasks that arise from your conversations.
 -   **Recent Queries:** Your last five search queries are saved for quick access and re-use.
--   **Autosave Draft:** Your message draft is automatically saved in the text input area, so you won't lose it if you accidentally refresh the page.
--   **Persistent History:** Your chat history, to-do list, and preferences are saved locally in your browser for session continuity.
--   **Copy & Share:** Easily copy individual messages or the full conversation transcript to your clipboard.
+-   **Autosave Draft:** Your message draft is automatically saved in the text input area.
+-   **Persistent History:** Your chat history, to-do list, and preferences are saved locally in your browser.
+-   **Copy & Share:** Easily copy individual messages or the full conversation transcript.
 
 #### 4. Customization & User Experience
--   **Theming Engine:** Personalize the UI with multiple built-in themes, including `Abyss`, `Daylight`, `Twilight`, and `Latte`.
+-   **Theming Engine:** Personalize the UI with multiple built-in themes.
 -   **Custom CSS Editor:** A dedicated modal for power users to inject their own CSS for complete visual customization.
--   **Smart Text Editor:**
-    -   Full Markdown support for formatting messages.
-    -   A formatting toolbar for easy application of **bold**, *italics*, and `code`.
-    -   Live preview tab to see how your Markdown will render.
-    -   Smart editing features like auto-closing brackets and continuing lists.
--   **Voice Input (Speech-to-Text):** Use your microphone to dictate prompts, with support for multiple languages based on browser settings.
+-   **Smart Text Editor:** Full Markdown support with a formatting toolbar, live preview, and smart editing features.
+-   **Voice Input (Speech-to-Text):** Use your microphone to dictate prompts.
 -   **Text-to-Speech:** Listen to any model response with a dedicated read-aloud button.
 -   **Image Lightbox:** View generated or embedded images in a full-screen, high-resolution lightbox.
--   **AI-Powered Suggestions:** After a response, the model provides suggestions for relevant follow-up questions and related topics for further exploration.
--   **Keyboard Shortcuts:** A full suite of keyboard shortcuts for power users, with a helpful guide accessible via the `?` key. *Use `Cmd` instead of `Ctrl` on macOS.*
-
-    | Shortcut          | Action                        |
-    | :---------------- | :---------------------------- |
-    | `Enter`           | Send message                  |
-    | `Shift` + `Enter` | Add a new line                |
-    | `Ctrl` + `K`      | Clear the entire chat         |
-    | `F`               | Toggle the search filter menu |
-    | `Ctrl` + `B`      | Apply **bold** formatting     |
-    | `Ctrl` + `I`      | Apply *italic* formatting     |
-    | `Ctrl` + `E`      | Apply `inline code` formatting |
-    | `Esc`             | Close modals & popups         |
-    | `?`               | Show this help menu           |
+-   **AI-Powered Suggestions:** Receive suggestions for relevant follow-up questions and related topics.
+-   **Keyboard Shortcuts:** A full suite of keyboard shortcuts for power users, with a helpful guide accessible via the `?` key.
 
 ### 🚀 Improvements
 
 -   **Real-time Streaming:** AI responses are streamed word-by-word for a fluid, interactive feel.
--   **Robust Error Handling:** Clear, user-friendly error messages for API key issues, rate limits, or safety blocks, with a "Retry" option for failed prompts.
--   **Secure API Key Flow:** An integrated, secure modal for selecting a billed API key, required for advanced features like video generation. An API Key Manager allows users to change or clear this key.
--   **Responsive Design:** The application is fully responsive and functional across desktop and mobile devices.
--   **Accessibility:** ARIA attributes, focus management in modals, and keyboard navigation are implemented to improve accessibility.
--   **Internationalization (i18n):** The UI text for key components (like the filter panel) is translated based on the user's browser language, with initial support for English and Spanish.
-
----
+-   **Robust Error Handling:** Clear, user-friendly error messages for API key issues, rate limits, or safety blocks, with a "Retry" option.
+-   **Secure API Key Flow:** An integrated, secure modal for selecting a billed API key, required for advanced features like video generation.
+-   **Responsive Design:** Fully responsive and functional across desktop and mobile devices.
+-   **Accessibility:** ARIA attributes, focus management in modals, and keyboard navigation are implemented.
+-   **Internationalization (i18n):** The UI text is translated based on the user's browser language (supports EN, ES).

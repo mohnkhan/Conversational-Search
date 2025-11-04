@@ -12,7 +12,12 @@ import {
     getOpenAIConversationSummary,
     getOpenAISuggestedPrompts,
     getOpenAIRelatedTopics,
-    parseOpenAIError
+    parseOpenAIError,
+    getClaudeResponseStream,
+    getClaudeConversationSummary,
+    getClaudeSuggestedPrompts,
+    getClaudeRelatedTopics,
+    parseClaudeError
 } from './services/geminiService';
 import { playSendSound, playReceiveSound } from './services/audioService';
 import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider } from './types';
@@ -39,69 +44,58 @@ import InitialPrompts from './components/InitialPrompts';
 
 // --- Model Definitions ---
 export const AVAILABLE_MODELS: Model[] = [
-    {
-        id: 'gemini-2.5-flash',
-        name: 'Gemini 2.5 Flash',
-        provider: 'google',
-        description: 'Fast and cost-effective for most tasks.',
-    },
-    {
-        id: 'gemini-2.5-pro',
-        name: 'Gemini 2.5 Pro',
-        provider: 'google',
-        description: 'Most capable for complex reasoning.',
-    },
-    {
-        id: 'gpt-4o',
-        name: 'GPT-4o',
-        provider: 'openai',
-        description: 'The latest, most advanced model from OpenAI.',
-    },
-    {
-        id: 'gpt-4-turbo',
-        name: 'GPT-4 Turbo',
-        provider: 'openai',
-        description: 'High-performance model for large-scale tasks.',
-    },
-    {
-        id: 'gpt-3.5-turbo',
-        name: 'GPT-3.5 Turbo',
-        provider: 'openai',
-        description: 'Fast and optimized for chat applications.',
-    }
+    // Google
+    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'google', description: 'Fast and cost-effective for most tasks.' },
+    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'google', description: 'Most capable for complex reasoning.' },
+    // OpenAI
+    { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', description: 'The latest, most advanced model from OpenAI.' },
+    { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai', description: 'High-performance model for large-scale tasks.' },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', provider: 'openai', description: 'Fast and optimized for chat applications.' },
+    // Anthropic
+    { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet', provider: 'anthropic', description: 'Anthropic\'s newest, most intelligent model.'},
+    { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic', description: 'Highest performance for highly complex tasks.'},
+    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic', description: 'Fastest and most compact for near-instant responses.'}
 ];
 
 export const DEFAULT_GOOGLE_MODEL = AVAILABLE_MODELS[0];
 export const DEFAULT_OPENAI_MODEL = AVAILABLE_MODELS[2];
+export const DEFAULT_ANTHROPIC_MODEL = AVAILABLE_MODELS[5];
 
 
-const getInitialMessages = (model: Model): ChatMessageType[] => [
-  {
-    role: 'model',
-    text: model.provider === 'google'
-      ? "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, `/create-video <prompt>` for a short video, or `/summarize` to get a summary of our chat."
-      : "Hello! I'm a conversational assistant powered by OpenAI. Ask me anything, or try `/imagine <prompt>` to create an image or `/summarize` to get a summary of our chat.",
-    sources: [],
-    timestamp: new Date().toISOString(),
-  }
-];
+const getInitialMessages = (model: Model): ChatMessageType[] => {
+    let text = "Hello! I'm a conversational search assistant. Ask me anything.";
+    switch (model.provider) {
+        case 'google':
+            text = "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, `/create-video <prompt>` for a short video, or `/summarize` to get a summary of our chat.";
+            break;
+        case 'openai':
+            text = "Hello! I'm a conversational assistant powered by OpenAI. Ask me anything, or try `/imagine <prompt>` to create an image or `/summarize` to get a summary of our chat.";
+            break;
+        case 'anthropic':
+            text = "Hello! I'm a conversational assistant powered by Anthropic's Claude. Ask me anything or try `/summarize` to get a summary of our chat. I can also understand images.";
+            break;
+    }
+    return [{ role: 'model', text, sources: [], timestamp: new Date().toISOString() }];
+};
 
-const getExamplePrompts = (model: Model) => model.provider === 'google'
-  ? [
-      "What are the latest advancements in AI?",
-      "/imagine a photorealistic image of a cat astronaut",
-      "/create-video a drone flying over a futuristic city",
-    ]
-  : [
-      "What is the significance of the GPT-4o model?",
-      "/imagine a vibrant watercolor painting of a fox in a forest",
-      "Write a short story about a robot who discovers music.",
-    ];
+const getExamplePrompts = (model: Model) => {
+    switch (model.provider) {
+        case 'google':
+            return ["What are the latest advancements in AI?", "/imagine a photorealistic image of a cat astronaut", "/create-video a drone flying over a futuristic city"];
+        case 'openai':
+            return ["What is the significance of the GPT-4o model?", "/imagine a vibrant watercolor painting of a fox in a forest", "Write a short story about a robot who discovers music."];
+        case 'anthropic':
+            return ["What are the core principles of constitutional AI?", "Compare and contrast the architectural styles of Frank Lloyd Wright and Zaha Hadid.", "Write a python script to analyze a CSV file and find the average of a column."];
+        default:
+            return ["What are the latest advancements in AI?", "Write a short story about a robot who discovers music."];
+    }
+};
 
 // --- Local Storage Keys ---
 const CHAT_HISTORY_KEY = 'chatHistory';
 const MODEL_STORAGE_KEY = 'chat-model-v2';
 const OPENAI_API_KEY_STORAGE_KEY = 'openai-api-key';
+const ANTHROPIC_API_KEY_STORAGE_KEY = 'anthropic-api-key';
 const CUSTOM_CSS_KEY = 'custom-user-css';
 const TODO_LIST_KEY = 'todo-list-tasks';
 const AUTHORITATIVE_SOURCES_KEY = 'prioritize-authoritative-sources';
@@ -241,12 +235,9 @@ const App: React.FC = () => {
     return getInitialMessages(model);
   });
 
-  const [openAIApiKey, setOpenAIApiKey] = useState<string | null>(() => {
-    try {
-        return localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY);
-    } catch (e) { console.error(e); return null; }
-  });
-  
+  const [openAIApiKey, setOpenAIApiKey] = useState<string | null>(() => localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY));
+  const [anthropicApiKey, setAnthropicApiKey] = useState<string | null>(() => localStorage.getItem(ANTHROPIC_API_KEY_STORAGE_KEY));
+
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
         const savedTasks = localStorage.getItem(TODO_LIST_KEY);
@@ -323,6 +314,7 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(recentQueries)); }, [recentQueries]);
   useEffect(() => { localStorage.setItem(TODO_LIST_KEY, JSON.stringify(tasks)); }, [tasks]);
   useEffect(() => { localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, openAIApiKey || ''); }, [openAIApiKey]);
+  useEffect(() => { localStorage.setItem(ANTHROPIC_API_KEY_STORAGE_KEY, anthropicApiKey || ''); }, [anthropicApiKey]);
   useEffect(() => { localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative)); }, [prioritizeAuthoritative]);
 
   useEffect(() => {
@@ -379,6 +371,11 @@ const App: React.FC = () => {
 
     const isImageCommand = trimmedPrompt.startsWith('/imagine ');
     const isVideoCommand = trimmedPrompt.startsWith('/create-video ');
+
+    if ((isVideoCommand || isImageCommand) && model.provider === 'anthropic') {
+        setMessages(prev => [...prev, { role: 'model', text: `Sorry, the ${isImageCommand ? 'image' : 'video'} generation command is not available with Anthropic models.`, isError: true, timestamp: new Date().toISOString() }]);
+        return;
+    }
 
     if (isVideoCommand && model.provider === 'openai') {
         setMessages(prev => [...prev, { role: 'model', text: "Sorry, video generation is only available with Google's models.", isError: true, timestamp: new Date().toISOString() }]);
@@ -451,6 +448,10 @@ const App: React.FC = () => {
         setMessages(prev => [...prev, { role: 'model', text: "OpenAI API Key not set. Please add your key in Settings > API Key Manager to use this model.", isError: true, timestamp: new Date().toISOString() }]);
         return;
     }
+    if (model.provider === 'anthropic' && !anthropicApiKey) {
+        setMessages(prev => [...prev, { role: 'model', text: "Anthropic API Key not set. Please add your key in Settings > API Key Manager to use this model.", isError: true, timestamp: new Date().toISOString() }]);
+        return;
+    }
 
     setIsLoading(true);
     if (trimmedPrompt) addRecentQuery(trimmedPrompt);
@@ -459,6 +460,7 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, userMessage, { role: 'model', text: '', isThinking: true, timestamp: new Date().toISOString() }]);
 
     let currentResponse = '';
+    let parsedError: { message: string, type: string };
     try {
         const handleStreamUpdate = (textChunk: string) => {
             currentResponse += textChunk;
@@ -470,11 +472,17 @@ const App: React.FC = () => {
         const fileForApi = file ? { base64: file.base64, mimeType: file.type } : undefined;
         let sources: any[] = [];
 
-        if (model.provider === 'google') {
-            const result = await getGeminiResponseStream(historyForApi, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, fileForApi);
-            sources = result.sources;
-        } else {
-            await getOpenAIResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi);
+        switch (model.provider) {
+            case 'google':
+                const result = await getGeminiResponseStream(historyForApi, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, fileForApi);
+                sources = result.sources;
+                break;
+            case 'openai':
+                await getOpenAIResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi);
+                break;
+            case 'anthropic':
+                await getClaudeResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi);
+                break;
         }
 
         playReceiveSound();
@@ -482,16 +490,30 @@ const App: React.FC = () => {
             setMessages(prev => prev.map((msg, index) => index === prev.length - 1 ? { ...msg, sources } : msg));
         }
 
-        if (model.provider === 'google') {
-            getGeminiSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
-            getGeminiRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
-        } else {
-            getOpenAISuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
-            getOpenAIRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
+        // Generate suggestions and related topics
+        switch (model.provider) {
+            case 'google':
+                getGeminiSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
+                getGeminiRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
+                break;
+            case 'openai':
+                getOpenAISuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
+                getOpenAIRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
+                break;
+            case 'anthropic':
+                getClaudeSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
+                getClaudeRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
+                break;
         }
 
     } catch (error) {
-        const parsedError = model.provider === 'google' ? parseGeminiError(error) : parseOpenAIError(error);
+        switch (model.provider) {
+            case 'google': parsedError = parseGeminiError(error); break;
+            case 'openai': parsedError = parseOpenAIError(error); break;
+            case 'anthropic': parsedError = parseClaudeError(error); break;
+            default: parsedError = { message: 'An unknown error occurred.', type: 'unknown' };
+        }
+
         if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing' && model.provider === 'google') {
             setApiKeySelectorProps({ show: true, title: 'API Key Error', description: parsedError.message });
         }
@@ -536,12 +558,30 @@ const App: React.FC = () => {
     setShowSummaryModal(true);
     setSummaryText(null);
     try {
-        const summary = model.provider === 'google'
-            ? await getGeminiConversationSummary(messages, model.id)
-            : await getOpenAIConversationSummary(messages, model.id);
+        let summary;
+        let parsedError;
+        switch(model.provider) {
+            case 'google':
+                summary = await getGeminiConversationSummary(messages, model.id);
+                break;
+            case 'openai':
+                summary = await getOpenAIConversationSummary(messages, model.id);
+                break;
+            case 'anthropic':
+                summary = await getClaudeConversationSummary(messages, model.id);
+                break;
+            default:
+                throw new Error("Invalid model provider for summary.");
+        }
         setSummaryText(summary);
     } catch (error) {
-        const parsedError = model.provider === 'google' ? parseGeminiError(error) : parseOpenAIError(error);
+        let parsedError;
+        switch(model.provider) {
+            case 'google': parsedError = parseGeminiError(error); break;
+            case 'openai': parsedError = parseOpenAIError(error); break;
+            case 'anthropic': parsedError = parseClaudeError(error); break;
+            default: parsedError = { message: 'An unknown error occurred while summarizing.'};
+        }
         setSummaryText(`Error generating summary: ${parsedError.message}`);
     } finally {
         setIsSummarizing(false);
@@ -573,6 +613,7 @@ const App: React.FC = () => {
   const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(task => task.id !== id));
   
   const handleSaveOpenAIKey = (key: string) => setOpenAIApiKey(key);
+  const handleSaveAnthropicKey = (key: string) => setAnthropicApiKey(key);
   const handleKeySelected = () => { setApiKeySelectorProps({ show: false }); setIsKeySelected(true); };
   const handleChangeApiKey = async () => { try { await window.aistudio.openSelectKey(); setIsKeySelected(true); setIsApiKeyManagerOpen(false); } catch (e) { console.error(e); } };
   const handleClearApiKey = async () => { try { await window.aistudio.clearSelectedApiKey?.(); setIsKeySelected(false); } catch (e) { console.error(e); } };
@@ -616,7 +657,7 @@ const App: React.FC = () => {
                                <div className="flex items-center space-x-2"><SparklesIcon className="w-4 h-4" /> <span>Model & Settings</span></div>
                                <ChevronRightIcon className="w-4 h-4" />
                             </button>
-                            {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)} isOpenAIConfigured={!!openAIApiKey} />}
+                            {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)} isOpenAIConfigured={!!openAIApiKey} isAnthropicConfigured={!!anthropicApiKey} />}
                         </div>
                          <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
                          <button onClick={() => { setIsApiKeyManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><KeyIcon className="w-4 h-4" /> <span>API Key Manager</span></button>
@@ -700,7 +741,7 @@ const App: React.FC = () => {
     {apiKeySelectorProps.show && <ApiKeySelector onKeySelected={handleKeySelected} title={apiKeySelectorProps.title} description={apiKeySelectorProps.description} />}
     {lightboxImageUrl && <Lightbox imageUrl={lightboxImageUrl} onClose={() => setLightboxImageUrl(null)} />}
     {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
-    {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} openAIApiKey={openAIApiKey} onSaveOpenAIKey={handleSaveOpenAIKey} />}
+    {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} openAIApiKey={openAIApiKey} onSaveOpenAIKey={handleSaveOpenAIKey} anthropicApiKey={anthropicApiKey} onSaveAnthropicKey={handleSaveAnthropicKey} />}
     {isCustomCssModalOpen && <CustomCssModal onClose={() => setIsCustomCssModalOpen(false)} onSave={handleSaveCss} initialCss={customCss} />}
     <ModelExplanationTooltip model={modelExplanation.model} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, model: model })}/>
     {isTodoListModalOpen && <TodoListModal onClose={() => setIsTodoListModalOpen(false)} tasks={tasks} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} />}

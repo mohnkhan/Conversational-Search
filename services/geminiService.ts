@@ -807,3 +807,248 @@ ${conversationHistory}
 Summary:`;
     return getOpenAIChatCompletion(fullPrompt, model);
 }
+
+// ==================================================================
+// --- ANTHROPIC SERVICE FUNCTIONS ---
+// ==================================================================
+
+const ANTHROPIC_API_KEY_STORAGE_KEY = 'anthropic-api-key';
+
+export const getAnthropicKey = (): string | null => {
+    try {
+        return localStorage.getItem(ANTHROPIC_API_KEY_STORAGE_KEY);
+    } catch {
+        return null;
+    }
+};
+
+export function parseClaudeError(error: unknown): ParsedError {
+    console.error("Anthropic API Error:", error);
+
+    if (error && typeof error === 'object' && 'error' in error) {
+        const errObj = (error as any).error;
+        const message = errObj.message || 'An unknown error occurred.';
+        const type = errObj.type || 'unknown_error';
+
+        switch (type) {
+            case 'authentication_error':
+                return { type: 'api_key', message: 'Invalid Anthropic API Key provided. Please check your key in the API Key Manager.', retryable: false };
+            case 'permission_error':
+                 return { type: 'permission', message: 'Your Anthropic API key does not have permission to perform this action.', retryable: false };
+            case 'invalid_request_error':
+                return { type: 'invalid_request', message, retryable: false };
+            case 'rate_limit_error':
+                return { type: 'rate_limit', message: 'You have exceeded your Anthropic API rate limit. Please wait and try again.', retryable: true };
+            case 'api_error':
+                return { type: 'server_error', message: 'An internal error occurred on the Anthropic side. Please try again later.', retryable: true };
+            case 'overloaded_error':
+                return { type: 'server_error', message: 'Anthropic\'s servers are currently overloaded. Please try again later.', retryable: true };
+        }
+    }
+
+    if (error instanceof Error && error.message.includes('key')) {
+        return { type: 'api_key', message: 'Missing or invalid Anthropic API Key. Please set it in the API Key Manager.', retryable: false };
+    }
+
+    return { type: 'unknown', message: 'An unknown error occurred while communicating with Anthropic. Check the console for details.', retryable: true };
+}
+
+const prepareClaudeHistory = (history: ChatMessage[], file?: AttachedFile) => {
+    const messages = history
+        .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment))
+        .map(msg => {
+            const content: any[] = [];
+            
+            // For Claude, images and text must be in the same content block for user messages.
+            if (msg.role === 'user' && msg.attachment) {
+                content.push({
+                    type: 'image',
+                    source: {
+                        type: 'base64',
+                        media_type: msg.attachment.type,
+                        data: msg.attachment.base64,
+                    }
+                });
+            }
+            if (msg.text) {
+                content.push({ type: 'text', text: msg.text });
+            }
+            
+            return {
+                role: msg.role === 'model' ? 'assistant' : 'user',
+                content: content
+            };
+        });
+
+    // If a new file is being sent with the latest prompt, add it to the last message.
+    if (file) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.role === 'user') {
+            // Prepend the image to the content array, a common practice for vision models.
+            (lastMessage.content as any[]).unshift({
+                type: 'image',
+                source: {
+                    type: 'base64',
+                    media_type: file.type,
+                    data: file.base64,
+                }
+            });
+        }
+    }
+    
+    return messages;
+};
+
+export async function getClaudeResponseStream(
+    history: ChatMessage[],
+    model: string,
+    onStreamUpdate: (text: string) => void,
+    file?: { base64: string; mimeType: string; }
+): Promise<void> {
+    const apiKey = getAnthropicKey();
+    if (!apiKey) {
+        throw new Error("Anthropic API key not found. Please set it in the API Key Manager.");
+    }
+    
+    // FIX: The object passed to prepareClaudeHistory must conform to the AttachedFile interface.
+    const messages = prepareClaudeHistory(history, file ? { name: '', size: 0, dataUrl: `data:${file.mimeType};base64,${file.base64}`, base64: file.base64, type: file.mimeType } : undefined);
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: messages,
+            stream: true,
+            max_tokens: 4096, // max_tokens is required by the Claude API
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Failed to get stream reader.");
+
+    const decoder = new TextDecoder();
+
+    let buffer = '';
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop() || ''; // Keep the last, potentially incomplete, line
+
+        for (const line of lines) {
+            if (line.startsWith('data: ')) {
+                try {
+                    const json = JSON.parse(line.substring(6));
+                    if (json.type === 'content_block_delta' && json.delta.type === 'text_delta') {
+                        onStreamUpdate(json.delta.text);
+                    }
+                } catch (e) {
+                    console.error("Error parsing Anthropic stream chunk:", e, "Line:", line);
+                }
+            }
+        }
+    }
+}
+
+async function getClaudeChatCompletion(
+    prompt: string,
+    model: string,
+    isJson: boolean = false // Claude doesn't have a JSON mode like OpenAI, but we can instruct it.
+): Promise<string> {
+    const apiKey = getAnthropicKey();
+    if (!apiKey) throw new Error("Anthropic API key not set.");
+
+    const fullPrompt = isJson 
+        ? `${prompt}\n\nPlease format your response as a single JSON object, and nothing else.`
+        : prompt;
+
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'user', content: fullPrompt }],
+            max_tokens: 2048,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+    }
+    const data = await response.json();
+    let textContent = data.content[0]?.text || '';
+
+    // If JSON was requested, try to extract it
+    if (isJson) {
+        textContent = extractJson(textContent);
+    }
+
+    return textContent;
+}
+
+
+export async function getClaudeSuggestedPrompts(prompt: string, response: string, model: string): Promise<string[]> {
+    const fullPrompt = `Based on this user query and model response, generate 3 concise and relevant follow-up questions a user might ask.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return a JSON object with a single key "questions" which is an array of 3 strings.`;
+    try {
+        const result = await getClaudeChatCompletion(fullPrompt, model, true);
+        const parsed = JSON.parse(result);
+        return Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : [];
+    } catch (e) {
+        console.error("Error getting Claude suggested prompts", e);
+        return [];
+    }
+}
+
+export async function getClaudeRelatedTopics(prompt: string, response: string, model: string): Promise<string[]> {
+    const fullPrompt = `Based on the following user query and model response, generate 3-4 broader, related topics for exploration. These should be distinct from simple follow-up questions.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return a JSON object with a single key "topics" which is an array of 3-4 strings.`;
+     try {
+        const result = await getClaudeChatCompletion(fullPrompt, model, true);
+        const parsed = JSON.parse(result);
+        return Array.isArray(parsed.topics) ? parsed.topics.slice(0, 4) : [];
+    } catch (e) {
+        console.error("Error getting Claude related topics", e);
+        return [];
+    }
+}
+
+export async function getClaudeConversationSummary(messages: ChatMessage[], model: string): Promise<string> {
+    const conversationHistory = messages.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`).join('\n\n');
+    const fullPrompt = `Please provide a concise summary of the following conversation. Capture the main topics and key takeaways.
+
+--- CONVERSATION START ---
+${conversationHistory}
+--- CONVERSATION END ---
+
+Summary:`;
+    return getClaudeChatCompletion(fullPrompt, model);
+}

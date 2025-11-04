@@ -8,13 +8,17 @@ interface ApiKeyManagerProps {
     isKeySelected: boolean;
     openAIApiKey: string | null;
     onSaveOpenAIKey: (key: string) => void;
+    anthropicApiKey: string | null;
+    onSaveAnthropicKey: (key: string) => void;
 }
 
-const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onClearKey, isKeySelected, openAIApiKey, onSaveOpenAIKey }) => {
+const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onClearKey, isKeySelected, openAIApiKey, onSaveOpenAIKey, anthropicApiKey, onSaveAnthropicKey }) => {
     const modalRef = useRef<HTMLDivElement>(null);
     const [googleMaskedKey, setGoogleMaskedKey] = useState<string>('Checking...');
     const [openAIKeyInput, setOpenAIKeyInput] = useState(openAIApiKey || '');
+    const [anthropicKeyInput, setAnthropicKeyInput] = useState(anthropicApiKey || '');
     const [isOAIKeySaved, setIsOAIKeySaved] = useState(false);
+    const [isAnthropicKeySaved, setIsAnthropicKeySaved] = useState(false);
 
     useEffect(() => {
         const modalElement = modalRef.current;
@@ -71,6 +75,12 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
         setIsOAIKeySaved(true);
         setTimeout(() => setIsOAIKeySaved(false), 2000);
     };
+    
+    const handleSaveAnthropic = () => {
+        onSaveAnthropicKey(anthropicKeyInput.trim());
+        setIsAnthropicKeySaved(true);
+        setTimeout(() => setIsAnthropicKeySaved(false), 2000);
+    };
 
     return (
         <div
@@ -102,7 +112,7 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
                     </button>
                 </header>
 
-                <main className="p-6 space-y-6">
+                <main className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                     {/* Google API Key Section */}
                     <div>
                         <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">Google AI</h3>
@@ -157,9 +167,40 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
                             </button>
                         </div>
                     </div>
+
+                    <div className="border-t border-[var(--border-color)]"></div>
+
+                    {/* Anthropic API Key Section */}
+                    <div>
+                        <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">Anthropic</h3>
+                         <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                            <label htmlFor="anthropic-key-input" className="text-sm text-[var(--text-muted)]">Your Anthropic API Key</label>
+                            <input
+                                id="anthropic-key-input"
+                                type="password"
+                                value={anthropicKeyInput}
+                                onChange={(e) => setAnthropicKeyInput(e.target.value)}
+                                placeholder="sk-ant-..."
+                                className="w-full bg-transparent font-mono text-base text-[var(--text-primary)] mt-1 focus:outline-none"
+                            />
+                        </div>
+                        <p className="text-xs text-[var(--text-muted)] mt-2">
+                           Your key is stored securely in your browser's local storage and is never sent anywhere except to Anthropic.
+                        </p>
+                        <div className="flex justify-end mt-3">
+                             <button
+                                onClick={handleSaveAnthropic}
+                                className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[var(--accent-primary)] hover:opacity-90 transition-all flex items-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                disabled={anthropicKeyInput === anthropicApiKey}
+                            >
+                                {isAnthropicKeySaved ? <CheckIcon className="w-4 h-4" /> : null}
+                                <span>{isAnthropicKeySaved ? 'Saved!' : 'Save Anthropic Key'}</span>
+                            </button>
+                        </div>
+                    </div>
                 </main>
 
-                 <footer className="flex items-center justify-end p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
+                 <footer className="flex items-center justify-end p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50 flex-shrink-0">
                     <button
                         onClick={onClose}
                         className="px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] transition-colors"

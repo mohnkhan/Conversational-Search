@@ -11,13 +11,15 @@ interface ModelSelectorProps {
     prioritizeAuthoritative: boolean;
     onTogglePrioritizeAuthoritative: () => void;
     isOpenAIConfigured: boolean;
+    isAnthropicConfigured: boolean;
 }
 
-const ModelSelector: React.FC<ModelSelectorProps> = ({ currentModel, onSetModel, onClose, prioritizeAuthoritative, onTogglePrioritizeAuthoritative, isOpenAIConfigured }) => {
+const ModelSelector: React.FC<ModelSelectorProps> = ({ currentModel, onSetModel, onClose, prioritizeAuthoritative, onTogglePrioritizeAuthoritative, isOpenAIConfigured, isAnthropicConfigured }) => {
     const [activeProvider, setActiveProvider] = useState<ModelProvider>(currentModel.provider);
 
     const googleModels = AVAILABLE_MODELS.filter(m => m.provider === 'google');
     const openAIModels = AVAILABLE_MODELS.filter(m => m.provider === 'openai');
+    const anthropicModels = AVAILABLE_MODELS.filter(m => m.provider === 'anthropic');
 
     const handleModelChange = (model: Model) => {
         onSetModel(model);
@@ -31,20 +33,28 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ currentModel, onSetModel,
             onMouseDown={(e) => e.stopPropagation()}
         >
             <div className="p-2">
-                <div className="flex items-center border-b border-[var(--border-color)] mb-2 text-sm font-medium text-center">
+                <div className="grid grid-cols-3 border-b border-[var(--border-color)] mb-2 text-sm font-medium text-center">
                     <button 
                         onClick={() => setActiveProvider('google')} 
-                        className={`flex-1 p-2 rounded-t-md transition-colors ${activeProvider === 'google' ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                        className={`p-2 transition-colors ${activeProvider === 'google' ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
                     >
                         Google
                     </button>
                     <button 
                         onClick={() => setActiveProvider('openai')} 
                         disabled={!isOpenAIConfigured}
-                        className={`flex-1 p-2 rounded-t-md transition-colors ${activeProvider === 'openai' ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'} disabled:opacity-50 disabled:cursor-not-allowed`}
-                        title={!isOpenAIConfigured ? "Set your OpenAI Key in the API Key Manager to enable" : ""}
+                        className={`p-2 transition-colors ${activeProvider === 'openai' ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                        title={!isOpenAIConfigured ? "Set your OpenAI Key in the API Key Manager" : ""}
                     >
                         OpenAI
+                    </button>
+                    <button 
+                        onClick={() => setActiveProvider('anthropic')} 
+                        disabled={!isAnthropicConfigured}
+                        className={`p-2 transition-colors ${activeProvider === 'anthropic' ? 'text-[var(--accent-primary)] border-b-2 border-[var(--accent-primary)]' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'} disabled:opacity-50 disabled:cursor-not-allowed`}
+                        title={!isAnthropicConfigured ? "Set your Anthropic Key in the API Key Manager" : ""}
+                    >
+                        Anthropic
                     </button>
                 </div>
 
@@ -70,6 +80,27 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ currentModel, onSetModel,
                 ))}
 
                 {activeProvider === 'openai' && openAIModels.map((model) => (
+                    <button
+                        key={model.id}
+                        onClick={() => handleModelChange(model)}
+                        className={`w-full text-left p-2 text-sm rounded-md transition-colors ${
+                            currentModel.id === model.id
+                            ? 'bg-[var(--accent-primary)] text-white' 
+                            : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+                        }`}
+                        aria-pressed={currentModel.id === model.id}
+                    >
+                        <div className="flex items-center justify-between">
+                            <span className="font-semibold">{model.name}</span>
+                            {currentModel.id === model.id && <CheckIcon className="w-4 h-4" />}
+                        </div>
+                        <p className={`text-xs mt-1 ${currentModel.id === model.id ? 'text-white/80' : 'text-[var(--text-muted)]'}`}>
+                            {model.description}
+                        </p>
+                    </button>
+                ))}
+
+                {activeProvider === 'anthropic' && anthropicModels.map((model) => (
                     <button
                         key={model.id}
                         onClick={() => handleModelChange(model)}

@@ -45,7 +45,7 @@ export interface CustomDateFilter {
 
 export type DateFilter = PredefinedDateFilter | CustomDateFilter;
 
-export type ModelProvider = 'google' | 'openai';
+export type ModelProvider = 'google' | 'openai' | 'anthropic';
 export type ModelId = string;
 
 export interface Model {
