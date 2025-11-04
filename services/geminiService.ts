@@ -206,9 +206,7 @@ export async function getGeminiResponseStream(
     prioritizeAuthoritative: boolean = false,
     file?: { base64: string; mimeType: string },
     systemInstruction?: string,
-// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
     toolSchemas?: FunctionDeclaration[]
-// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
 ): Promise<{ text: string, sources: Source[], toolCalls?: ToolCall[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
 
@@ -656,10 +654,12 @@ const prepareOpenAIHistory = (history: ChatMessage[], systemInstruction?: string
         .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment || msg.toolCalls || msg.toolResults))
         .forEach(msg => {
             if (msg.role === 'tool') {
-                messages.push({
-                    role: 'tool',
-                    tool_call_id: msg.toolResults![0].toolCallId,
-                    content: msg.toolResults![0].result,
+                msg.toolResults?.forEach(tr => {
+                    messages.push({
+                        role: 'tool',
+                        tool_call_id: tr.toolCallId,
+                        content: tr.result,
+                    });
                 });
                 return;
             }
@@ -706,9 +706,7 @@ export async function getOpenAIResponseStream(
     onStreamUpdate: (text: string) => void,
     file?: { base64: string; mimeType: string; },
     systemInstruction?: string,
-// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
     toolSchemas?: FunctionDeclaration[]
-// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
 ): Promise<{ text: string, toolCalls?: ToolCall[] }> {
     const apiKey = getOpenAIKey();
     if (!apiKey) {
@@ -762,8 +760,14 @@ export async function getOpenAIResponseStream(
         for (const line of lines) {
             if (line === 'data: [DONE]') {
                 const finalToolCalls = Object.values(toolCallChunks)
-                    .map(tc => ({ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }))
-                    .filter(tc => tc.name && tc.id);
+                    .map(tc => {
+                        try {
+                            return { id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) };
+                        } catch {
+                            return null; // Ignore malformed JSON
+                        }
+                    })
+                    .filter((tc): tc is ToolCall => tc !== null && !!tc.name && !!tc.id);
                 return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
             }
             if (line.startsWith('data: ')) {
@@ -793,8 +797,14 @@ export async function getOpenAIResponseStream(
         }
     }
     const finalToolCalls = Object.values(toolCallChunks)
-        .map(tc => ({ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }))
-        .filter(tc => tc.name && tc.id);
+        .map(tc => {
+            try {
+                return { id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) };
+            } catch {
+                return null;
+            }
+        })
+        .filter((tc): tc is ToolCall => tc !== null && !!tc.name && !!tc.id);
     return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
 }
 
@@ -1018,9 +1028,7 @@ export async function getClaudeResponseStream(
     onStreamUpdate: (text: string) => void,
     file?: { base64: string; mimeType: string; },
     systemInstruction?: string,
-// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
     toolSchemas?: FunctionDeclaration[]
-// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
 ): Promise<{ text: string, toolCalls?: ToolCall[] }> {
     const apiKey = getAnthropicKey();
     if (!apiKey) {
@@ -1054,6 +1062,7 @@ export async function getClaudeResponseStream(
             'Content-Type': 'application/json',
             'x-api-key': apiKey,
             'anthropic-version': '2023-06-01',
+            'anthropic-beta': 'tools-2024-04-04',
         },
         body: JSON.stringify(body),
     });
@@ -1102,8 +1111,14 @@ export async function getClaudeResponseStream(
         }
     }
     const finalToolCalls = Object.values(toolUseBlocks)
-        .map(tc => ({ id: tc.id, name: tc.name, args: JSON.parse(tc.input) }))
-        .filter(tc => tc.id && tc.name);
+        .map(tc => {
+            try {
+                return { id: tc.id, name: tc.name, args: JSON.parse(tc.input) };
+            } catch {
+                return null;
+            }
+        })
+        .filter((tc): tc is ToolCall => tc !== null && !!tc.id && !!tc.name);
     return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
 }
 
@@ -1284,9 +1299,7 @@ export async function getBedrockResponseStream(
     onStreamUpdate: (text: string) => void,
     file?: { base64: string; mimeType: string; },
     systemInstruction?: string,
-// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
     toolSchemas?: FunctionDeclaration[]
-// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
 ): Promise<{ text: string, toolCalls?: ToolCall[] }> {
     const credentials = getBedrockCredentials();
     if (!credentials) throw new Error("AWS Bedrock credentials not found.");
@@ -1373,8 +1386,8 @@ export async function getBedrockResponseStream(
                             onStreamUpdate(chunkPayload.delta.text);
                             fullText += chunkPayload.delta.text;
                         } else if (chunkPayload.delta.type === 'input_json_delta') {
-                             if (toolUseBlocks[chunkPayload.toolUseId]) {
-                                toolUseBlocks[chunkPayload.toolUseId].input += chunkPayload.delta.partial_json;
+                             if (toolUseBlocks[chunkPayload.delta.toolUseId]) {
+                                toolUseBlocks[chunkPayload.delta.toolUseId].input += chunkPayload.delta.partialJson;
                             }
                         }
                     }
@@ -1397,12 +1410,18 @@ export async function getBedrockResponseStream(
 
     if (modelId.startsWith('anthropic.')) {
         const finalToolCalls = Object.values(toolUseBlocks)
-            .map(tc => ({ id: tc.id, name: tc.name, args: JSON.parse(tc.input) }))
-            .filter(tc => tc.id && tc.name);
+            .map(tc => {
+                try {
+                    return { id: tc.id, name: tc.name, args: JSON.parse(tc.input) };
+                } catch {
+                    return null;
+                }
+            })
+            .filter((tc): tc is ToolCall => tc !== null && !!tc.id && !!tc.name);
         return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
     }
     
-    return { text: fullText };
+    return { text: fullText, toolCalls: undefined };
 }
 
 async function getBedrockChatCompletion(prompt: string, modelId: string): Promise<string> {
