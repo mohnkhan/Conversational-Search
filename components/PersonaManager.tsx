@@ -9,13 +9,41 @@ interface PersonaManagerProps {
     onDelete: (id: string) => void;
 }
 
+const emojiSuggestions = [
+    '✍️', '⚙️', '😏', '🧠', '🎨', '🔍', '📈', '👨‍💻', '🌍', '📚', '💬', '💡',
+    '🚀', '🔬', '⚖️', '🎭', '🎧', '🧑‍🏫', '🧑‍🍳', '🕵️'
+];
+
+// Custom hook to handle clicks outside of a specified element
+function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: MouseEvent | TouchEvent) => void) {
+    useEffect(() => {
+        const listener = (event: MouseEvent | TouchEvent) => {
+            if (!ref.current || ref.current.contains(event.target as Node)) {
+                return;
+            }
+            handler(event);
+        };
+        document.addEventListener('mousedown', listener);
+        document.addEventListener('touchstart', listener);
+        return () => {
+            document.removeEventListener('mousedown', listener);
+            document.removeEventListener('touchstart', listener);
+        };
+    }, [ref, handler]);
+}
+
 const PersonaManager: React.FC<PersonaManagerProps> = ({ onClose, personas, onSave, onDelete }) => {
     const modalRef = useRef<HTMLDivElement>(null);
+    const emojiPickerRef = useRef<HTMLDivElement>(null);
+
     const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
     const [name, setName] = useState('');
     const [icon, setIcon] = useState('');
     const [prompt, setPrompt] = useState('');
     const [isSaved, setIsSaved] = useState(false);
+    const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+    
+    useOnClickOutside(emojiPickerRef, () => setIsEmojiPickerOpen(false));
 
     const selectedPersona = personas.find(p => p.id === selectedPersonaId);
     const isDirty = selectedPersona ? (name !== selectedPersona.name || icon !== selectedPersona.icon || prompt !== selectedPersona.prompt) : (name !== '' || icon !== '' || prompt !== '');
@@ -147,20 +175,41 @@ const PersonaManager: React.FC<PersonaManagerProps> = ({ onClose, personas, onSa
                                             value={name}
                                             onChange={e => setName(e.target.value)}
                                             placeholder="e.g., Creative Writer"
-                                            className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)]"
+                                            className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] h-[42px]"
                                         />
                                     </div>
-                                    <div>
-                                        <label htmlFor="persona-icon-input" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Icon (Emoji)</label>
-                                        <input
-                                            id="persona-icon-input"
-                                            type="text"
-                                            value={icon}
-                                            onChange={e => setIcon(e.target.value)}
-                                            placeholder="✍️"
-                                            maxLength={2}
-                                            className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] text-center"
-                                        />
+                                    <div className="relative" ref={emojiPickerRef}>
+                                        <label htmlFor="persona-icon-button" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Icon</label>
+                                        <button
+                                            id="persona-icon-button"
+                                            type="button"
+                                            onClick={() => setIsEmojiPickerOpen(p => !p)}
+                                            className="w-full bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-md px-3 py-2 text-2xl focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] text-center h-[42px]"
+                                            aria-haspopup="true"
+                                            aria-expanded={isEmojiPickerOpen}
+                                        >
+                                            {icon || <span className="text-sm text-[var(--text-muted)]">Select</span>}
+                                        </button>
+                                        {isEmojiPickerOpen && (
+                                            <div className="absolute top-full mt-2 w-64 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg shadow-xl z-10 p-2 animate-fade-in">
+                                                <div className="grid grid-cols-5 gap-2">
+                                                    {emojiSuggestions.map(emoji => (
+                                                        <button
+                                                            key={emoji}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setIcon(emoji);
+                                                                setIsEmojiPickerOpen(false);
+                                                            }}
+                                                            className="text-2xl p-2 rounded-md hover:bg-[var(--bg-primary)] transition-colors"
+                                                            title={`Select emoji: ${emoji}`}
+                                                        >
+                                                            {emoji}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                                 <div className="flex-1 flex flex-col">
