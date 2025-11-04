@@ -216,37 +216,78 @@ export async function getGeminiResponseStream(
     try {
         const processedHistory = history.filter(
             (msg, index) => {
-                // Ignore the very first message if it's the initial model greeting to ensure conversation starts with a user prompt
+                // Ignore the very first message if it's the initial model greeting
                 if (index === 0 && msg.role === 'model') {
                     return false;
                 }
-                // Include only valid, non-generated user and model messages
+                // Include valid, non-generated user, model, and tool messages
                 return (msg.role === 'user' || msg.role === 'model' || msg.role === 'tool') && !msg.isError && !msg.isThinking;
             }
         );
 
-        const contents: any[] = processedHistory.map(msg => {
+        const contents: any[] = [];
+        // Use a standard for loop to allow looking backwards in history for tool names
+        for (let i = 0; i < processedHistory.length; i++) {
+            const msg = processedHistory[i];
+            
             if (msg.role === 'tool') {
-                return {
-                    role: msg.role,
-                    parts: msg.toolResults!.map(tr => ({
-                         toolResponse: {
-                            id: tr.toolCallId,
-                            response: { result: tr.result },
-                         }
-                    }))
-                };
-            }
-            const parts: any[] = [];
-            if(msg.text) { parts.push({ text: msg.text }); }
-            if(msg.attachment) { parts.push({ inlineData: { mimeType: msg.attachment.type, data: msg.attachment.base64 }}) }
-            return {
-                role: msg.role,
-                parts,
-            };
-        });
+                // Find the corresponding tool call to get the function name
+                let precedingModelMsg = null;
+                for (let j = i - 1; j >= 0; j--) {
+                    if (processedHistory[j].role === 'model' && processedHistory[j].toolCalls?.length) {
+                        precedingModelMsg = processedHistory[j];
+                        break;
+                    }
+                }
 
-        // If a file is attached, add it as a new part to the last user message.
+                const toolParts = msg.toolResults!.map(tr => {
+                    const originalCall = precedingModelMsg?.toolCalls?.find(tc => tc.id === tr.toolCallId);
+                    return {
+                        functionResponse: {
+                            name: originalCall?.name || 'unknown_function', // Essential for the API
+                            response: { result: tr.result },
+                        }
+                    };
+                });
+                
+                if (toolParts.length > 0) {
+                    contents.push({ role: 'tool', parts: toolParts });
+                }
+
+            } else { // Handle 'user' and 'model' roles
+                const parts: any[] = [];
+                
+                if (msg.text) {
+                    parts.push({ text: msg.text });
+                }
+                
+                if (msg.attachment) {
+                    parts.push({ inlineData: { mimeType: msg.attachment.type, data: msg.attachment.base64 } });
+                }
+
+                if (msg.toolCalls && msg.toolCalls.length > 0) {
+                    msg.toolCalls.forEach(tc => {
+                        parts.push({
+                            functionCall: {
+                                name: tc.name,
+                                args: tc.args
+                            }
+                        });
+                    });
+                }
+                
+                // IMPORTANT: The API will error if a message has an empty parts array.
+                if (parts.length > 0) {
+                    contents.push({
+                        role: msg.role,
+                        parts,
+                    });
+                }
+            }
+        }
+
+
+        // If a file is attached to the current turn, add it as a new part to the last user message.
         if (contents.length > 0 && file) {
             const lastContent = contents[contents.length - 1];
             if (lastContent.role === 'user') {
@@ -267,7 +308,7 @@ export async function getGeminiResponseStream(
                 const textPart = lastContent.parts.find((p: any) => p.text);
                 if (textPart) {
                     textPart.text = prefix + textPart.text;
-                } else {
+                } else if (prefix) {
                     lastContent.parts.unshift({ text: prefix });
                 }
             }

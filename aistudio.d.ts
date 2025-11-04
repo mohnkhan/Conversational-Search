@@ -1,10 +1,8 @@
 // aistudio.d.ts
 
 // This file augments the global Window object with non-standard properties.
-// By adding `export {}`, we make it a module, which is the correct way to
-// declare global augmentations.
-
-export {};
+// By making this file a global script (no imports/exports), all declarations
+// are automatically added to the global scope.
 
 // FIX: Added full definitions for the Web Speech API to resolve "Cannot find name" errors.
 // These types are sometimes not included in default TypeScript configurations.
@@ -58,32 +56,23 @@ interface SpeechRecognition extends EventTarget {
     onstart: ((this: SpeechRecognition, ev: Event) => any) | null;
 }
 
+/**
+ * Interface for the AI Studio helper object injected into the window.
+ */
+interface AIStudio {
+  hasSelectedApiKey(): Promise<boolean>;
+  openSelectKey(): Promise<void>;
+  clearSelectedApiKey?(): Promise<void>;
+}
 
-declare global {
-  /**
-   * Interface for the AI Studio helper object injected into the window.
-   */
-  interface AIStudio {
-    hasSelectedApiKey(): Promise<boolean>;
-    openSelectKey(): Promise<void>;
-    clearSelectedApiKey?(): Promise<void>;
-  }
+/**
+ * Augment the global Window interface.
+ */
+interface Window {
+  aistudio?: AIStudio;
 
-  /**
-   * Augment the global Window interface.
-   */
-  interface Window {
-    aistudio?: AIStudio;
-
-    // The SpeechRecognition constructor might not be on the default Window type,
-    // even if the SpeechRecognition interface itself is available. We add it here.
-    // The `SpeechRecognition` type itself is assumed to be provided by TS's "dom" lib.
-    SpeechRecognition?: new () => SpeechRecognition;
-    webkitSpeechRecognition?: new () => SpeechRecognition;
-  }
-
-  // The detailed interfaces for the Web Speech API (like SpeechRecognition,
-  // SpeechRecognitionEvent, etc.) are now removed from this file. They are expected
-  // to be provided by TypeScript's built-in DOM library (`lib: ["dom"]`).
-  // This avoids "Duplicate identifier" errors if they are already defined globally.
+  // The SpeechRecognition constructor might not be on the default Window type,
+  // even if the SpeechRecognition interface itself is available. We add it here.
+  SpeechRecognition?: new () => SpeechRecognition;
+  webkitSpeechRecognition?: new () => SpeechRecognition;
 }
