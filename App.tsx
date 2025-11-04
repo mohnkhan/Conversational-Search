@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { getAvailableTools } from './services/tools';
 import { 
     getGeminiResponseStream, 
     getGeminiSuggestedPrompts, 
@@ -25,10 +26,10 @@ import {
     parseBedrockError
 } from './services/geminiService';
 import { playSendSound, playReceiveSound } from './services/audioService';
-import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider, Persona, BedrockCredentials } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider, Persona, BedrockCredentials, ToolCall, ToolResult } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
-import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon, UsersIcon } from './components/Icons';
+import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon, UsersIcon, ToolIcon } from './components/Icons';
 import ApiKeySelector from './components/ApiKeySelector';
 import Lightbox from './components/Lightbox';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -48,6 +49,7 @@ import SummaryModal from './components/SummaryModal';
 import InitialPrompts from './components/InitialPrompts';
 import PersonaManager from './components/PersonaManager';
 import PersonaSelector from './components/PersonaSelector';
+import AvailableToolsModal from './components/AvailableToolsModal';
 
 // --- Model Definitions ---
 export const AVAILABLE_MODELS: Model[] = [
@@ -337,6 +339,7 @@ const App: React.FC = () => {
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
   const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, model: null });
   const [isTodoListModalOpen, setIsTodoListModalOpen] = useState<boolean>(false);
+  const [isToolsModalOpen, setIsToolsModalOpen] = useState<boolean>(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
@@ -344,6 +347,39 @@ const App: React.FC = () => {
   
   const chatEndRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+
+  // --- Tool Function Implementations (passed to the centralized tool service) ---
+    const getCurrentWeather = async (location: string): Promise<string> => {
+        try {
+            // Using wttr.in, a simple, no-key weather API that returns JSON
+            const response = await fetch(`https://wttr.in/${encodeURIComponent(location)}?format=j1`);
+            if (!response.ok) {
+                return JSON.stringify({ error: `Could not get weather. The service returned: ${response.statusText}` });
+            }
+            const data = await response.json();
+            // Simplify the response for the model
+            const current = data.current_condition[0];
+            const nearestArea = data.nearest_area[0];
+            const weatherInfo = {
+                location: `${nearestArea.areaName[0].value}, ${nearestArea.country[0].value}`,
+                temperature_celsius: current.temp_C,
+                condition: current.weatherDesc[0].value,
+                humidity_percent: current.humidity,
+                wind_kph: current.windspeedKmph,
+            };
+            return JSON.stringify(weatherInfo);
+        } catch (error) {
+            console.error('Error fetching weather:', error);
+            return JSON.stringify({ error: 'An unexpected error occurred while fetching the weather.' });
+        }
+    };
+    
+    // This is passed via dependency injection to the tool definition
+    const handleAddTask = (text: string) => setTasks(prev => [...prev, { id: Date.now().toString(), text, completed: false }]);
+
+    // Initialize the tools with their dependencies
+    const AVAILABLE_TOOLS = getAvailableTools({ handleAddTask, getCurrentWeather });
+
 
   // --- Effects ---
   
@@ -510,67 +546,66 @@ const App: React.FC = () => {
         return;
     }
 
-
     setIsLoading(true);
     if (trimmedPrompt) addRecentQuery(trimmedPrompt);
 
-    const historyForApi = [...messages, userMessage];
+    const fullHistory = [...messages, userMessage];
     setMessages(prev => [...prev, userMessage, { role: 'model', text: '', isThinking: true, timestamp: new Date().toISOString() }]);
 
-    let currentResponse = '';
+    const processApiResponse = (result: { text: string, sources?: any[], toolCalls?: ToolCall[] }, historyForApi: ChatMessageType[]) => {
+        if (result.toolCalls && result.toolCalls.length > 0) {
+            // Update UI to show the tool call
+            setMessages(prev => prev.map((msg, i) => i === prev.length - 1 ? { ...msg, text: '', toolCalls: result.toolCalls, isThinking: false } : msg));
+            handleToolCalls(result.toolCalls, [...historyForApi, { role: 'model', text: '', toolCalls: result.toolCalls, timestamp: new Date().toISOString() }]);
+        } else {
+            // Standard text response
+            playReceiveSound();
+            if (result.sources && result.sources.length > 0) {
+                setMessages(prev => prev.map((msg, i) => i === prev.length - 1 ? { ...msg, sources: result.sources } : msg));
+            }
+            fetchSuggestions(trimmedPrompt, result.text);
+            setIsLoading(false);
+        }
+    };
+
     let parsedError: { message: string, type: string };
     try {
         const handleStreamUpdate = (textChunk: string) => {
-            currentResponse += textChunk;
-            setMessages(prev => prev.map((msg, index) =>
-                index === prev.length - 1 ? { ...msg, text: currentResponse, isThinking: false } : msg
-            ));
+            setMessages(prev => {
+                const lastMsg = prev[prev.length - 1];
+                if (lastMsg && lastMsg.role === 'model') {
+                    return prev.map((msg, i) => i === prev.length - 1 ? { ...msg, text: (lastMsg.text || '') + textChunk, isThinking: false } : msg);
+                }
+                return prev;
+            });
         };
 
         const fileForApi = file ? { base64: file.base64, mimeType: file.type } : undefined;
-        let sources: any[] = [];
         const systemInstruction = activePersona?.prompt;
-
+        const toolSchemas = AVAILABLE_TOOLS.map(t => t.schema);
+        
+        let result;
         switch (model.provider) {
             case 'google':
-                const result = await getGeminiResponseStream(historyForApi, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, fileForApi, systemInstruction);
-                sources = result.sources;
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getGeminiResponseStream(fullHistory, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, fileForApi, systemInstruction, toolSchemas);
                 break;
             case 'openai':
-                await getOpenAIResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi, systemInstruction);
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getOpenAIResponseStream(fullHistory, model.id, handleStreamUpdate, fileForApi, systemInstruction, toolSchemas);
                 break;
             case 'anthropic':
-                await getClaudeResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi, systemInstruction);
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getClaudeResponseStream(fullHistory, model.id, handleStreamUpdate, fileForApi, systemInstruction, toolSchemas);
                 break;
             case 'bedrock':
-                await getBedrockResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi, systemInstruction);
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getBedrockResponseStream(fullHistory, model.id, handleStreamUpdate, fileForApi, systemInstruction, toolSchemas);
                 break;
+            default:
+                throw new Error("Invalid model provider.");
         }
-
-        playReceiveSound();
-        if (sources.length > 0) {
-            setMessages(prev => prev.map((msg, index) => index === prev.length - 1 ? { ...msg, sources } : msg));
-        }
-
-        // Generate suggestions and related topics
-        switch (model.provider) {
-            case 'google':
-                getGeminiSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
-                getGeminiRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
-                break;
-            case 'openai':
-                getOpenAISuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
-                getOpenAIRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
-                break;
-            case 'anthropic':
-                getClaudeSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
-                getClaudeRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
-                break;
-            case 'bedrock':
-                getBedrockSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
-                getBedrockRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
-                break;
-        }
+        processApiResponse(result, fullHistory);
 
     } catch (error) {
         switch (model.provider) {
@@ -587,10 +622,107 @@ const App: React.FC = () => {
         setMessages(prev => prev.map((msg, index) =>
             index === prev.length - 1 ? { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt, timestamp: new Date().toISOString() } : msg
         ));
-    } finally {
         setIsLoading(false);
     }
   };
+  
+  const handleToolCalls = async (toolCalls: ToolCall[], historyWithToolRequest: ChatMessageType[]) => {
+      const toolResults: ToolResult[] = await Promise.all(toolCalls.map(async (call) => {
+          const tool = AVAILABLE_TOOLS.find(t => t.name === call.name);
+          let result;
+          if (tool) {
+              result = await tool.implementation(call.args);
+          } else {
+              result = JSON.stringify({ error: `Unknown tool: ${call.name}` });
+          }
+          return { toolCallId: call.id, result };
+      }));
+  
+      const toolResultMessage: ChatMessageType = {
+          role: 'tool',
+          toolResults,
+          text: '',
+          timestamp: new Date().toISOString(),
+      };
+      
+      const newHistory = [...historyWithToolRequest, toolResultMessage];
+      setMessages(prev => [...prev, toolResultMessage, { role: 'model', text: '', isThinking: true, timestamp: new Date().toISOString() }]);
+
+      let parsedError: { message: string, type: string };
+      try {
+          const handleStreamUpdate = (textChunk: string) => {
+              setMessages(prev => prev.map((msg, i) => i === prev.length - 1 ? { ...msg, text: (msg.text || '') + textChunk, isThinking: false } : msg));
+          };
+
+          let result;
+          const systemInstruction = activePersona?.prompt;
+          const toolSchemas = AVAILABLE_TOOLS.map(t => t.schema);
+          
+          switch (model.provider) {
+            case 'google':
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getGeminiResponseStream(newHistory, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, undefined, systemInstruction, toolSchemas);
+                break;
+            case 'openai':
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getOpenAIResponseStream(newHistory, model.id, handleStreamUpdate, undefined, systemInstruction, toolSchemas);
+                break;
+            case 'anthropic':
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getClaudeResponseStream(newHistory, model.id, handleStreamUpdate, undefined, systemInstruction, toolSchemas);
+                break;
+            case 'bedrock':
+// FIX: Added `toolSchemas` argument to match the updated function signature in `geminiService.ts`.
+                result = await getBedrockResponseStream(newHistory, model.id, handleStreamUpdate, undefined, systemInstruction, toolSchemas);
+                break;
+            default:
+                throw new Error("Invalid model provider for tool continuation.");
+          }
+          
+          playReceiveSound();
+          if (result.sources && result.sources.length > 0) {
+              setMessages(prev => prev.map((msg, i) => i === prev.length - 1 ? { ...msg, sources: result.sources } : msg));
+          }
+          fetchSuggestions(historyWithToolRequest[historyWithToolRequest.length - 2].text, result.text);
+
+      } catch (error) {
+          // Handle errors from the second API call
+           switch (model.provider) {
+            case 'google': parsedError = parseGeminiError(error); break;
+            case 'openai': parsedError = parseOpenAIError(error); break;
+            case 'anthropic': parsedError = parseClaudeError(error); break;
+            case 'bedrock': parsedError = parseBedrockError(error); break;
+            default: parsedError = { message: 'An unknown error occurred.', type: 'unknown' };
+        }
+        setMessages(prev => prev.map((msg, index) =>
+            index === prev.length - 1 ? { role: 'model', text: `Error after tool use: ${parsedError.message}`, isError: true, timestamp: new Date().toISOString() } : msg
+        ));
+      } finally {
+          setIsLoading(false);
+      }
+  };
+  
+  const fetchSuggestions = (prompt: string, responseText: string) => {
+    switch (model.provider) {
+        case 'google':
+            getGeminiSuggestedPrompts(prompt, responseText, model.id).then(setSuggestedPrompts);
+            getGeminiRelatedTopics(prompt, responseText, model.id).then(setRelatedTopics);
+            break;
+        case 'openai':
+            getOpenAISuggestedPrompts(prompt, responseText, model.id).then(setSuggestedPrompts);
+            getOpenAIRelatedTopics(prompt, responseText, model.id).then(setRelatedTopics);
+            break;
+        case 'anthropic':
+            getClaudeSuggestedPrompts(prompt, responseText, model.id).then(setSuggestedPrompts);
+            getClaudeRelatedTopics(prompt, responseText, model.id).then(setRelatedTopics);
+            break;
+        case 'bedrock':
+            getBedrockSuggestedPrompts(prompt, responseText, model.id).then(setSuggestedPrompts);
+            getBedrockRelatedTopics(prompt, responseText, model.id).then(setRelatedTopics);
+            break;
+    }
+  };
+
 
   const handleToggleAudio = (text: string, index: number) => {
     if (speakingMessageIndex === index) {
@@ -678,7 +810,6 @@ const App: React.FC = () => {
   };
 
   // Task Handlers
-  const handleAddTask = (text: string) => setTasks(prev => [...prev, { id: Date.now().toString(), text, completed: false }]);
   const handleToggleTask = (id: string) => setTasks(prev => prev.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
   const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(task => task.id !== id));
   const handleAddTaskFromMessage = (text: string) => handleAddTask(text);
@@ -754,6 +885,7 @@ const App: React.FC = () => {
                             {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)} isOpenAIConfigured={!!openAIApiKey} isAnthropicConfigured={!!anthropicApiKey} isBedrockConfigured={!!bedrockCredentials} />}
                         </div>
                          <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
+                         <button onClick={() => { setIsToolsModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><ToolIcon className="w-4 h-4" /> <span>Available Tools</span></button>
                          <button onClick={() => { setIsPersonaManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><UsersIcon className="w-4 h-4" /> <span>Persona Manager</span></button>
                          <button onClick={() => { setIsApiKeyManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><KeyIcon className="w-4 h-4" /> <span>API Key Manager</span></button>
                          <button onClick={() => { setIsCustomCssModalOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><FileCodeIcon className="w-4 h-4" /> <span>Custom CSS</span></button>
@@ -850,6 +982,7 @@ const App: React.FC = () => {
     {isCustomCssModalOpen && <CustomCssModal onClose={() => setIsCustomCssModalOpen(false)} onSave={handleSaveCss} initialCss={customCss} />}
     <ModelExplanationTooltip model={modelExplanation.model} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, model: model })}/>
     {isTodoListModalOpen && <TodoListModal onClose={() => setIsTodoListModalOpen(false)} tasks={tasks} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} />}
+    {isToolsModalOpen && <AvailableToolsModal onClose={() => setIsToolsModalOpen(false)} />}
     {isAboutModalOpen && <AboutModal onClose={() => setIsAboutModalOpen(false)} />}
     {isExportModalOpen && <ExportChatModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} messages={messages} />}
     </>

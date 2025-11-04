@@ -30,6 +30,9 @@ This project is built on three core principles:
 ## Key Features
 
 -   **Multi-Provider AI Engine:** Instantly switch between Google (Gemini 2.5 Pro/Flash), OpenAI (GPT-4o/Turbo), Anthropic (Claude 3.5 Sonnet/Opus/Haiku), and AWS Bedrock (Claude 3.5 Sonnet, Llama 3, Amazon Titan).
+-   **AI-Powered Tool Calling:** Go beyond chat. The AI can now use tools to perform actions on your behalf, including:
+    -   **Live Weather Data:** Fetch real-time weather information for any location.
+    -   **Direct To-Do List Integration:** Add tasks to your list using natural language.
 -   **Advanced Search & Grounding (Google):** Get reliable, up-to-date answers with cited sources from Google Search. Engage **Deep Research Mode** to task Gemini 2.5 Pro with specific analysis scopes (e.g., *Pros & Cons*, *Historical Context*).
 -   **Generative Multi-Modal Suite:**
     -   **Image Generation:** Create stunning visuals with `/imagine` using **DALL-E 3** (OpenAI) or **Imagen** (Google).
@@ -37,7 +40,7 @@ This project is built on three core principles:
     -   **Image Understanding:** Upload images to have a conversation about them with Gemini, GPT-4o, and Claude 3 models.
 -   **Productivity & Workflow Tools:**
     -   **AI Personas:** Define and save custom AI personalities with unique system prompts and an intuitive emoji picker to tailor responses for any task.
-    -   **Integrated To-Do List:** Instantly capture tasks from any AI response with a single click. Manage your to-do list without ever leaving the chat.
+    -   **Integrated To-Do List:** Instantly capture tasks from any AI response with a single click, or ask the AI to add items for you using natural language. Manage your to-do list without ever leaving the chat.
     -   **Chat Summary & Export:** Get AI-powered summaries and export conversations to TXT, JSON, or Markdown.
     -   **Persistent History & Drafts:** Your conversations, tasks, and message drafts are saved locally.
 -   **Deep Customization & UX:**
@@ -97,6 +100,9 @@ This application uses a multi-key system for maximum flexibility and security.
 -   **Set a Persona:** Use the **Persona Selector** at the bottom to choose an AI personality or create your own in the **Persona Manager**.
 -   **Start Chatting:** Type your question, use the microphone for voice input, or try an example prompt.
 -   **Work with Images:** Click the **paperclip icon** 📎 to upload an image. You can then ask questions about it (e.g., "What kind of car is this?") or use it as context for another task (e.g., "Write a story inspired by this picture.").
+-   **Use AI Tools with Natural Language:** The AI can understand when you want it to perform an action. Just ask naturally:
+    -   _`"What's the weather like in London?"`_ will trigger the live weather tool.
+    -   _`"Add 'buy milk' to my to-do list"`_ will add the item directly to your list.
 -   **Use Deep Research (Google Only):** For complex queries, click the **sparkles icon** ✨ next to the input bar to activate Deep Research mode. Select an analysis type (like "Compare & Contrast") before sending your message to get a highly structured, in-depth response.
 -   **Manage Tasks:** Instantly save an AI's response as a task by clicking the **plus-square icon** `+` on the message. Access the full list via **Settings -> To-Do List**.
 -   **Access Other Tools:** The settings menu (gear icon ⚙️) is your hub for the Persona Manager, Custom CSS editor, Theme selector, and Chat Export.
@@ -123,7 +129,7 @@ A list of keyboard shortcuts for power users. *Use `Cmd` instead of `Ctrl` on ma
 | `Ctrl` + `I`      | Apply *italic* formatting     |
 | `Ctrl` + `E`      | Apply `inline code` formatting |
 | `Esc`             | Close modals (Summary, Lightbox, etc.) |
-| `?`               | Show keyboard shortcuts       |
+| `?`               | Show this help menu           |
 
 ## Troubleshooting
 

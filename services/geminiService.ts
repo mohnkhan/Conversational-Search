@@ -1,5 +1,5 @@
-import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, ResearchScope, AttachedFile, BedrockCredentials } from '../types';
+import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, ResearchScope, AttachedFile, BedrockCredentials, ToolCall } from '../types';
 
 // A module-level instance for non-Veo calls
 let ai: GoogleGenAI | null = null;
@@ -206,7 +206,10 @@ export async function getGeminiResponseStream(
     prioritizeAuthoritative: boolean = false,
     file?: { base64: string; mimeType: string },
     systemInstruction?: string,
-): Promise<{ sources: Source[] }> {
+// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
+    toolSchemas?: FunctionDeclaration[]
+// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
+): Promise<{ text: string, sources: Source[], toolCalls?: ToolCall[] }> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
 
     const isDeepResearchActive = !!researchScope;
@@ -220,14 +223,30 @@ export async function getGeminiResponseStream(
                     return false;
                 }
                 // Include only valid, non-generated user and model messages
-                return (msg.role === 'user' || msg.role === 'model') && !msg.isError && !msg.imageUrl && !msg.videoUrl;
+                return (msg.role === 'user' || msg.role === 'model' || msg.role === 'tool') && !msg.isError && !msg.isThinking;
             }
         );
 
-        const contents: any[] = processedHistory.map(msg => ({
-            role: msg.role,
-            parts: [{ text: msg.text }],
-        }));
+        const contents: any[] = processedHistory.map(msg => {
+            if (msg.role === 'tool') {
+                return {
+                    role: msg.role,
+                    parts: msg.toolResults!.map(tr => ({
+                         toolResponse: {
+                            id: tr.toolCallId,
+                            response: { result: tr.result },
+                         }
+                    }))
+                };
+            }
+            const parts: any[] = [];
+            if(msg.text) { parts.push({ text: msg.text }); }
+            if(msg.attachment) { parts.push({ inlineData: { mimeType: msg.attachment.type, data: msg.attachment.base64 }}) }
+            return {
+                role: msg.role,
+                parts,
+            };
+        });
 
         // If a file is attached, add it as a new part to the last user message.
         if (contents.length > 0 && file) {
@@ -247,18 +266,21 @@ export async function getGeminiResponseStream(
             const lastContent = contents[contents.length - 1];
             if (lastContent.role === 'user') {
                 const prefix = getInstructionalPrefix(filter, researchScope);
-                // Ensure the text part exists before prepending
-                if(lastContent.parts[0].text) {
-                    lastContent.parts[0].text = prefix + lastContent.parts[0].text;
+                const textPart = lastContent.parts.find((p: any) => p.text);
+                if (textPart) {
+                    textPart.text = prefix + textPart.text;
                 } else {
-                    lastContent.parts[0].text = prefix;
+                    lastContent.parts.unshift({ text: prefix });
                 }
             }
         }
 
-        const config: any = {
-            tools: [{ googleSearch: {} }],
-        };
+        const config: any = {};
+        if (toolSchemas && toolSchemas.length > 0) {
+            config.tools = [{ functionDeclarations: toolSchemas }];
+        } else {
+            config.tools = [{ googleSearch: {} }];
+        }
 
         const finalSystemInstruction = [
             systemInstruction || '',
@@ -274,15 +296,22 @@ export async function getGeminiResponseStream(
             contents: contents,
             config: config,
         });
-
+        
+        let fullText = '';
         const allSources: Source[] = [];
+        let allFunctionCalls: ToolCall[] = [];
 
         for await (const chunk of responseStream) {
             const text = chunk.text;
             if (text) {
                 onStreamUpdate(text);
+                fullText += text;
             }
             
+            if (chunk.functionCalls) {
+                allFunctionCalls.push(...chunk.functionCalls.map((fc: any) => ({ id: fc.id, name: fc.name, args: fc.args })));
+            }
+
             const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
             if (groundingChunks.length > 0) {
                  const sourcesFromChunk: Source[] = groundingChunks
@@ -330,7 +359,7 @@ export async function getGeminiResponseStream(
             });
         }
 
-        return { sources: finalSources };
+        return { text: fullText, sources: finalSources, toolCalls: allFunctionCalls.length > 0 ? allFunctionCalls : undefined };
     } catch (error) {
         console.error("Error in getGeminiResponseStream:", error);
         // Re-throw the original error to be caught and parsed by the UI component
@@ -617,15 +646,24 @@ export function parseOpenAIError(error: unknown): ParsedError {
 
 
 const prepareOpenAIHistory = (history: ChatMessage[], systemInstruction?: string, file?: AttachedFile) => {
-    const messages = [];
+    const messages: any[] = [];
 
     if (systemInstruction) {
         messages.push({ role: 'system', content: systemInstruction });
     }
 
     history
-        .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment))
+        .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment || msg.toolCalls || msg.toolResults))
         .forEach(msg => {
+            if (msg.role === 'tool') {
+                messages.push({
+                    role: 'tool',
+                    tool_call_id: msg.toolResults![0].toolCallId,
+                    content: msg.toolResults![0].result,
+                });
+                return;
+            }
+
             const content: any[] = [];
             if (msg.text) {
                 content.push({ type: 'text', text: msg.text });
@@ -640,19 +678,22 @@ const prepareOpenAIHistory = (history: ChatMessage[], systemInstruction?: string
             }
             messages.push({
                 role: msg.role === 'model' ? 'assistant' : 'user',
-                content: content
+                content: content.length === 1 && content[0].type === 'text' ? content[0].text : content,
+                tool_calls: msg.toolCalls ? msg.toolCalls.map(tc => ({ id: tc.id, type: 'function', function: { name: tc.name, arguments: JSON.stringify(tc.args) } })) : undefined,
             });
     });
 
     if (file) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage && lastMessage.role === 'user') {
-            (lastMessage.content as any[]).push({
+            const content = Array.isArray(lastMessage.content) ? lastMessage.content : [{ type: 'text', text: lastMessage.content }];
+            content.push({
                 type: 'image_url',
                 image_url: {
                     url: `data:${file.type};base64,${file.base64}`
                 }
             });
+            lastMessage.content = content;
         }
     }
     
@@ -664,16 +705,29 @@ export async function getOpenAIResponseStream(
     model: string,
     onStreamUpdate: (text: string) => void,
     file?: { base64: string; mimeType: string; },
-    systemInstruction?: string
-): Promise<void> {
+    systemInstruction?: string,
+// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
+    toolSchemas?: FunctionDeclaration[]
+// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
+): Promise<{ text: string, toolCalls?: ToolCall[] }> {
     const apiKey = getOpenAIKey();
     if (!apiKey) {
         throw new Error("OpenAI API key not found. Please set it in the API Key Manager.");
     }
     
-    // FIX: The object passed to prepareOpenAIHistory must conform to the AttachedFile interface, which requires a 'type' property.
     const attachedFileForHistory = file ? { name: '', size: 0, dataUrl: `data:${file.mimeType};base64,${file.base64}`, base64: file.base64, type: file.mimeType } : undefined;
     const messages = prepareOpenAIHistory(history, systemInstruction, attachedFileForHistory);
+
+    const body: any = {
+        model: model,
+        messages: messages,
+        stream: true,
+    };
+    
+    if (toolSchemas && toolSchemas.length > 0) {
+        body.tools = toolSchemas.map(s => ({ type: 'function', function: s }));
+        body.tool_choice = "auto";
+    }
 
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: 'POST',
@@ -681,11 +735,7 @@ export async function getOpenAIResponseStream(
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`,
         },
-        body: JSON.stringify({
-            model: model,
-            messages: messages,
-            stream: true,
-        }),
+        body: JSON.stringify(body),
     });
 
     if (!response.ok) {
@@ -700,6 +750,8 @@ export async function getOpenAIResponseStream(
 
     const decoder = new TextDecoder();
     let done = false;
+    let fullText = '';
+    const toolCallChunks: { [index: number]: any } = {};
 
     while (!done) {
         const { value, done: readerDone } = await reader.read();
@@ -709,14 +761,30 @@ export async function getOpenAIResponseStream(
 
         for (const line of lines) {
             if (line === 'data: [DONE]') {
-                return;
+                const finalToolCalls = Object.values(toolCallChunks)
+                    .map(tc => ({ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }))
+                    .filter(tc => tc.name && tc.id);
+                return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
             }
             if (line.startsWith('data: ')) {
                 try {
                     const json = JSON.parse(line.substring(6));
-                    const textChunk = json.choices[0]?.delta?.content;
-                    if (textChunk) {
-                        onStreamUpdate(textChunk);
+                    const delta = json.choices[0]?.delta;
+                    if (delta?.content) {
+                        onStreamUpdate(delta.content);
+                        fullText += delta.content;
+                    }
+                     if (delta?.tool_calls) {
+                        for (const tool_call_chunk of delta.tool_calls) {
+                            const index = tool_call_chunk.index;
+                            if (!toolCallChunks[index]) {
+                                toolCallChunks[index] = { function: { arguments: '' } };
+                            }
+                            const tc = toolCallChunks[index];
+                            if (tool_call_chunk.id) tc.id = tool_call_chunk.id;
+                            if (tool_call_chunk.function?.name) tc.function.name = tool_call_chunk.function.name;
+                            if (tool_call_chunk.function?.arguments) tc.function.arguments += tool_call_chunk.function.arguments;
+                        }
                     }
                 } catch (e) {
                     console.error("Error parsing stream chunk:", e);
@@ -724,6 +792,10 @@ export async function getOpenAIResponseStream(
             }
         }
     }
+    const finalToolCalls = Object.values(toolCallChunks)
+        .map(tc => ({ id: tc.id, name: tc.function.name, args: JSON.parse(tc.function.arguments) }))
+        .filter(tc => tc.name && tc.id);
+    return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
 }
 
 export async function generateImageWithDallE(prompt: string): Promise<string> {
@@ -885,44 +957,54 @@ export function parseClaudeError(error: unknown): ParsedError {
 }
 
 const prepareClaudeHistory = (history: ChatMessage[], file?: AttachedFile) => {
-    const messages = history
-        .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment))
-        .map(msg => {
+    const messages: any[] = [];
+    
+    history
+        .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment || msg.toolCalls || msg.toolResults))
+        .forEach(msg => {
+            if(msg.role === 'model' && msg.toolCalls) {
+                const content: any[] = msg.text ? [{ type: 'text', text: msg.text }] : [];
+                content.push(...msg.toolCalls.map(tc => ({ type: 'tool_use', id: tc.id, name: tc.name, input: tc.args })));
+                messages.push({ role: 'assistant', content });
+                return;
+            }
+
+            if(msg.role === 'tool') {
+                messages.push({
+                    role: 'user',
+                    content: msg.toolResults!.map(tr => ({
+                        type: 'tool_result',
+                        tool_use_id: tr.toolCallId,
+                        content: tr.result,
+                    }))
+                });
+                return;
+            }
+
             const content: any[] = [];
             
-            // For Claude, images and text must be in the same content block for user messages.
             if (msg.role === 'user' && msg.attachment) {
                 content.push({
                     type: 'image',
-                    source: {
-                        type: 'base64',
-                        media_type: msg.attachment.type,
-                        data: msg.attachment.base64,
-                    }
+                    source: { type: 'base64', media_type: msg.attachment.type, data: msg.attachment.base64 }
                 });
             }
             if (msg.text) {
                 content.push({ type: 'text', text: msg.text });
             }
             
-            return {
+            messages.push({
                 role: msg.role === 'model' ? 'assistant' : 'user',
                 content: content
-            };
+            });
         });
 
-    // If a new file is being sent with the latest prompt, add it to the last message.
     if (file) {
         const lastMessage = messages[messages.length - 1];
         if (lastMessage && lastMessage.role === 'user') {
-            // Prepend the image to the content array, a common practice for vision models.
             (lastMessage.content as any[]).unshift({
                 type: 'image',
-                source: {
-                    type: 'base64',
-                    media_type: file.type,
-                    data: file.base64,
-                }
+                source: { type: 'base64', media_type: file.type, data: file.base64 }
             });
         }
     }
@@ -935,8 +1017,11 @@ export async function getClaudeResponseStream(
     model: string,
     onStreamUpdate: (text: string) => void,
     file?: { base64: string; mimeType: string; },
-    systemInstruction?: string
-): Promise<void> {
+    systemInstruction?: string,
+// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
+    toolSchemas?: FunctionDeclaration[]
+// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
+): Promise<{ text: string, toolCalls?: ToolCall[] }> {
     const apiKey = getAnthropicKey();
     if (!apiKey) {
         throw new Error("Anthropic API key not found. Please set it in the API Key Manager.");
@@ -953,6 +1038,14 @@ export async function getClaudeResponseStream(
 
     if (systemInstruction) {
         body.system = systemInstruction;
+    }
+
+    if (toolSchemas && toolSchemas.length > 0) {
+        body.tools = toolSchemas.map(s => ({
+            name: s.name,
+            description: s.description,
+            input_schema: s.parameters,
+        }));
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -974,7 +1067,8 @@ export async function getClaudeResponseStream(
     if (!reader) throw new Error("Failed to get stream reader.");
 
     const decoder = new TextDecoder();
-
+    let fullText = '';
+    const toolUseBlocks: { [index: number]: any } = {};
     let buffer = '';
     while (true) {
         const { value, done } = await reader.read();
@@ -989,8 +1083,17 @@ export async function getClaudeResponseStream(
             if (line.startsWith('data: ')) {
                 try {
                     const json = JSON.parse(line.substring(6));
+                    if (json.type === 'content_block_start' && json.content_block.type === 'tool_use') {
+                        toolUseBlocks[json.index] = { id: json.content_block.id, name: json.content_block.name, input: '' };
+                    }
                     if (json.type === 'content_block_delta' && json.delta.type === 'text_delta') {
                         onStreamUpdate(json.delta.text);
+                        fullText += json.delta.text;
+                    }
+                     if (json.type === 'content_block_delta' && json.delta.type === 'input_json_delta') {
+                        if (toolUseBlocks[json.index]) {
+                            toolUseBlocks[json.index].input += json.delta.partial_json;
+                        }
                     }
                 } catch (e) {
                     console.error("Error parsing Anthropic stream chunk:", e, "Line:", line);
@@ -998,6 +1101,10 @@ export async function getClaudeResponseStream(
             }
         }
     }
+    const finalToolCalls = Object.values(toolUseBlocks)
+        .map(tc => ({ id: tc.id, name: tc.name, args: JSON.parse(tc.input) }))
+        .filter(tc => tc.id && tc.name);
+    return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
 }
 
 async function getClaudeChatCompletion(
@@ -1176,13 +1283,14 @@ export async function getBedrockResponseStream(
     modelId: string,
     onStreamUpdate: (text: string) => void,
     file?: { base64: string; mimeType: string; },
-    systemInstruction?: string
-): Promise<void> {
+    systemInstruction?: string,
+// FIX: Added 'toolSchemas' parameter to fix argument count error in App.tsx.
+    toolSchemas?: FunctionDeclaration[]
+// FIX: Updated return type to be consistent with other streaming functions and provide necessary data to App.tsx.
+): Promise<{ text: string, toolCalls?: ToolCall[] }> {
     const credentials = getBedrockCredentials();
     if (!credentials) throw new Error("AWS Bedrock credentials not found.");
 
-    // FIX: The object passed to prepareBedrockHistory must conform to the AttachedFile interface.
-    // The previous implementation using the spread operator on 'file' created a 'mimeType' property instead of 'type'.
     const attachedFileForHistory = file ? { name: '', size: 0, dataUrl: '', base64: file.base64, type: file.mimeType } : undefined;
     const messages = prepareBedrockHistory(modelId, history, systemInstruction, attachedFileForHistory);
 
@@ -1194,6 +1302,15 @@ export async function getBedrockResponseStream(
             system: systemInstruction,
             messages: messages,
         };
+         if (toolSchemas && toolSchemas.length > 0) {
+            body.tools = toolSchemas.map(s => ({
+                toolSpec: {
+                    name: s.name,
+                    description: s.description,
+                    inputSchema: { json: s.parameters }
+                }
+            }));
+        }
     } else if (modelId.startsWith('meta.')) {
         body = {
             prompt: messages,
@@ -1234,6 +1351,9 @@ export async function getBedrockResponseStream(
     if (!reader) throw new Error("Failed to get stream reader.");
     
     const decoder = new TextDecoder();
+    let fullText = '';
+    const toolUseBlocks: { [id: string]: any } = {};
+
     while (true) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -1244,16 +1364,29 @@ export async function getBedrockResponseStream(
             if (data.chunk?.bytes) {
                 const chunkPayload = JSON.parse(atob(data.chunk.bytes));
                 if (modelId.startsWith('anthropic.')) {
-                    if (chunkPayload.type === 'content_block_delta' && chunkPayload.delta.type === 'text_delta') {
-                        onStreamUpdate(chunkPayload.delta.text);
+                    if (chunkPayload.type === 'content_block_start' && chunkPayload.content_block.type === 'tool_use') {
+                        const { toolUseId, name } = chunkPayload.content_block;
+                        toolUseBlocks[toolUseId] = { id: toolUseId, name, input: '' };
+                    }
+                    if (chunkPayload.type === 'content_block_delta') {
+                        if(chunkPayload.delta.type === 'text_delta') {
+                            onStreamUpdate(chunkPayload.delta.text);
+                            fullText += chunkPayload.delta.text;
+                        } else if (chunkPayload.delta.type === 'input_json_delta') {
+                             if (toolUseBlocks[chunkPayload.toolUseId]) {
+                                toolUseBlocks[chunkPayload.toolUseId].input += chunkPayload.delta.partial_json;
+                            }
+                        }
                     }
                 } else if (modelId.startsWith('meta.')) {
                     if (chunkPayload.generation) {
                         onStreamUpdate(chunkPayload.generation);
+                        fullText += chunkPayload.generation;
                     }
                 } else if (modelId.startsWith('amazon.')) {
                     if (chunkPayload.outputText) {
                         onStreamUpdate(chunkPayload.outputText);
+                        fullText += chunkPayload.outputText;
                     }
                 }
             }
@@ -1261,6 +1394,15 @@ export async function getBedrockResponseStream(
             console.error("Error parsing Bedrock stream chunk", e, "Chunk:", chunk);
         }
     }
+
+    if (modelId.startsWith('anthropic.')) {
+        const finalToolCalls = Object.values(toolUseBlocks)
+            .map(tc => ({ id: tc.id, name: tc.name, args: JSON.parse(tc.input) }))
+            .filter(tc => tc.id && tc.name);
+        return { text: fullText, toolCalls: finalToolCalls.length > 0 ? finalToolCalls : undefined };
+    }
+    
+    return { text: fullText };
 }
 
 async function getBedrockChatCompletion(prompt: string, modelId: string): Promise<string> {

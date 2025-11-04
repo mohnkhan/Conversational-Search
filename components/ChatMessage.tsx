@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage as ChatMessageType, ResearchScope } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon, SpeakerIcon, SpeakerWaveIcon, PlusSquareIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon, SpeakerIcon, SpeakerWaveIcon, PlusSquareIcon, CogIcon } from './Icons';
 import Sources from './Sources';
 import CodeBlock from './CodeBlock'; // Use the shared CodeBlock component
 
@@ -92,6 +92,11 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
     };
   }, [message.isThinking]);
 
+  if (message.role === 'tool') {
+    // Tool results are part of the conversation history for the model, but we don't render them for the user.
+    return null;
+  }
+
   if (message.isThinking) {
     return (
         <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in" role="status" aria-live="polite">
@@ -106,6 +111,28 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                         <div className="w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
                         <div className="w-2 h-2 bg-[var(--text-muted)] rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
                     </div>
+                </div>
+            </div>
+        </div>
+    );
+  }
+
+  if (isModel && message.toolCalls && message.toolCalls.length > 0) {
+    return (
+        <div className="flex items-start space-x-3 sm:space-x-4 p-3 sm:p-4 my-2 animate-fade-in">
+            <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center bg-[var(--bg-accent-translucent)]">
+                <CogIcon className="w-5 h-5 text-[var(--accent-primary)] animate-spin" style={{ animationDuration: '3s' }} />
+            </div>
+            <div className="flex-1 pt-1.5 sm:pt-2">
+                <p className="font-semibold text-[var(--text-primary)] mb-2">Using tools...</p>
+                <div className="space-y-2">
+                    {message.toolCalls.map((call) => (
+                        <div key={call.id} className="bg-[var(--bg-primary)] p-2 rounded-md border border-[var(--border-color)]">
+                            <code className="text-xs text-[var(--text-secondary)] whitespace-pre-wrap break-all">
+                                {call.name}({JSON.stringify(call.args, null, 2)})
+                            </code>
+                        </div>
+                    ))}
                 </div>
             </div>
         </div>
