@@ -1,6 +1,6 @@
 # Conversational Search
 
-An all-in-one conversational AI toolkit that unifies the power of Google, OpenAI, and Anthropic's flagship models into a single, elegant interface. Go beyond simple chat with advanced search grounding, multi-modal generation, and a suite of productivity tools designed for power users.
+An all-in-one conversational AI toolkit that unifies the power of Google, OpenAI, Anthropic, and AWS Bedrock's flagship models into a single, elegant interface. Go beyond simple chat with advanced search grounding, multi-modal generation, and a suite of productivity tools designed for power users.
 
 <!-- [A screenshot or GIF of the application in action would be ideal here.] -->
 
@@ -29,7 +29,7 @@ This project is built on three core principles:
 
 ## Key Features
 
--   **Multi-Provider AI Engine:** Instantly switch between Google (Gemini 2.5 Pro/Flash), OpenAI (GPT-4o/Turbo), and Anthropic (Claude 3.5 Sonnet/Opus/Haiku).
+-   **Multi-Provider AI Engine:** Instantly switch between Google (Gemini 2.5 Pro/Flash), OpenAI (GPT-4o/Turbo), Anthropic (Claude 3.5 Sonnet/Opus/Haiku), and AWS Bedrock (Claude 3.5 Sonnet, Llama 3, Amazon Titan).
 -   **Advanced Search & Grounding (Google):** Get reliable, up-to-date answers with cited sources from Google Search. Engage **Deep Research Mode** to task Gemini 2.5 Pro with specific analysis scopes (e.g., *Pros & Cons*, *Historical Context*).
 -   **Generative Multi-Modal Suite:**
     -   **Image Generation:** Create stunning visuals with `/imagine` using **DALL-E 3** (OpenAI) or **Imagen** (Google).
@@ -52,6 +52,7 @@ This project is built on three core principles:
     -   [Google Gemini API](https://ai.google.dev/gemini-api) (`@google/genai`)
     -   [OpenAI API](https://platform.openai.com/docs/api-reference)
     -   [Anthropic Claude API](https://docs.anthropic.com/claude/reference/messages_post)
+    -   [AWS Bedrock API](https://aws.amazon.com/bedrock/) (via secure proxy)
 -   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 -   **Markdown:** [React Markdown](https://github.com/remarkjs/react-markdown) with [Remark GFM](https://github.com/remarkjs/remark-gfm)
 -   **Syntax Highlighting:** [React Syntax Highlighter](https://github.com/react-syntax-highlighter/react-syntax-highlighter)
@@ -61,10 +62,11 @@ This project is built on three core principles:
 
 ### Prerequisites
 
-To unlock all features, you will need API keys from:
+To unlock all features, you will need API keys/credentials from:
 -   [Google AI Studio](https://ai.google.dev/)
 -   [OpenAI Platform](https://platform.openai.com/)
 -   [Anthropic Console](https://console.anthropic.com/)
+-   [Amazon Web Services (AWS)](https://aws.amazon.com/)
 
 ### API Key Configuration
 
@@ -78,15 +80,16 @@ This application uses a multi-key system for maximum flexibility and security.
 -   **Purpose:** Required for the `/create-video` feature, which uses the Veo model.
 -   **Setup:** When you first use this command, a secure pop-up from AI Studio will prompt you to select a key from a Google Cloud project with billing enabled.
 
-#### 3. OpenAI & Anthropic API Keys
--   **Purpose:** Required to use any of the OpenAI (GPT) or Anthropic (Claude) models.
--   **Setup:** Inside the app, navigate to **Settings -> API Key Manager**. Enter your keys here; they will be stored securely in your browser's local storage.
+#### 3. OpenAI, Anthropic, & AWS Bedrock Credentials
+-   **Purpose:** Required to use any of the models from these providers.
+-   **Setup:** Inside the app, navigate to **Settings -> API Key Manager**. Enter your keys and credentials here; they will be stored securely in your browser's local storage. For AWS, you'll need your Region, Access Key ID, and Secret Access Key.
 
 ### Deployment
 
 1.  **Deploy the Application:** Host the static project files (HTML, TSX, etc.) on your preferred service (e.g., Vercel, Netlify, or a simple web server).
 2.  **Configure Environment Variable:** In your hosting service's settings, set your standard Google Gemini API Key as an environment variable named `API_KEY`.
-3.  **Launch & Configure:** Open the deployed URL. Go to the API Key Manager to add your OpenAI and Anthropic keys to unlock all models.
+3.  **(Optional, for Bedrock) Deploy Proxy:** For AWS Bedrock support, you must deploy a secure backend proxy that can sign and forward requests. The frontend application is configured to send requests to `/api/bedrock-proxy`.
+4.  **Launch & Configure:** Open the deployed URL. Go to the API Key Manager to add your OpenAI, Anthropic, and AWS keys to unlock all models.
 
 ## How to Use
 
@@ -125,8 +128,9 @@ A list of keyboard shortcuts for power users. *Use `Cmd` instead of `Ctrl` on ma
 ## Troubleshooting
 
 -   **API Key Errors:** If you see an error about an invalid API key, double-check that you have entered it correctly in the API Key Manager. For Google models, ensure your standard key is set as the `API_KEY` environment variable.
+-   **Bedrock Errors:** Ensure your AWS credentials are correct and that the IAM user/role has the necessary `bedrock:InvokeModel` permissions. Also, confirm your Bedrock proxy is running and accessible.
 -   **Video Generation Fails:** This is almost always a billing issue. Ensure the Google Cloud project associated with your selected key has billing enabled and the Vertex AI API is active.
--   **Model Not Available:** If an OpenAI or Anthropic model is disabled, it means you haven't set the corresponding API key in the API Key Manager.
+-   **Model Not Available:** If a model provider's tab is disabled, it means you haven't set the corresponding API key/credentials in the API Key Manager.
 
 ## Roadmap
 

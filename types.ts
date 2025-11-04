@@ -52,7 +52,7 @@ export interface CustomDateFilter {
 
 export type DateFilter = PredefinedDateFilter | CustomDateFilter;
 
-export type ModelProvider = 'google' | 'openai' | 'anthropic';
+export type ModelProvider = 'google' | 'openai' | 'anthropic' | 'bedrock';
 export type ModelId = string;
 
 export interface Model {
@@ -60,4 +60,11 @@ export interface Model {
     name: string;
     provider: ModelProvider;
     description: string;
+}
+
+export interface BedrockCredentials {
+    region: string;
+    accessKeyId: string;
+    secretAccessKey: string;
+    sessionToken?: string;
 }

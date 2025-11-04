@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { XIcon, KeyIcon, CheckIcon, TrashIcon, RefreshCwIcon } from './Icons';
+import { BedrockCredentials } from '../types';
 
 interface ApiKeyManagerProps {
     onClose: () => void;
@@ -10,15 +11,23 @@ interface ApiKeyManagerProps {
     onSaveOpenAIKey: (key: string) => void;
     anthropicApiKey: string | null;
     onSaveAnthropicKey: (key: string) => void;
+    bedrockCredentials: BedrockCredentials | null;
+    onSaveBedrockCredentials: (creds: BedrockCredentials) => void;
 }
 
-const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onClearKey, isKeySelected, openAIApiKey, onSaveOpenAIKey, anthropicApiKey, onSaveAnthropicKey }) => {
+const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onClearKey, isKeySelected, openAIApiKey, onSaveOpenAIKey, anthropicApiKey, onSaveAnthropicKey, bedrockCredentials, onSaveBedrockCredentials }) => {
     const modalRef = useRef<HTMLDivElement>(null);
     const [googleMaskedKey, setGoogleMaskedKey] = useState<string>('Checking...');
     const [openAIKeyInput, setOpenAIKeyInput] = useState(openAIApiKey || '');
     const [anthropicKeyInput, setAnthropicKeyInput] = useState(anthropicApiKey || '');
+    const [bedrockRegion, setBedrockRegion] = useState(bedrockCredentials?.region || 'us-east-1');
+    const [bedrockAccessKey, setBedrockAccessKey] = useState(bedrockCredentials?.accessKeyId || '');
+    const [bedrockSecretKey, setBedrockSecretKey] = useState(bedrockCredentials?.secretAccessKey || '');
+    const [bedrockSessionToken, setBedrockSessionToken] = useState(bedrockCredentials?.sessionToken || '');
+
     const [isOAIKeySaved, setIsOAIKeySaved] = useState(false);
     const [isAnthropicKeySaved, setIsAnthropicKeySaved] = useState(false);
+    const [isBedrockCredsSaved, setIsBedrockCredsSaved] = useState(false);
 
     useEffect(() => {
         const modalElement = modalRef.current;
@@ -82,6 +91,26 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
         setTimeout(() => setIsAnthropicKeySaved(false), 2000);
     };
 
+    const handleSaveBedrock = () => {
+        if (!bedrockRegion.trim() || !bedrockAccessKey.trim() || !bedrockSecretKey.trim()) {
+            alert("Region, Access Key, and Secret Key are required for AWS Bedrock.");
+            return;
+        }
+        onSaveBedrockCredentials({
+            region: bedrockRegion.trim(),
+            accessKeyId: bedrockAccessKey.trim(),
+            secretAccessKey: bedrockSecretKey.trim(),
+            sessionToken: bedrockSessionToken.trim() || undefined,
+        });
+        setIsBedrockCredsSaved(true);
+        setTimeout(() => setIsBedrockCredsSaved(false), 2000);
+    };
+
+    const isBedrockDirty = bedrockCredentials?.region !== bedrockRegion ||
+                           bedrockCredentials?.accessKeyId !== bedrockAccessKey ||
+                           bedrockCredentials?.secretAccessKey !== bedrockSecretKey ||
+                           bedrockCredentials?.sessionToken !== bedrockSessionToken;
+
     return (
         <div
             className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in"
@@ -133,6 +162,40 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
                             <button onClick={onClearKey} disabled={!isKeySelected} className="flex-1 px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2">
                                 <TrashIcon className="w-4 h-4" />
                                 <span>Clear Key</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="border-t border-[var(--border-color)]"></div>
+
+                    {/* AWS Bedrock Section */}
+                    <div>
+                        <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">AWS Bedrock</h3>
+                        <div className="space-y-3">
+                            <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <label htmlFor="bedrock-region" className="text-sm text-[var(--text-muted)]">AWS Region</label>
+                                <input id="bedrock-region" type="text" value={bedrockRegion} onChange={(e) => setBedrockRegion(e.target.value)} placeholder="e.g., us-east-1" className="w-full bg-transparent font-mono text-base text-[var(--text-primary)] mt-1 focus:outline-none" />
+                            </div>
+                             <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <label htmlFor="bedrock-access-key" className="text-sm text-[var(--text-muted)]">Access Key ID</label>
+                                <input id="bedrock-access-key" type="password" value={bedrockAccessKey} onChange={(e) => setBedrockAccessKey(e.target.value)} placeholder="AKIA..." className="w-full bg-transparent font-mono text-base text-[var(--text-primary)] mt-1 focus:outline-none" />
+                            </div>
+                             <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <label htmlFor="bedrock-secret-key" className="text-sm text-[var(--text-muted)]">Secret Access Key</label>
+                                <input id="bedrock-secret-key" type="password" value={bedrockSecretKey} onChange={(e) => setBedrockSecretKey(e.target.value)} placeholder="******************" className="w-full bg-transparent font-mono text-base text-[var(--text-primary)] mt-1 focus:outline-none" />
+                            </div>
+                            <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                                <label htmlFor="bedrock-session-token" className="text-sm text-[var(--text-muted)]">Session Token (Optional)</label>
+                                <input id="bedrock-session-token" type="password" value={bedrockSessionToken} onChange={(e) => setBedrockSessionToken(e.target.value)} placeholder="For temporary credentials" className="w-full bg-transparent font-mono text-base text-[var(--text-primary)] mt-1 focus:outline-none" />
+                            </div>
+                        </div>
+                         <p className="text-xs text-[var(--text-muted)] mt-2">
+                           Your credentials are required to use Bedrock models and are stored securely in your browser's local storage.
+                        </p>
+                        <div className="flex justify-end mt-3">
+                             <button onClick={handleSaveBedrock} className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[var(--accent-primary)] hover:opacity-90 transition-all flex items-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed" disabled={!isBedrockDirty}>
+                                {isBedrockCredsSaved ? <CheckIcon className="w-4 h-4" /> : null}
+                                <span>{isBedrockCredsSaved ? 'Saved!' : 'Save Bedrock Credentials'}</span>
                             </button>
                         </div>
                     </div>

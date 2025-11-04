@@ -17,10 +17,15 @@ import {
     getClaudeConversationSummary,
     getClaudeSuggestedPrompts,
     getClaudeRelatedTopics,
-    parseClaudeError
+    parseClaudeError,
+    getBedrockResponseStream,
+    getBedrockConversationSummary,
+    getBedrockSuggestedPrompts,
+    getBedrockRelatedTopics,
+    parseBedrockError
 } from './services/geminiService';
 import { playSendSound, playReceiveSound } from './services/audioService';
-import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider, Persona } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider, Persona, BedrockCredentials } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon, UsersIcon } from './components/Icons';
@@ -56,12 +61,17 @@ export const AVAILABLE_MODELS: Model[] = [
     // Anthropic
     { id: 'claude-3-5-sonnet-20240620', name: 'Claude 3.5 Sonnet', provider: 'anthropic', description: 'Anthropic\'s newest, most intelligent model.'},
     { id: 'claude-3-opus-20240229', name: 'Claude 3 Opus', provider: 'anthropic', description: 'Highest performance for highly complex tasks.'},
-    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic', description: 'Fastest and most compact for near-instant responses.'}
+    { id: 'claude-3-haiku-20240307', name: 'Claude 3 Haiku', provider: 'anthropic', description: 'Fastest and most compact for near-instant responses.'},
+    // AWS Bedrock
+    { id: 'anthropic.claude-3-5-sonnet-20240620-v1:0', name: 'Claude 3.5 Sonnet (Bedrock)', provider: 'bedrock', description: 'Anthropic\'s most intelligent model, via AWS Bedrock.'},
+    { id: 'meta.llama3-70b-instruct-v1:0', name: 'Llama 3 70B (Bedrock)', provider: 'bedrock', description: 'Meta\'s high-performance open model, via AWS Bedrock.'},
+    { id: 'amazon.titan-text-premier-v1:0', name: 'Amazon Titan Premier (Bedrock)', provider: 'bedrock', description: 'Amazon\'s most advanced LLM, via AWS Bedrock.'},
 ];
 
 export const DEFAULT_GOOGLE_MODEL = AVAILABLE_MODELS[0];
 export const DEFAULT_OPENAI_MODEL = AVAILABLE_MODELS[2];
 export const DEFAULT_ANTHROPIC_MODEL = AVAILABLE_MODELS[5];
+export const DEFAULT_BEDROCK_MODEL = AVAILABLE_MODELS[8];
 
 const defaultPersonas: Persona[] = [
     { id: 'default-1', name: 'Creative Writer', icon: '✍️', prompt: 'You are an acclaimed creative writer. Your responses should be imaginative, evocative, and rich in literary devices. Focus on storytelling and vivid descriptions.' },
@@ -81,6 +91,9 @@ const getInitialMessages = (model: Model): ChatMessageType[] => {
         case 'anthropic':
             text = "Hello! I'm a conversational assistant powered by Anthropic's Claude. Ask me anything or try `/summarize` to get a summary of our chat. I can also understand images.";
             break;
+        case 'bedrock':
+            text = "Hello! I'm a conversational assistant powered by AWS Bedrock. Ask me anything or try `/summarize` to get a summary of our chat. I can also understand images if you're using a Claude model.";
+            break;
     }
     return [{ role: 'model', text, sources: [], timestamp: new Date().toISOString() }];
 };
@@ -93,6 +106,8 @@ const getExamplePrompts = (model: Model) => {
             return ["What is the significance of the GPT-4o model?", "/imagine a vibrant watercolor painting of a fox in a forest", "Write a short story about a robot who discovers music."];
         case 'anthropic':
             return ["What are the core principles of constitutional AI?", "Compare and contrast the architectural styles of Frank Lloyd Wright and Zaha Hadid.", "Write a python script to analyze a CSV file and find the average of a column."];
+        case 'bedrock':
+            return ["What are the main services offered by AWS?", "Explain the serverless computing paradigm using AWS Lambda as an example.", "Write a short story about a data packet traveling through the cloud."];
         default:
             return ["What are the latest advancements in AI?", "Write a short story about a robot who discovers music."];
     }
@@ -103,6 +118,7 @@ const CHAT_HISTORY_KEY = 'chatHistory';
 const MODEL_STORAGE_KEY = 'chat-model-v2';
 const OPENAI_API_KEY_STORAGE_KEY = 'openai-api-key';
 const ANTHROPIC_API_KEY_STORAGE_KEY = 'anthropic-api-key';
+const BEDROCK_CREDENTIALS_KEY = 'bedrock-aws-credentials';
 const CUSTOM_CSS_KEY = 'custom-user-css';
 const TODO_LIST_KEY = 'todo-list-tasks';
 const PERSONAS_KEY = 'ai-personas';
@@ -246,6 +262,12 @@ const App: React.FC = () => {
 
   const [openAIApiKey, setOpenAIApiKey] = useState<string | null>(() => localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY));
   const [anthropicApiKey, setAnthropicApiKey] = useState<string | null>(() => localStorage.getItem(ANTHROPIC_API_KEY_STORAGE_KEY));
+  const [bedrockCredentials, setBedrockCredentials] = useState<BedrockCredentials | null>(() => {
+    try {
+        const savedCreds = localStorage.getItem(BEDROCK_CREDENTIALS_KEY);
+        return savedCreds ? JSON.parse(savedCreds) : null;
+    } catch { return null; }
+  });
 
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
@@ -345,6 +367,7 @@ const App: React.FC = () => {
   useEffect(() => { localStorage.setItem(ACTIVE_PERSONA_ID_KEY, activePersona?.id || ''); }, [activePersona]);
   useEffect(() => { localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, openAIApiKey || ''); }, [openAIApiKey]);
   useEffect(() => { localStorage.setItem(ANTHROPIC_API_KEY_STORAGE_KEY, anthropicApiKey || ''); }, [anthropicApiKey]);
+  useEffect(() => { localStorage.setItem(BEDROCK_CREDENTIALS_KEY, JSON.stringify(bedrockCredentials)); }, [bedrockCredentials]);
   useEffect(() => { localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative)); }, [prioritizeAuthoritative]);
 
   useEffect(() => {
@@ -402,8 +425,8 @@ const App: React.FC = () => {
     const isImageCommand = trimmedPrompt.startsWith('/imagine ');
     const isVideoCommand = trimmedPrompt.startsWith('/create-video ');
 
-    if ((isVideoCommand || isImageCommand) && model.provider === 'anthropic') {
-        setMessages(prev => [...prev, { role: 'model', text: `Sorry, the ${isImageCommand ? 'image' : 'video'} generation command is not available with Anthropic models.`, isError: true, timestamp: new Date().toISOString() }]);
+    if ((isVideoCommand || isImageCommand) && (model.provider === 'anthropic' || model.provider === 'bedrock')) {
+        setMessages(prev => [...prev, { role: 'model', text: `Sorry, the ${isImageCommand ? 'image' : 'video'} generation command is not available with ${model.provider === 'anthropic' ? 'Anthropic' : 'Bedrock'} models.`, isError: true, timestamp: new Date().toISOString() }]);
         return;
     }
 
@@ -482,6 +505,11 @@ const App: React.FC = () => {
         setMessages(prev => [...prev, { role: 'model', text: "Anthropic API Key not set. Please add your key in Settings > API Key Manager to use this model.", isError: true, timestamp: new Date().toISOString() }]);
         return;
     }
+    if (model.provider === 'bedrock' && !bedrockCredentials) {
+        setMessages(prev => [...prev, { role: 'model', text: "AWS Bedrock credentials not set. Please add your credentials in Settings > API Key Manager to use this model.", isError: true, timestamp: new Date().toISOString() }]);
+        return;
+    }
+
 
     setIsLoading(true);
     if (trimmedPrompt) addRecentQuery(trimmedPrompt);
@@ -514,6 +542,9 @@ const App: React.FC = () => {
             case 'anthropic':
                 await getClaudeResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi, systemInstruction);
                 break;
+            case 'bedrock':
+                await getBedrockResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi, systemInstruction);
+                break;
         }
 
         playReceiveSound();
@@ -535,6 +566,10 @@ const App: React.FC = () => {
                 getClaudeSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
                 getClaudeRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
                 break;
+            case 'bedrock':
+                getBedrockSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
+                getBedrockRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
+                break;
         }
 
     } catch (error) {
@@ -542,6 +577,7 @@ const App: React.FC = () => {
             case 'google': parsedError = parseGeminiError(error); break;
             case 'openai': parsedError = parseOpenAIError(error); break;
             case 'anthropic': parsedError = parseClaudeError(error); break;
+            case 'bedrock': parsedError = parseBedrockError(error); break;
             default: parsedError = { message: 'An unknown error occurred.', type: 'unknown' };
         }
 
@@ -590,7 +626,6 @@ const App: React.FC = () => {
     setSummaryText(null);
     try {
         let summary;
-        let parsedError;
         switch(model.provider) {
             case 'google':
                 summary = await getGeminiConversationSummary(messages, model.id);
@@ -600,6 +635,9 @@ const App: React.FC = () => {
                 break;
             case 'anthropic':
                 summary = await getClaudeConversationSummary(messages, model.id);
+                break;
+            case 'bedrock':
+                summary = await getBedrockConversationSummary(messages, model.id);
                 break;
             default:
                 throw new Error("Invalid model provider for summary.");
@@ -611,6 +649,7 @@ const App: React.FC = () => {
             case 'google': parsedError = parseGeminiError(error); break;
             case 'openai': parsedError = parseOpenAIError(error); break;
             case 'anthropic': parsedError = parseClaudeError(error); break;
+            case 'bedrock': parsedError = parseBedrockError(error); break;
             default: parsedError = { message: 'An unknown error occurred while summarizing.'};
         }
         setSummaryText(`Error generating summary: ${parsedError.message}`);
@@ -668,6 +707,7 @@ const App: React.FC = () => {
   
   const handleSaveOpenAIKey = (key: string) => setOpenAIApiKey(key);
   const handleSaveAnthropicKey = (key: string) => setAnthropicApiKey(key);
+  const handleSaveBedrockCredentials = (creds: BedrockCredentials) => setBedrockCredentials(creds);
   const handleKeySelected = () => { setApiKeySelectorProps({ show: false }); setIsKeySelected(true); };
   const handleChangeApiKey = async () => { try { await window.aistudio.openSelectKey(); setIsKeySelected(true); setIsApiKeyManagerOpen(false); } catch (e) { console.error(e); } };
   const handleClearApiKey = async () => { try { await window.aistudio.clearSelectedApiKey?.(); setIsKeySelected(false); } catch (e) { console.error(e); } };
@@ -711,7 +751,7 @@ const App: React.FC = () => {
                                <div className="flex items-center space-x-2"><SparklesIcon className="w-4 h-4" /> <span>Model & Settings</span></div>
                                <ChevronRightIcon className="w-4 h-4" />
                             </button>
-                            {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)} isOpenAIConfigured={!!openAIApiKey} isAnthropicConfigured={!!anthropicApiKey} />}
+                            {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)} isOpenAIConfigured={!!openAIApiKey} isAnthropicConfigured={!!anthropicApiKey} isBedrockConfigured={!!bedrockCredentials} />}
                         </div>
                          <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
                          <button onClick={() => { setIsPersonaManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><UsersIcon className="w-4 h-4" /> <span>Persona Manager</span></button>
@@ -805,7 +845,7 @@ const App: React.FC = () => {
     {apiKeySelectorProps.show && <ApiKeySelector onKeySelected={handleKeySelected} title={apiKeySelectorProps.title} description={apiKeySelectorProps.description} />}
     {lightboxImageUrl && <Lightbox imageUrl={lightboxImageUrl} onClose={() => setLightboxImageUrl(null)} />}
     {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
-    {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} openAIApiKey={openAIApiKey} onSaveOpenAIKey={handleSaveOpenAIKey} anthropicApiKey={anthropicApiKey} onSaveAnthropicKey={handleSaveAnthropicKey} />}
+    {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} openAIApiKey={openAIApiKey} onSaveOpenAIKey={handleSaveOpenAIKey} anthropicApiKey={anthropicApiKey} onSaveAnthropicKey={handleSaveAnthropicKey} bedrockCredentials={bedrockCredentials} onSaveBedrockCredentials={handleSaveBedrockCredentials} />}
     {isPersonaManagerOpen && <PersonaManager onClose={() => setIsPersonaManagerOpen(false)} personas={personas} onSave={handleSavePersona} onDelete={handleDeletePersona} />}
     {isCustomCssModalOpen && <CustomCssModal onClose={() => setIsCustomCssModalOpen(false)} onSave={handleSaveCss} initialCss={customCss} />}
     <ModelExplanationTooltip model={modelExplanation.model} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, model: model })}/>

@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, ResearchScope, AttachedFile } from '../types';
+import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, ResearchScope, AttachedFile, BedrockCredentials } from '../types';
 
 // A module-level instance for non-Veo calls
 let ai: GoogleGenAI | null = null;
@@ -1088,4 +1088,266 @@ ${conversationHistory}
 
 Summary:`;
     return getClaudeChatCompletion(fullPrompt, model);
+}
+
+// ==================================================================
+// --- AWS BEDROCK SERVICE FUNCTIONS ---
+// ==================================================================
+
+const BEDROCK_CREDENTIALS_KEY = 'bedrock-aws-credentials';
+
+export const getBedrockCredentials = (): BedrockCredentials | null => {
+    try {
+        const saved = localStorage.getItem(BEDROCK_CREDENTIALS_KEY);
+        return saved ? JSON.parse(saved) : null;
+    } catch {
+        return null;
+    }
+};
+
+export function parseBedrockError(error: unknown): ParsedError {
+    console.error("AWS Bedrock API Error:", error);
+
+    if (error && typeof error === 'object') {
+        const err = error as any;
+        const message = err.message || err.Message || 'An unknown error occurred.';
+        
+        if (message.includes('AccessDeniedException')) {
+            return { type: 'permission', message: `AWS permission denied. Check your IAM user/role policies for 'bedrock:InvokeModel'. Details: ${message}`, retryable: false };
+        }
+        if (message.includes('ValidationException')) {
+            return { type: 'invalid_request', message: `The request was invalid. Details: ${message}`, retryable: false };
+        }
+        if (message.includes('ThrottlingException')) {
+             return { type: 'rate_limit', message: 'You have exceeded the request rate for your AWS account. Please wait and try again.', retryable: true };
+        }
+        if (message.includes('ServiceUnavailableException') || message.includes('InternalServerException')) {
+            return { type: 'server_error', message: `The AWS Bedrock service is temporarily unavailable. Please try again later. Details: ${message}`, retryable: true };
+        }
+        if (message.includes('credentials')) {
+            return { type: 'api_key', message: `Invalid AWS credentials. Please check your credentials in Settings > API Key Manager. Details: ${message}`, retryable: false };
+        }
+    }
+
+    if (error instanceof Error && error.message.includes('Failed to fetch')) {
+        return { type: 'unknown', message: 'Failed to connect to the bedrock proxy. Ensure it is running and accessible.', retryable: true };
+    }
+
+    return { type: 'unknown', message: 'An unknown error occurred while communicating with AWS Bedrock. Check the console for details.', retryable: true };
+}
+
+
+const prepareBedrockHistory = (modelId: string, history: ChatMessage[], systemInstruction?: string, file?: AttachedFile) => {
+    if (modelId.startsWith('anthropic.')) {
+        // Use the same format as direct Claude API
+        return prepareClaudeHistory(history, file);
+    }
+
+    if (modelId.startsWith('meta.')) { // Llama 3
+        const messages = history
+            .filter(msg => !msg.isThinking && !msg.isError && msg.text)
+            .map(msg => ({
+                role: msg.role === 'model' ? 'assistant' : 'user',
+                content: msg.text
+            }));
+        // Llama 3 on Bedrock uses a single string prompt. We must format it.
+        let formattedPrompt = "";
+        if (systemInstruction) {
+            formattedPrompt += `<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n${systemInstruction}<|eot_id|>`;
+        }
+        messages.forEach(msg => {
+            formattedPrompt += `<|start_header_id|>${msg.role}<|end_header_id|>\n\n${msg.content}<|eot_id|>`;
+        });
+        formattedPrompt += `<|start_header_id|>assistant<|end_header_id|>\n\n`;
+
+        return formattedPrompt;
+    }
+    
+    // Default/Titan
+    const messages = history
+        .filter(msg => !msg.isThinking && !msg.isError && msg.text)
+        .map(msg => `${msg.role === 'model' ? 'Bot' : 'User'}: ${msg.text}`)
+        .join('\n');
+    return systemInstruction ? `${systemInstruction}\n\n${messages}` : messages;
+};
+
+export async function getBedrockResponseStream(
+    history: ChatMessage[],
+    modelId: string,
+    onStreamUpdate: (text: string) => void,
+    file?: { base64: string; mimeType: string; },
+    systemInstruction?: string
+): Promise<void> {
+    const credentials = getBedrockCredentials();
+    if (!credentials) throw new Error("AWS Bedrock credentials not found.");
+
+    // FIX: The object passed to prepareBedrockHistory must conform to the AttachedFile interface.
+    // The previous implementation using the spread operator on 'file' created a 'mimeType' property instead of 'type'.
+    const attachedFileForHistory = file ? { name: '', size: 0, dataUrl: '', base64: file.base64, type: file.mimeType } : undefined;
+    const messages = prepareBedrockHistory(modelId, history, systemInstruction, attachedFileForHistory);
+
+    let body: any;
+    if (modelId.startsWith('anthropic.')) {
+        body = {
+            anthropic_version: "bedrock-2023-05-31",
+            max_tokens: 4096,
+            system: systemInstruction,
+            messages: messages,
+        };
+    } else if (modelId.startsWith('meta.')) {
+        body = {
+            prompt: messages,
+            max_gen_len: 2048,
+            temperature: 0.5,
+        };
+    } else if (modelId.startsWith('amazon.')) {
+         body = {
+            inputText: messages,
+            textGenerationConfig: {
+                maxTokenCount: 4096,
+                temperature: 0.7,
+            }
+        };
+    } else {
+        throw new Error(`Unsupported Bedrock model for streaming: ${modelId}`);
+    }
+
+    // IMPORTANT: For security, never send AWS credentials from the client directly to AWS.
+    // This fetch call assumes a secure backend proxy is running at `/api/bedrock-proxy/invoke-stream`
+    // which takes the credentials and request body, signs the request, and forwards it to AWS.
+    const response = await fetch('/api/bedrock-proxy/invoke-stream', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            credentials,
+            modelId,
+            body,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("Failed to get stream reader.");
+    
+    const decoder = new TextDecoder();
+    while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        try {
+            const data = JSON.parse(chunk);
+            if (data.chunk?.bytes) {
+                const chunkPayload = JSON.parse(atob(data.chunk.bytes));
+                if (modelId.startsWith('anthropic.')) {
+                    if (chunkPayload.type === 'content_block_delta' && chunkPayload.delta.type === 'text_delta') {
+                        onStreamUpdate(chunkPayload.delta.text);
+                    }
+                } else if (modelId.startsWith('meta.')) {
+                    if (chunkPayload.generation) {
+                        onStreamUpdate(chunkPayload.generation);
+                    }
+                } else if (modelId.startsWith('amazon.')) {
+                    if (chunkPayload.outputText) {
+                        onStreamUpdate(chunkPayload.outputText);
+                    }
+                }
+            }
+        } catch (e) {
+            console.error("Error parsing Bedrock stream chunk", e, "Chunk:", chunk);
+        }
+    }
+}
+
+async function getBedrockChatCompletion(prompt: string, modelId: string): Promise<string> {
+    const credentials = getBedrockCredentials();
+    if (!credentials) throw new Error("AWS Bedrock credentials not found.");
+
+    let body: any;
+    if (modelId.startsWith('anthropic.')) {
+         body = {
+            anthropic_version: "bedrock-2023-05-31",
+            max_tokens: 2048,
+            messages: [{ role: 'user', content: prompt }],
+        };
+    } else if (modelId.startsWith('meta.')) {
+        body = {
+            prompt: `<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n\n${prompt}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n`,
+            max_gen_len: 2048
+        };
+    } else { // Titan
+        body = { inputText: prompt, textGenerationConfig: { maxTokenCount: 2048 } };
+    }
+
+    const response = await fetch('/api/bedrock-proxy/invoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credentials, modelId, body }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+    }
+
+    const responseBody = await response.json();
+    let textContent = '';
+    
+    if (modelId.startsWith('anthropic.')) {
+        textContent = responseBody.content[0]?.text || '';
+    } else if (modelId.startsWith('meta.')) {
+        textContent = responseBody.generation || '';
+    } else { // Titan
+        textContent = responseBody.results[0]?.outputText || '';
+    }
+
+    return textContent;
+}
+
+export async function getBedrockConversationSummary(messages: ChatMessage[], model: ModelId): Promise<string> {
+    const conversationHistory = messages.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`).join('\n\n');
+    const fullPrompt = `Please provide a concise summary of the following conversation. Capture the main topics and key takeaways.\n\n--- CONVERSATION START ---\n${conversationHistory}\n--- CONVERSATION END ---\n\nSummary:`;
+    return getBedrockChatCompletion(fullPrompt, model);
+}
+
+export async function getBedrockSuggestedPrompts(prompt: string, response: string, model: string): Promise<string[]> {
+    const fullPrompt = `Based on this user query and model response, generate 3 concise and relevant follow-up questions a user might ask.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return ONLY a JSON object with a single key "questions" which is an array of 3 strings.`;
+    try {
+        const result = await getBedrockChatCompletion(fullPrompt, model);
+        const jsonResult = extractJson(result);
+        const parsed = JSON.parse(jsonResult);
+        return Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : [];
+    } catch (e) {
+        console.error("Error getting Bedrock suggested prompts", e);
+        return [];
+    }
+}
+
+export async function getBedrockRelatedTopics(prompt: string, response: string, model: string): Promise<string[]> {
+    const fullPrompt = `Based on the following user query and model response, generate 3-4 broader, related topics for exploration. These should be distinct from simple follow-up questions.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return ONLY a JSON object with a single key "topics" which is an array of 3-4 strings.`;
+     try {
+        const result = await getBedrockChatCompletion(fullPrompt, model);
+        const jsonResult = extractJson(result);
+        const parsed = JSON.parse(jsonResult);
+        return Array.isArray(parsed.topics) ? parsed.topics.slice(0, 4) : [];
+    } catch (e) {
+        console.error("Error getting Bedrock related topics", e);
+        return [];
+    }
 }

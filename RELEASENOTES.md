@@ -4,7 +4,26 @@ This document tracks the major changes, new features, and improvements for the C
 
 ---
 
-## **Version 4.0.0** — The Productivity & UX Polish `LATEST`
+## **Version 5.0.0** — The Bedrock Expansion `LATEST`
+
+This monumental release introduces **AWS Bedrock** as a fourth major AI provider, cementing the application's status as a premier multi-cloud AI toolkit. Users can now access an even wider array of industry-leading models, including those from Meta and Amazon, all through the same unified and powerful interface.
+
+### ✨ New Features
+- **AWS Bedrock Integration**: Full support for models hosted on AWS Bedrock. The initial release includes:
+    - **Anthropic Claude 3.5 Sonnet**: The same state-of-the-art model from Anthropic, now available via AWS.
+    - **Meta Llama 3 70B Instruct**: Meta's powerful, open-source flagship model.
+    - **Amazon Titan Text Premier**: Amazon's most advanced and capable large language model.
+- **Secure Credential Management**: A new **AWS Bedrock** section in the **API Key Manager** allows users to securely configure their AWS Region, Access Key ID, Secret Access Key, and optional Session Token.
+- **Secure Proxy Architecture**: To ensure maximum security, Bedrock API calls are architected to be sent through a backend proxy, which handles the complex and sensitive AWS Signature V4 signing process. This prevents any exposure of secret credentials on the client-side.
+
+### 🚀 Improvements
+- **Quad-Provider Model Selector**: The **Model Selector** UI now features a fourth "Bedrock" tab, which is automatically enabled when AWS credentials are provided.
+- **Provider-Aware Logic**: The core service layer has been extended to handle Bedrock's unique API request/response formats, including specific payload structures for Claude, Llama, and Titan models.
+- **Updated Documentation**: The `README.md` has been updated with detailed instructions on how to configure and use AWS Bedrock within the application.
+
+---
+
+## **Version 4.0.0** — The Productivity & UX Polish
 
 This release focuses on refining the user experience and integrating powerful workflow enhancements. Key updates include a streamlined way to create tasks directly from chat messages and a more intuitive emoji-based icon picker for AI personas. Additionally, core project documentation has been significantly improved for clarity.
 
@@ -83,7 +102,6 @@ The inaugural release of the Conversational Search application, a powerful and f
     - A powerful theming engine with a **Custom CSS Editor**.
     - A smart Markdown editor with live preview and voice input (speech-to-text).
     - AI-powered suggestions for follow-up prompts and related topics.
-    - A comprehensive suite of keyboard shortcuts for power users.
 - **Technical Excellence**:
     - Real-time streaming for fluid, natural-feeling responses.
     - Robust, user-friendly error handling and reporting.
