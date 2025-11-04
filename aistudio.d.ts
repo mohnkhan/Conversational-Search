@@ -25,7 +25,8 @@ interface SpeechRecognitionResultList {
 interface SpeechRecognitionResult {
     readonly isFinal: boolean;
     readonly [index: number]: SpeechRecognitionAlternative;
-    length: number;
+    // FIX: Added the `readonly` modifier to match the standard DOM library definition and resolve the error.
+    readonly length: number;
 }
 
 interface SpeechRecognitionAlternative {

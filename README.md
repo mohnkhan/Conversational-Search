@@ -29,7 +29,11 @@ This project is built on three core principles:
 
 ## Key Features
 
--   **Multi-Provider AI Engine:** Instantly switch between Google (Gemini 2.5 Pro/Flash), OpenAI (GPT-4o/Turbo), Anthropic (Claude 3.5 Sonnet/Opus/Haiku), and AWS Bedrock (Claude 3.5 Sonnet, Llama 3, Amazon Titan).
+-   **Multi-Provider AI Engine:** Instantly switch between:
+    -   **Google:** Gemini 2.5 Pro & Flash
+    -   **OpenAI:** GPT-4o, GPT-4 Turbo, & GPT-3.5 Turbo
+    -   **Anthropic:** Claude 3.5 Sonnet, Claude 3 Opus, & Claude 3 Haiku
+    -   **AWS Bedrock:** Claude 3.5 Sonnet, Llama 3 70B, & Amazon Titan Premier
 -   **AI-Powered Tool Calling:** Go beyond chat. The AI can now use tools to perform actions on your behalf, including:
     -   **Live Weather Data:** Fetch real-time weather information for any location.
     -   **Direct To-Do List Integration:** Add tasks to your list using natural language.
@@ -146,7 +150,7 @@ A list of keyboard shortcuts for power users. *Use `Cmd` instead of `Ctrl` on ma
 
 ## Release History
 
-For a detailed list of changes, new features, and improvements in each version, please see the [Release Notes](./RELEASENOTES.md).
+For a detailed list of changes, new features, and improvements in each version, please see the [**Release Notes**](./RELEASENOTES.md).
 
 ## Contributing
 
