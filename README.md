@@ -11,6 +11,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
   - [Special Commands](#special-commands)
   - [Keyboard Shortcuts](#keyboard-shortcuts)
 - [Prompt Engineering Tips](#prompt-engineering-tips)
+- [Release History](#release-history)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -34,6 +35,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **Recent Search History:** Automatically saves your last 5 queries, allowing you to quickly revisit or re-run past searches.
 -   **Custom CSS Editor:** Inject your own CSS to fully personalize the application's appearance and layout.
 -   **Theming Engine:** Personalize your experience with multiple built-in themes (e.g., Abyss, Daylight, Twilight, Latte).
+-   **Autosave Draft:** Your message draft is automatically saved, so you won't lose it if you accidentally refresh the page.
 
 ### Advanced User Experience
 -   **Real-time Streaming:** Responses are streamed in real-time for a fluid, conversational feel.
@@ -132,6 +134,10 @@ Crafting effective prompts is key to unlocking the full potential of the generat
 -   **Define the Output Format:** Explicitly ask for the format you want. (e.g., `List the pros and cons of coffee in a two-column markdown table`).
 -   **For Images (`/imagine`):** For best results, use descriptive adjectives, specify artistic styles (e.g., `photorealistic`, `watercolor`, `cyberpunk`), and set the scene (e.g., `dramatic cinematic lighting`, `a bustling futuristic city`).
 -   **For Videos (`/create-video`):** Focus on action and movement in your prompts. Use dynamic verbs and camera terms like `a hummingbird flying in slow motion`, `a time-lapse of a flower blooming`, or `an aerial shot of a coastline`.
+
+## Release History
+
+For a detailed list of changes, new features, and improvements in each version, please see the [Release Notes](./RELEASENOTES.md).
 
 ## Contributing
 

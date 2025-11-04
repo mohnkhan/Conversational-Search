@@ -32,6 +32,7 @@ This is the inaugural release of the Conversational Search application, a powerf
 -   **Chat Export:** Export the entire conversation history to multiple formats: Plain Text (`.txt`), JSON, or Markdown (`.md`).
 -   **Integrated To-Do List:** A persistent, in-app to-do list to manage tasks that arise from your conversations.
 -   **Recent Queries:** Your last five search queries are saved for quick access and re-use.
+-   **Autosave Draft:** Your message draft is automatically saved in the text input area, so you won't lose it if you accidentally refresh the page.
 -   **Persistent History:** Your chat history, to-do list, and preferences are saved locally in your browser for session continuity.
 -   **Copy & Share:** Easily copy individual messages or the full conversation transcript to your clipboard.
 
