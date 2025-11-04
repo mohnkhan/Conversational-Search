@@ -24,6 +24,8 @@ interface ChatInputProps {
   onSetAttachedFile: (file: AttachedFile | null) => void;
 }
 
+const DRAFT_STORAGE_KEY = 'chat-input-draft';
+
 const ChatInput: React.FC<ChatInputProps> = ({ 
     onSendMessage, 
     isLoading, 
@@ -38,7 +40,14 @@ const ChatInput: React.FC<ChatInputProps> = ({
     attachedFile,
     onSetAttachedFile,
 }) => {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(() => {
+    try {
+        return localStorage.getItem(DRAFT_STORAGE_KEY) || '';
+    } catch (error) {
+        console.error("Failed to read draft from localStorage:", error);
+        return '';
+    }
+  });
   const [activeTab, setActiveTab] = useState<'write' | 'preview'>('write');
   const [cursorPosition, setCursorPosition] = useState<{start: number, end: number} | null>(null);
   const [isListening, setIsListening] = useState(false);
@@ -81,6 +90,15 @@ const ChatInput: React.FC<ChatInputProps> = ({
     if (formattedEnd) return t('dateRangeTo', { endDate: formattedEnd });
     return t('customDateRange');
   };
+
+  // Effect to save draft to localStorage
+  useEffect(() => {
+    try {
+        localStorage.setItem(DRAFT_STORAGE_KEY, text);
+    } catch (error) {
+        console.error("Failed to save draft to localStorage:", error);
+    }
+  }, [text]);
 
   // Set cursor position after formatting
   useEffect(() => {

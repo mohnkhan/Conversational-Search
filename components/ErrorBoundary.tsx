@@ -11,10 +11,13 @@ interface State {
 }
 
 class ErrorBoundary extends Component<Props, State> {
-    // FIX: Initializing state using a class field. This is the modern and concise
-    // way to set initial state in a React class component. The previous constructor-based
-    // approach was causing type errors where `this.state` and `this.props` were not recognized.
-    public state: State = { hasError: false };
+    // FIX: Replaced the class field state initialization with a constructor.
+    // Adding a constructor and calling super(props) ensures that `this.props` is correctly
+    // set up for the component instance, resolving the type errors.
+    constructor(props: Props) {
+        super(props);
+        this.state = { hasError: false };
+    }
 
     public static getDerivedStateFromError(_: Error): State {
         // Update state so the next render will show the fallback UI.
