@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SendIcon, FilterIcon, XIcon, BoldIcon, ItalicIcon, CodeIcon, SparklesIcon, MicrophoneIcon, EyeIcon, SparklesIconFilled, PaperclipIcon, FileTextIcon, ErrorIcon } from './Icons';
-import { DateFilter, PredefinedDateFilter, AttachedFile, ResearchScope } from '../types';
+import { DateFilter, PredefinedDateFilter, AttachedFile, ResearchScope, ModelProvider } from '../types';
 import FilterPanel from './FilterPanel';
 import CodeBlock from './CodeBlock'; // Import the shared CodeBlock component
 import DeepResearchPanel from './DeepResearchPanel';
@@ -22,6 +22,7 @@ interface ChatInputProps {
   onSetResearchScope: (scope: ResearchScope | null) => void;
   attachedFile: AttachedFile | null;
   onSetAttachedFile: (file: AttachedFile | null) => void;
+  provider: ModelProvider;
 }
 
 const DRAFT_STORAGE_KEY = 'chat-input-draft';
@@ -39,6 +40,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
     onSetResearchScope,
     attachedFile,
     onSetAttachedFile,
+    provider,
 }) => {
   const [text, setText] = useState(() => {
     try {
@@ -414,12 +416,16 @@ const ChatInput: React.FC<ChatInputProps> = ({
 
   const isFilterActive = !(typeof activeFilter === 'string' && activeFilter === 'any');
   const isDeepResearchActive = researchScope !== null;
-  const deepResearchTooltip = "Engage Gemini 2.5 Pro with a specific research goal for more tailored, in-depth analysis.";
+  const isGoogleProvider = provider === 'google';
+
+  const deepResearchTooltip = isGoogleProvider
+    ? "Engage Gemini 2.5 Pro with a specific research goal for more tailored, in-depth analysis."
+    : "Deep Research is only available for Google models.";
 
   return (
     <div className="relative">
       <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*,text/plain,text/markdown,text/csv,application/json" />
-      {isFilterMenuOpen && (
+      {isFilterMenuOpen && isGoogleProvider && (
         <div ref={filterMenuRef}>
             <FilterPanel 
                 activeFilter={activeFilter}
@@ -431,7 +437,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
             />
         </div>
       )}
-      {isResearchPanelOpen && (
+      {isResearchPanelOpen && isGoogleProvider && (
         <div ref={researchPanelRef}>
             <DeepResearchPanel
                 currentScope={researchScope}
@@ -447,7 +453,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </div>
       )}
       <form onSubmit={handleSubmit}>
-        {isFilterActive && (
+        {isFilterActive && isGoogleProvider && (
           <div className="flex items-center space-x-2 text-xs bg-[var(--bg-secondary)] border-x border-t border-[var(--border-color)] px-3 py-1.5 rounded-t-lg w-full">
             <FilterIcon className="w-4 h-4 text-[var(--accent-primary)] flex-shrink-0" />
             <span className="text-[var(--text-secondary)] font-medium truncate" title={formatFilterLabel(activeFilter)}>
@@ -465,7 +471,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
           </div>
         )}
         <div className={`bg-[var(--bg-secondary)] border border-[var(--border-color)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)] transition-shadow duration-200 overflow-hidden ${
-          isFilterActive ? 'rounded-b-lg' : 'rounded-lg'
+          isFilterActive && isGoogleProvider ? 'rounded-b-lg' : 'rounded-lg'
         }`}>
              {fileError && (
                 <div className="bg-[var(--accent-danger)]/10 border-b border-[var(--accent-danger)]/30 px-3 py-2 flex items-center justify-between text-sm animate-fade-in">
@@ -566,10 +572,11 @@ const ChatInput: React.FC<ChatInputProps> = ({
                         ref={researchButtonRef}
                         type="button"
                         onClick={() => setIsResearchPanelOpen(p => !p)}
+                        disabled={!isGoogleProvider}
                         aria-pressed={isDeepResearchActive}
                         aria-label={isDeepResearchActive ? "Deep Research mode is active" : "Enable Deep Research mode"}
-                        title={isDeepResearchActive ? "Deep Research is active" : deepResearchTooltip}
-                        className={`p-2 rounded-md transition-all duration-200 ${
+                        title={deepResearchTooltip}
+                        className={`p-2 rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                             isDeepResearchActive 
                                 ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/30' 
                                 : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)]/80'
@@ -581,11 +588,12 @@ const ChatInput: React.FC<ChatInputProps> = ({
                     ref={filterButtonRef}
                     type="button"
                     onClick={onToggleFilterMenu}
+                    disabled={!isGoogleProvider}
                     aria-expanded={isFilterMenuOpen}
                     aria-controls="filter-menu"
                     aria-label="Open search filters (F)"
-                    title="Open search filters (F)"
-                    className={`p-2 rounded-md hover:bg-[var(--bg-tertiary)]/80 transition-colors duration-200 ${
+                    title={isGoogleProvider ? "Open search filters (F)" : "Filters are only available for Google models"}
+                    className={`p-2 rounded-md hover:bg-[var(--bg-tertiary)]/80 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
                         isFilterActive ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'
                     }`}
                     >

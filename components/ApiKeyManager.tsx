@@ -1,16 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { XIcon, KeyIcon, RefreshCwIcon, TrashIcon, CheckIcon } from './Icons';
+import { XIcon, KeyIcon, CheckIcon, TrashIcon, RefreshCwIcon } from './Icons';
 
 interface ApiKeyManagerProps {
     onClose: () => void;
     onChangeKey: () => void;
     onClearKey: () => void;
     isKeySelected: boolean;
+    openAIApiKey: string | null;
+    onSaveOpenAIKey: (key: string) => void;
 }
 
-const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onClearKey, isKeySelected }) => {
+const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onClearKey, isKeySelected, openAIApiKey, onSaveOpenAIKey }) => {
     const modalRef = useRef<HTMLDivElement>(null);
-    const [maskedKey, setMaskedKey] = useState<string>('Checking...');
+    const [googleMaskedKey, setGoogleMaskedKey] = useState<string>('Checking...');
+    const [openAIKeyInput, setOpenAIKeyInput] = useState(openAIApiKey || '');
+    const [isOAIKeySaved, setIsOAIKeySaved] = useState(false);
 
     useEffect(() => {
         const modalElement = modalRef.current;
@@ -51,17 +55,22 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
     }, [onClose]);
 
     useEffect(() => {
-        // This effect runs asynchronously to avoid potential timing issues with `process.env` updates.
         setTimeout(() => {
             const key = process.env.API_KEY;
             if (isKeySelected && key) {
                 const masked = `${key.substring(0, 5)}...${key.substring(key.length - 4)}`;
-                setMaskedKey(masked);
+                setGoogleMaskedKey(masked);
             } else {
-                setMaskedKey('No key selected');
+                setGoogleMaskedKey('No key selected');
             }
         }, 0);
     }, [isKeySelected]);
+
+    const handleSaveOpenAI = () => {
+        onSaveOpenAIKey(openAIKeyInput.trim());
+        setIsOAIKeySaved(true);
+        setTimeout(() => setIsOAIKeySaved(false), 2000);
+    };
 
     return (
         <div
@@ -93,46 +102,70 @@ const ApiKeyManager: React.FC<ApiKeyManagerProps> = ({ onClose, onChangeKey, onC
                     </button>
                 </header>
 
-                <main className="p-6 space-y-4">
-                    <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
-                        <p className="text-sm text-[var(--text-muted)]">Current Billed API Key</p>
-                        <p className="font-mono text-lg text-[var(--text-primary)] mt-1 truncate" title={isKeySelected ? "Current active key" : "No key selected"}>
-                            {maskedKey}
+                <main className="p-6 space-y-6">
+                    {/* Google API Key Section */}
+                    <div>
+                        <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">Google AI</h3>
+                        <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                            <p className="text-sm text-[var(--text-muted)]">Current Billed API Key (for Video)</p>
+                            <p className="font-mono text-base text-[var(--text-primary)] mt-1 truncate" title={isKeySelected ? "Current active key" : "No key selected"}>
+                                {googleMaskedKey}
+                            </p>
+                        </div>
+                        <p className="text-xs text-[var(--text-muted)] mt-2">
+                            This key is required for video generation and is managed via the AI Studio environment.
                         </p>
+                         <div className="flex items-center space-x-2 mt-3">
+                            <button onClick={onChangeKey} className="flex-1 px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] transition-colors flex items-center justify-center space-x-2">
+                                <RefreshCwIcon className="w-4 h-4" />
+                                <span>Change Key</span>
+                            </button>
+                            <button onClick={onClearKey} disabled={!isKeySelected} className="flex-1 px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center justify-center space-x-2">
+                                <TrashIcon className="w-4 h-4" />
+                                <span>Clear Key</span>
+                            </button>
+                        </div>
                     </div>
-                    <p className="text-xs text-[var(--text-muted)] text-center">
-                        This API key is used for features that require billing, like video generation. It is managed by the AI Studio environment and is not stored by this application.
-                    </p>
+
+                    <div className="border-t border-[var(--border-color)]"></div>
+
+                    {/* OpenAI API Key Section */}
+                    <div>
+                        <h3 className="text-base font-semibold text-[var(--text-primary)] mb-2">OpenAI</h3>
+                         <div className="bg-[var(--bg-primary)] p-3 rounded-lg border border-[var(--border-color)]">
+                            <label htmlFor="openai-key-input" className="text-sm text-[var(--text-muted)]">Your OpenAI API Key</label>
+                            <input
+                                id="openai-key-input"
+                                type="password"
+                                value={openAIKeyInput}
+                                onChange={(e) => setOpenAIKeyInput(e.target.value)}
+                                placeholder="sk-..."
+                                className="w-full bg-transparent font-mono text-base text-[var(--text-primary)] mt-1 focus:outline-none"
+                            />
+                        </div>
+                        <p className="text-xs text-[var(--text-muted)] mt-2">
+                           Your key is stored securely in your browser's local storage and is never sent anywhere except to OpenAI.
+                        </p>
+                        <div className="flex justify-end mt-3">
+                             <button
+                                onClick={handleSaveOpenAI}
+                                className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[var(--accent-primary)] hover:opacity-90 transition-all flex items-center space-x-2 disabled:opacity-70 disabled:cursor-not-allowed"
+                                disabled={openAIKeyInput === openAIApiKey}
+                            >
+                                {isOAIKeySaved ? <CheckIcon className="w-4 h-4" /> : null}
+                                <span>{isOAIKeySaved ? 'Saved!' : 'Save OpenAI Key'}</span>
+                            </button>
+                        </div>
+                    </div>
                 </main>
 
-                <footer className="flex items-center justify-between p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
+                 <footer className="flex items-center justify-end p-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)]/50">
                     <button
-                        onClick={onClearKey}
-                        disabled={!isKeySelected}
-                        className="px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
-                        aria-label="Clear selected API key"
-                        title="Clear selected API key"
+                        onClick={onClose}
+                        className="px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] bg-[var(--bg-tertiary)]/80 hover:bg-[var(--bg-tertiary)] transition-colors"
                     >
-                        <TrashIcon className="w-4 h-4" />
-                        <span>Clear Key</span>
+                        Close
                     </button>
-                    <div className="flex items-center space-x-2">
-                        <button
-                            onClick={onClose}
-                            className="px-4 py-2 rounded-md text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-                        >
-                            Close
-                        </button>
-                        <button
-                            onClick={onChangeKey}
-                            className="px-4 py-2 rounded-md text-sm font-semibold text-white bg-[var(--accent-primary)] hover:opacity-90 transition-all flex items-center space-x-2"
-                            aria-label="Change selected API key"
-                            title="Change selected API key"
-                        >
-                            <RefreshCwIcon className="w-4 h-4" />
-                            <span>Change Key</span>
-                        </button>
-                    </div>
                 </footer>
             </div>
         </div>

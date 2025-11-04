@@ -1,6 +1,6 @@
 # Conversational Search
 
-A powerful, feature-rich conversational search tool powered by the Google Gemini API. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images, videos, and understanding user-uploaded images, providing a truly interactive and multi-modal experience.
+A powerful, feature-rich conversational search tool powered by the Google Gemini and OpenAI APIs. It leverages Google Search grounding for up-to-date, accurate information and integrates advanced generative AI capabilities for creating images, videos, and understanding user-uploaded images, providing a truly interactive and multi-modal experience.
 
 ## Table of Contents
 
@@ -18,17 +18,18 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 ## Key Features
 
 ### Core AI & Search
--   **Grounded Conversational Search:** Get reliable answers with sources cited directly from Google Search.
--   **Dual-Model Support & Deep Research:**
-    -   **Model Selection:** Manually switch between Gemini 2.5 Flash (for speed) and Gemini 2.5 Pro (for complex tasks).
-    -   **Deep Research Mode:** Instantly engage the more powerful Gemini 2.5 Pro model for in-depth answers. Activate specific analysis scopes like *Comprehensive Analysis*, *Pros & Cons*, *Historical Context*, *Compare & Contrast*, and *Technical Deep-Dive*.
--   **Advanced Search Filtering:** Filter results by time using presets (past day, week, month, year) or a custom date range.
--   **Authoritative Source Prioritization:** A toggle to guide the model to prefer academic, governmental, and other high-quality sources, while filtering out common social media and blog sites.
+-   **Dual-Provider AI Engine:** Seamlessly switch between top-tier models from both **Google** (Gemini 2.5 Pro, Gemini 2.5 Flash) and **OpenAI** (GPT-4o, GPT-4 Turbo).
+-   **Grounded Conversational Search (Google):** Get reliable answers with sources cited directly from Google Search when using Gemini models.
+-   **Deep Research Mode (Google):** Instantly engage Gemini 2.5 Pro for in-depth answers. Activate specific analysis scopes like *Comprehensive Analysis*, *Pros & Cons*, *Historical Context*, *Compare & Contrast*, and *Technical Deep-Dive*.
+-   **Advanced Search Filtering (Google):** Filter results by time using presets (past day, week, month, year) or a custom date range.
+-   **Authoritative Source Prioritization (Google):** A toggle to guide Gemini models to prefer academic, governmental, and other high-quality sources.
 
 ### Multi-modal Capabilities
--   **Image Generation:** Create stunning, high-quality images using the `/imagine` command with Imagen.
--   **Video Generation:** Generate short, 720p videos from text prompts using the `/create-video` command with Veo.
--   **Image Understanding:** Attach images to your prompts to ask questions about them or use them as context for your queries.
+-   **Image Generation:**
+    -   **DALL-E 3 (OpenAI):** Create vibrant, highly creative images with the `/imagine` command.
+    -   **Imagen (Google):** Generate stunning, high-quality photorealistic images.
+-   **Video Generation (Google):** Generate short, 720p videos from text prompts using the `/create-video` command with Veo.
+-   **Image Understanding:** Attach images to your prompts to ask questions about them or use them as context for your queries with both Gemini and GPT-4o.
 
 ### Productivity & Customization
 -   **Integrated To-Do List:** Manage tasks that arise during your conversation directly within a dedicated modal. Your tasks are saved locally.
@@ -42,7 +43,7 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **Smart Text Editor:** Full Markdown support with a formatting toolbar, live preview, and smart features like auto-completing lists and brackets.
 -   **Voice & Audio:** Use your microphone to dictate prompts (speech-to-text) and listen to the AI's responses with a single click (text-to-speech).
 -   **Image Lightbox:** Click any generated image to view it in a full-screen, high-resolution lightbox.
--   **AI-Powered Suggestions:** Receive AI-generated suggestions for follow-up questions and related topics to explore.
+-   **AI-Powered Suggestions:** Receive AI-generated suggestions for follow-up questions and related topics to explore from your selected model.
 
 ### Comprehensive Chat Management
 -   **Persistent History:** Conversations, tasks, and recent queries are saved locally for continuity.
@@ -51,13 +52,16 @@ A powerful, feature-rich conversational search tool powered by the Google Gemini
 -   **Feedback Mechanism:** Rate model responses with thumbs-up/down to track quality.
 
 ### Secure API Key Management
--   **Integrated API Key Flow:** A secure process for users to select their own billed API key, required for features like video generation.
--   **API Key Manager:** Easily change or clear the selected billed API key.
+-   **Dual-Key System:** A secure, unified manager for both Google and OpenAI API keys.
+    -   **OpenAI Key:** Enter and save your key directly in the manager. It's stored only in your browser's local storage.
+    -   **Google Billed Key (for Video):** A secure process for users to select their own billed API key via the AI Studio pop-up.
 
 ## Technology Stack
 
 -   **Frontend:** [React](https://react.dev/) (with Hooks) & [TypeScript](https://www.typescriptlang.org/)
--   **AI:** [Google Gemini API](https://ai.google.dev/gemini-api) (`@google/genai`)
+-   **AI:**
+    - [Google Gemini API](https://ai.google.dev/gemini-api) (`@google/genai`)
+    - [OpenAI API](https://platform.openai.com/docs/api-reference)
 -   **Styling:** [Tailwind CSS](https://tailwindcss.com/)
 -   **Markdown:** [React Markdown](https://github.com/remarkjs/react-markdown) with [Remark GFM](https://github.com/remarkjs/remark-gfm)
 -   **Syntax Highlighting:** [React Syntax Highlighter](https://github.com/react-syntax-highlighter/react-syntax-highlighter)
@@ -69,44 +73,47 @@ This project is a static web application and can be run in any environment that 
 
 ### Prerequisites
 
-You will need a Google Gemini API Key from [Google AI Studio](https://ai.google.dev/). For video generation, this key must be associated with a Google Cloud project that has billing enabled.
+You will need API Keys from both [Google AI Studio](https://ai.google.dev/) and the [OpenAI Platform](https://platform.openai.com/). For video generation with Google, your key must be associated with a Google Cloud project that has billing enabled.
 
 ### API Key Configuration
 
-This application uses two methods for handling API keys:
+This application uses a multi-key system:
 
-1.  **Standard API Key (for Text, Search, Images):**
-    -   This key is used for most features.
+1.  **Standard Google API Key (for Text, Search, Images):**
+    -   This key is used for most Google features.
     -   It must be configured as an environment variable named `API_KEY` in your deployment environment.
     -   The application will automatically use this key for standard Gemini API calls.
 
-2.  **Billed Project API Key (for Video Generation):**
+2.  **Billed Google Project API Key (for Video Generation):**
     -   The `/create-video` feature uses the Veo model, which requires an API key associated with a billed Google Cloud project.
     -   When you first use this command, a secure pop-up from AI Studio will appear, prompting you to select an appropriate billed API key.
-    -   This is a one-time setup step. The key is managed by the AI Studio environment and is **not** stored by this application.
+
+3.  **OpenAI API Key:**
+    -   Required to use any of the OpenAI models (e.g., GPT-4o, DALL-E 3).
+    -   Go to **Settings -> API Key Manager** within the app to enter and save your OpenAI key. It will be stored securely in your browser's local storage.
 
 ### Setup
 
 1.  **Deploy the Application:** Deploy the project files (HTML, TSX, etc.) to your preferred hosting service (e.g., Vercel, Netlify, or a simple web server).
-2.  **Configure Environment Variable:** Set your standard Gemini API Key as an environment variable named `API_KEY` in your hosting service's settings.
-3.  **Access the App:** Open the deployed URL in your browser to start using the application.
+2.  **Configure Environment Variable:** Set your standard Google Gemini API Key as an environment variable named `API_KEY` in your hosting service's settings.
+3.  **Access the App:** Open the deployed URL, open the API Key Manager, and add your OpenAI key to unlock all features.
 
 ## Usage
 
+-   **Select a Model:** Use the **Settings -> Model & Settings** menu to choose your preferred AI provider and model.
 -   **Start a conversation:** Simply type your question in the input box, use voice input, or try one of the example prompts.
 -   **Ask about images:** Click the **paperclip icon** 📎 to attach an image from your device. Then, type your question about the image and send the message.
 -   **Format your messages:** Use the toolbar or standard Markdown syntax to format your text. Switch to the "Preview" tab to see how it will look.
--   **Use Deep Research:** For complex queries, click the **sparkles icon** ✨ to activate Deep Research mode. This engages the more powerful Gemini 2.5 Pro model with a specific analysis goal for a more comprehensive response.
+-   **Use Deep Research (Google Models Only):** For complex queries, click the **sparkles icon** ✨ to activate Deep Research mode. This engages Gemini 2.5 Pro with a specific analysis goal for a more comprehensive response.
 -   **Access Tools & Settings:** Use the settings menu in the top-right corner to find the To-Do List, Custom CSS editor, Theme selector, Chat Export, and more.
--   **Revisit Queries:** Your most recent searches are displayed on the initial chat screen, allowing you to click and re-run them instantly.
 
 ### Special Commands
 
--   `/imagine <prompt>`: Creates an image based on the text prompt that follows.
+-   `/imagine <prompt>`: Creates an image based on the text prompt that follows. Uses DALL-E 3 for OpenAI models and Imagen for Google models.
     -   *Example:* `/imagine a majestic lion wearing a crown, cinematic lighting`
--   `/create-video <prompt>`: Creates a short video based on the text prompt. This requires selecting a billed API key.
+-   `/create-video <prompt>`: (Google Models Only) Creates a short video based on the text prompt. This requires selecting a billed API key.
     -   *Example:* `/create-video a hummingbird flying in slow motion`
--   `/summarize`: Generates a summary of the current conversation.
+-   `/summarize`: Generates a summary of the current conversation using the active model.
 
 ### Keyboard Shortcuts
 
@@ -117,7 +124,7 @@ A list of keyboard shortcuts for power users. *Use `Cmd` instead of `Ctrl` on ma
 | `Enter`           | Send message                  |
 | `Shift` + `Enter` | Add a new line                |
 | `Ctrl` + `K`      | Clear the entire chat         |
-| `F`               | Toggle the search filter menu |
+| `F`               | Toggle search filter menu (Google Only) |
 | `Ctrl` + `B`      | Apply **bold** formatting     |
 | `Ctrl` + `I`      | Apply *italic* formatting     |
 | `Ctrl` + `E`      | Apply `inline code` formatting |
@@ -132,7 +139,9 @@ Crafting effective prompts is key to unlocking the full potential of the generat
 -   **Be Specific and Detailed:** The more detail you provide, the better the model can understand your intent. (e.g., `Explain the concept of a black hole to a 12-year-old` vs. `Tell me about space`).
 -   **Provide Context and Persona:** Tell the model who it should be. (e.g., `You are a marketing expert. Write an announcement for a new smartphone...`).
 -   **Define the Output Format:** Explicitly ask for the format you want. (e.g., `List the pros and cons of coffee in a two-column markdown table`).
--   **For Images (`/imagine`):** For best results, use descriptive adjectives, specify artistic styles (e.g., `photorealistic`, `watercolor`, `cyberpunk`), and set the scene (e.g., `dramatic cinematic lighting`, `a bustling futuristic city`).
+-   **For Images (`/imagine`):**
+    -   **DALL-E 3:** Tends to be more creative and illustrative. Try whimsical or abstract prompts.
+    -   **Imagen:** Excels at photorealism and cinematic styles. Use descriptive adjectives and specify lighting (e.g., `dramatic cinematic lighting`, `golden hour`).
 -   **For Videos (`/create-video`):** Focus on action and movement in your prompts. Use dynamic verbs and camera terms like `a hummingbird flying in slow motion`, `a time-lapse of a flower blooming`, or `an aerial shot of a coastline`.
 
 ## Release History

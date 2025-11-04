@@ -1,7 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { getGeminiResponseStream, getSuggestedPrompts, getConversationSummary, parseGeminiError, getRelatedTopics, generateImage, generateVideo } from './services/geminiService';
+import { 
+    getGeminiResponseStream, 
+    getGeminiSuggestedPrompts, 
+    getGeminiConversationSummary, 
+    parseGeminiError, 
+    getGeminiRelatedTopics, 
+    generateImageWithImagen, 
+    generateVideo,
+    getOpenAIResponseStream,
+    generateImageWithDallE,
+    getOpenAIConversationSummary,
+    getOpenAISuggestedPrompts,
+    getOpenAIRelatedTopics,
+    parseOpenAIError
+} from './services/geminiService';
 import { playSendSound, playReceiveSound } from './services/audioService';
-import { ChatMessage as ChatMessageType, DateFilter, ModelId, Task, AttachedFile, ResearchScope } from './types';
+import { ChatMessage as ChatMessageType, DateFilter, Model, Task, AttachedFile, ResearchScope, ModelProvider } from './types';
 import ChatMessage from './components/ChatMessage';
 import ChatInput from './components/ChatInput';
 import { BotIcon, SearchIcon, TrashIcon, ClipboardListIcon, CheckIcon, SparklesIcon, XIcon, CopyIcon, ImageIcon, VideoIcon, DownloadIcon, PaletteIcon, HelpCircleIcon, SettingsIcon, KeyIcon, ChevronRightIcon, FileCodeIcon, LightbulbIcon, CheckSquareIcon, PlusSquareIcon, InfoIcon } from './components/Icons';
@@ -23,23 +37,71 @@ import ExportChatModal from './components/ExportChatModal';
 import SummaryModal from './components/SummaryModal';
 import InitialPrompts from './components/InitialPrompts';
 
-const initialMessages: ChatMessageType[] = [
+// --- Model Definitions ---
+export const AVAILABLE_MODELS: Model[] = [
+    {
+        id: 'gemini-2.5-flash',
+        name: 'Gemini 2.5 Flash',
+        provider: 'google',
+        description: 'Fast and cost-effective for most tasks.',
+    },
+    {
+        id: 'gemini-2.5-pro',
+        name: 'Gemini 2.5 Pro',
+        provider: 'google',
+        description: 'Most capable for complex reasoning.',
+    },
+    {
+        id: 'gpt-4o',
+        name: 'GPT-4o',
+        provider: 'openai',
+        description: 'The latest, most advanced model from OpenAI.',
+    },
+    {
+        id: 'gpt-4-turbo',
+        name: 'GPT-4 Turbo',
+        provider: 'openai',
+        description: 'High-performance model for large-scale tasks.',
+    },
+    {
+        id: 'gpt-3.5-turbo',
+        name: 'GPT-3.5 Turbo',
+        provider: 'openai',
+        description: 'Fast and optimized for chat applications.',
+    }
+];
+
+export const DEFAULT_GOOGLE_MODEL = AVAILABLE_MODELS[0];
+export const DEFAULT_OPENAI_MODEL = AVAILABLE_MODELS[2];
+
+
+const getInitialMessages = (model: Model): ChatMessageType[] => [
   {
     role: 'model',
-    text: "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, `/create-video <prompt>` for a short video, or `/summarize` to get a summary of our chat.",
+    text: model.provider === 'google'
+      ? "Hello! I'm a conversational search assistant. Ask me anything, or try `/imagine <prompt>` to create an image, `/create-video <prompt>` for a short video, or `/summarize` to get a summary of our chat."
+      : "Hello! I'm a conversational assistant powered by OpenAI. Ask me anything, or try `/imagine <prompt>` to create an image or `/summarize` to get a summary of our chat.",
     sources: [],
     timestamp: new Date().toISOString(),
   }
 ];
 
-const examplePrompts = [
-    "What are the latest advancements in AI?",
-    "/imagine a photorealistic image of a cat astronaut",
-    "/create-video a drone flying over a futuristic city",
-];
+const getExamplePrompts = (model: Model) => model.provider === 'google'
+  ? [
+      "What are the latest advancements in AI?",
+      "/imagine a photorealistic image of a cat astronaut",
+      "/create-video a drone flying over a futuristic city",
+    ]
+  : [
+      "What is the significance of the GPT-4o model?",
+      "/imagine a vibrant watercolor painting of a fox in a forest",
+      "Write a short story about a robot who discovers music.",
+    ];
 
+// --- Local Storage Keys ---
 const CHAT_HISTORY_KEY = 'chatHistory';
-const MODEL_STORAGE_KEY = 'chat-model';
+const MODEL_STORAGE_KEY = 'chat-model-v2';
+const OPENAI_API_KEY_STORAGE_KEY = 'openai-api-key';
 const CUSTOM_CSS_KEY = 'custom-user-css';
 const TODO_LIST_KEY = 'todo-list-tasks';
 const AUTHORITATIVE_SOURCES_KEY = 'prioritize-authoritative-sources';
@@ -63,7 +125,7 @@ const videoLoadingTexts = [
 
 interface ModelExplanationState {
     isVisible: boolean;
-    modelId: ModelId | null;
+    model: Model | null;
 }
 
 interface ApiKeySelectorPropsState {
@@ -77,7 +139,6 @@ interface PlaceholderLoaderProps {
     prompt?: string | null;
 }
 
-// Custom hook to handle clicks outside a specified element
 function useOnClickOutside(ref: React.RefObject<HTMLElement>, handler: (event: MouseEvent | TouchEvent) => void) {
     useEffect(() => {
         const listener = (event: MouseEvent | TouchEvent) => {
@@ -151,6 +212,19 @@ const PlaceholderLoader: React.FC<PlaceholderLoaderProps> = ({ type, prompt }) =
 };
 
 const App: React.FC = () => {
+    // --- State Initialization ---
+    const [model, setModel] = useState<Model>(() => {
+      try {
+          const savedModel = localStorage.getItem(MODEL_STORAGE_KEY);
+          if (savedModel) {
+            const parsed = JSON.parse(savedModel);
+            const foundModel = AVAILABLE_MODELS.find(m => m.id === parsed.id);
+            if (foundModel) return foundModel;
+          }
+      } catch (error) { console.error("Failed to load model from localStorage:", error); }
+      return DEFAULT_GOOGLE_MODEL;
+    });
+
   const [messages, setMessages] = useState<ChatMessageType[]>(() => {
     try {
       const savedMessages = localStorage.getItem(CHAT_HISTORY_KEY);
@@ -164,29 +238,39 @@ const App: React.FC = () => {
       console.error("Failed to load chat history from localStorage:", error);
       localStorage.removeItem(CHAT_HISTORY_KEY);
     }
-    return initialMessages;
+    return getInitialMessages(model);
   });
 
+  const [openAIApiKey, setOpenAIApiKey] = useState<string | null>(() => {
+    try {
+        return localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY);
+    } catch (e) { console.error(e); return null; }
+  });
+  
   const [tasks, setTasks] = useState<Task[]>(() => {
     try {
         const savedTasks = localStorage.getItem(TODO_LIST_KEY);
         return savedTasks ? JSON.parse(savedTasks) : [];
-    } catch (error) {
-        console.error("Failed to load tasks from localStorage:", error);
-        return [];
-    }
+    } catch (error) { console.error("Failed to load tasks from localStorage:", error); return []; }
   });
   
   const [recentQueries, setRecentQueries] = useState<string[]>(() => {
     try {
         const savedQueries = localStorage.getItem(RECENT_QUERIES_KEY);
         return savedQueries ? JSON.parse(savedQueries) : [];
-    } catch (error) {
-        console.error("Failed to load recent queries from localStorage:", error);
-        return [];
-    }
+    } catch (error) { console.error("Failed to load recent queries from localStorage:", error); return []; }
   });
-
+  
+  const [prioritizeAuthoritative, setPrioritizeAuthoritative] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem(AUTHORITATIVE_SOURCES_KEY);
+      return saved ? JSON.parse(saved) : false;
+    } catch (error) { console.error("Failed to load authoritative sources preference:", error); return false; }
+  });
+  
+  const [customCss, setCustomCss] = useState<string>('');
+  
+  // --- UI/Interaction State ---
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGeneratingImage, setIsGeneratingImage] = useState<boolean>(false);
   const [currentImagePrompt, setCurrentImagePrompt] = useState<string | null>(null);
@@ -201,41 +285,23 @@ const App: React.FC = () => {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState<boolean>(false);
   const [isKeySelected, setIsKeySelected] = useState<boolean>(false);
   const [lightboxImageUrl, setLightboxImageUrl] = useState<string | null>(null);
-  const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
   const [speakingMessageIndex, setSpeakingMessageIndex] = useState<number | null>(null);
-  const [model, setModel] = useState<ModelId>(() => {
-    try {
-        const savedModel = localStorage.getItem(MODEL_STORAGE_KEY) as ModelId;
-        if (savedModel && (savedModel === 'gemini-2.5-flash' || savedModel === 'gemini-2.5-pro')) {
-            return savedModel;
-        }
-    } catch (error) {
-        console.error("Failed to load model from localStorage:", error);
-    }
-    return 'gemini-2.5-flash'; // Default model
-  });
-  const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
   const [researchScope, setResearchScope] = useState<ResearchScope | null>(null);
-  const [customCss, setCustomCss] = useState<string>('');
+  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
+  const [apiKeySelectorProps, setApiKeySelectorProps] = useState<ApiKeySelectorPropsState>({ show: false });
+
+  // --- Modal & Menu State ---
+  const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
+  const [isApiKeyManagerOpen, setIsApiKeyManagerOpen] = useState(false);
   const [isCustomCssModalOpen, setIsCustomCssModalOpen] = useState<boolean>(false);
-  const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, modelId: null });
+  const [modelExplanation, setModelExplanation] = useState<ModelExplanationState>({ isVisible: false, model: null });
   const [isTodoListModalOpen, setIsTodoListModalOpen] = useState<boolean>(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
-  const [prioritizeAuthoritative, setPrioritizeAuthoritative] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem(AUTHORITATIVE_SOURCES_KEY);
-      return saved ? JSON.parse(saved) : false;
-    } catch (error) {
-      console.error("Failed to load authoritative sources preference from localStorage:", error);
-      return false;
-    }
-  });
-  const [apiKeySelectorProps, setApiKeySelectorProps] = useState<ApiKeySelectorPropsState>({ show: false });
-  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
+  
+  const chatEndRef = useRef<HTMLDivElement>(null);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
 
   // --- Effects ---
@@ -248,42 +314,25 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
-    // Check for API key on initial load for video features
     window.aistudio?.hasSelectedApiKey().then(setIsKeySelected).catch(console.error);
-    // Clean up speech synthesis on unmount
-    return () => {
-        window.speechSynthesis.cancel();
-    };
+    return () => { window.speechSynthesis.cancel(); };
   }, []);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isLoading, isGeneratingImage, isGeneratingVideo, suggestedPrompts, relatedTopics]);
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, isLoading, isGeneratingImage, isGeneratingVideo, suggestedPrompts, relatedTopics]);
+  useEffect(() => { localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages)); }, [messages]);
+  useEffect(() => { localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(recentQueries)); }, [recentQueries]);
+  useEffect(() => { localStorage.setItem(TODO_LIST_KEY, JSON.stringify(tasks)); }, [tasks]);
+  useEffect(() => { localStorage.setItem(OPENAI_API_KEY_STORAGE_KEY, openAIApiKey || ''); }, [openAIApiKey]);
+  useEffect(() => { localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative)); }, [prioritizeAuthoritative]);
 
   useEffect(() => {
-    localStorage.setItem(CHAT_HISTORY_KEY, JSON.stringify(messages));
-  }, [messages]);
-  
-  useEffect(() => {
-    localStorage.setItem(RECENT_QUERIES_KEY, JSON.stringify(recentQueries));
-  }, [recentQueries]);
-
-  useEffect(() => {
-    localStorage.setItem(TODO_LIST_KEY, JSON.stringify(tasks));
-  }, [tasks]);
-  
-  useEffect(() => {
-    localStorage.setItem(MODEL_STORAGE_KEY, model);
-    if (messages.length > 1) { // Don't show on first load
-      setModelExplanation({ isVisible: true, modelId: model });
-      const timer = setTimeout(() => setModelExplanation({ isVisible: false, modelId: model }), 5000);
+    localStorage.setItem(MODEL_STORAGE_KEY, JSON.stringify(model));
+    if (messages.length > 1) {
+      setModelExplanation({ isVisible: true, model: model });
+      const timer = setTimeout(() => setModelExplanation({ isVisible: false, model: model }), 5000);
       return () => clearTimeout(timer);
     }
   }, [model]);
-
-  useEffect(() => {
-    localStorage.setItem(AUTHORITATIVE_SOURCES_KEY, JSON.stringify(prioritizeAuthoritative));
-  }, [prioritizeAuthoritative]);
   
   useEffect(() => {
     try {
@@ -293,25 +342,13 @@ const App: React.FC = () => {
       styleElement.id = 'custom-user-styles';
       styleElement.innerHTML = savedCss;
       document.head.appendChild(styleElement);
-    } catch (error) {
-      console.error("Failed to load or apply custom CSS:", error);
-    }
+    } catch (error) { console.error("Failed to load or apply custom CSS:", error); }
   }, []);
 
-  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Open shortcuts modal with '?'
-      if (e.key === '?') {
-        e.preventDefault();
-        setShowShortcutsModal(true);
-      }
-      // Clear chat with Ctrl/Cmd + K
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-        e.preventDefault();
-        handleClearChat();
-      }
-      // Toggle filter menu with 'f'
+      if (e.key === '?') { e.preventDefault(); setShowShortcutsModal(true); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); handleClearChat(); }
       if (e.key === 'f' && e.target instanceof HTMLElement && !['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
         e.preventDefault();
         setIsFilterMenuOpen(prev => !prev);
@@ -324,52 +361,46 @@ const App: React.FC = () => {
 
   // --- Handlers ---
   const addRecentQuery = (query: string) => {
-    setRecentQueries(prev => {
-        const lowerCaseQuery = query.toLowerCase().trim();
-        const newQueries = prev.filter(q => q.toLowerCase().trim() !== lowerCaseQuery);
-        return [query, ...newQueries].slice(0, 5); // Keep last 5
-    });
+    setRecentQueries(prev => [query, ...prev.filter(q => q.toLowerCase().trim() !== query.toLowerCase().trim())].slice(0, 5));
   };
 
   const handleSendMessage = async (prompt: string, file: AttachedFile | null = attachedFile) => {
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt && !file) return;
     
-    // Stop any ongoing speech synthesis when a new message is sent
     window.speechSynthesis.cancel();
     setSpeakingMessageIndex(null);
 
     if (trimmedPrompt === '/summarize') {
-        const userMessage: ChatMessageType = { 
-            role: 'user', 
-            text: trimmedPrompt,
-            timestamp: new Date().toISOString(),
-        };
-        setMessages(prev => [...prev, userMessage]);
+        setMessages(prev => [...prev, { role: 'user', text: trimmedPrompt, timestamp: new Date().toISOString() }]);
         handleSummarize();
         return;
     }
 
     const isImageCommand = trimmedPrompt.startsWith('/imagine ');
     const isVideoCommand = trimmedPrompt.startsWith('/create-video ');
+
+    if (isVideoCommand && model.provider === 'openai') {
+        setMessages(prev => [...prev, { role: 'model', text: "Sorry, video generation is only available with Google's models.", isError: true, timestamp: new Date().toISOString() }]);
+        return;
+    }
+
     const userMessage: ChatMessageType = { 
         role: 'user', 
         text: trimmedPrompt,
         timestamp: new Date().toISOString(),
         attachment: file,
-        researchScope: researchScope,
+        researchScope: model.provider === 'google' ? researchScope : undefined,
     };
 
-    // Common state updates
     setSuggestedPrompts([]);
     setRelatedTopics([]);
     playSendSound();
-    setAttachedFile(null); // Clear attached file from input area
-    setResearchScope(null); // Clear research scope after sending
+    setAttachedFile(null);
+    setResearchScope(null);
 
-    // IMAGE COMMAND LOGIC
     if (isImageCommand) {
-        setMessages(prev => [...prev, userMessage]); // Add user message to UI
+        setMessages(prev => [...prev, userMessage]);
         const imagePrompt = trimmedPrompt.substring(8).trim();
         if (!imagePrompt) {
             setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/imagine`.", isError: true, timestamp: new Date().toISOString() }]);
@@ -378,108 +409,91 @@ const App: React.FC = () => {
         setIsGeneratingImage(true);
         setCurrentImagePrompt(imagePrompt);
         try {
-            const imageUrl = await generateImage(imagePrompt);
+            const imageUrl = model.provider === 'google' 
+                ? await generateImageWithImagen(imagePrompt)
+                : await generateImageWithDallE(imagePrompt);
             setMessages(prev => [...prev, { role: 'model', text: imagePrompt, imageUrl, timestamp: new Date().toISOString() }]);
         } catch (error) {
-            const parsedError = parseGeminiError(error);
-            if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
-                setApiKeySelectorProps({
-                    show: true,
-                    title: 'API Key Error for Image Generation',
-                    description: parsedError.message
-                });
-            }
+            const parsedError = model.provider === 'google' ? parseGeminiError(error) : parseOpenAIError(error);
             setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt, timestamp: new Date().toISOString() }]);
         } finally {
             setIsGeneratingImage(false);
             setCurrentImagePrompt(null);
         }
-        return; // End execution for image command
+        return;
     }
 
-    // VIDEO COMMAND LOGIC
     if (isVideoCommand) {
-        setMessages(prev => [...prev, userMessage]); // Add user message to UI
+        setMessages(prev => [...prev, userMessage]);
         const hasKey = await window.aistudio.hasSelectedApiKey();
         setIsKeySelected(hasKey);
         if (!hasKey) {
-            setMessages(prev => prev.slice(0, -1)); // Remove user message if key is needed
-            setApiKeySelectorProps({
-                show: true,
-                title: 'API Key Required for Video',
-                description: "To use the video generation feature with the Veo model, you must select an API key from a project with billing enabled."
-            });
+            setMessages(prev => prev.slice(0, -1));
+            setApiKeySelectorProps({ show: true, title: 'API Key Required for Video', description: "To use video generation, you must select an API key from a project with billing enabled." });
             return;
         }
         const videoPrompt = trimmedPrompt.substring(14).trim();
-        if (!videoPrompt) {
-            setMessages(prev => [...prev, { role: 'model', text: "Please provide a prompt after `/create-video`.", isError: true, timestamp: new Date().toISOString() }]);
-            return;
-        }
         setIsGeneratingVideo(true);
         try {
             const videoUrl = await generateVideo(videoPrompt);
             setMessages(prev => [...prev, { role: 'model', text: videoPrompt, videoUrl, timestamp: new Date().toISOString() }]);
         } catch (error) {
             const parsedError = parseGeminiError(error);
-            if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
-                setApiKeySelectorProps({
-                    show: true,
-                    title: 'API Key Issue for Video Generation',
-                    description: parsedError.message
-                });
-            }
             setMessages(prev => [...prev, { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt, timestamp: new Date().toISOString() }]);
         } finally {
             setIsGeneratingVideo(false);
         }
-        return; // End execution for video command
+        return;
     }
 
-    // STANDARD TEXT COMMAND LOGIC
+    // Standard Chat Logic
+    if (model.provider === 'openai' && !openAIApiKey) {
+        setMessages(prev => [...prev, { role: 'model', text: "OpenAI API Key not set. Please add your key in Settings > API Key Manager to use this model.", isError: true, timestamp: new Date().toISOString() }]);
+        return;
+    }
+
     setIsLoading(true);
     if (trimmedPrompt) addRecentQuery(trimmedPrompt);
 
-    // Create the history for the API call. It's the current state + the new message.
     const historyForApi = [...messages, userMessage];
-
-    // Update the UI state with both the user message and the thinking indicator in one go.
     setMessages(prev => [...prev, userMessage, { role: 'model', text: '', isThinking: true, timestamp: new Date().toISOString() }]);
 
     let currentResponse = '';
     try {
-        const { sources } = await getGeminiResponseStream(
-            historyForApi, // Use the correct, up-to-date history
-            dateFilter,
-            (textChunk) => {
-                currentResponse += textChunk;
-                setMessages(prev => prev.map((msg, index) =>
-                    index === prev.length - 1 ? { ...msg, text: currentResponse, isThinking: false } : msg
-                ));
-            },
-            model,
-            researchScope,
-            prioritizeAuthoritative,
-            file ? { base64: file.base64, mimeType: file.type } : undefined
-        );
+        const handleStreamUpdate = (textChunk: string) => {
+            currentResponse += textChunk;
+            setMessages(prev => prev.map((msg, index) =>
+                index === prev.length - 1 ? { ...msg, text: currentResponse, isThinking: false } : msg
+            ));
+        };
+
+        const fileForApi = file ? { base64: file.base64, mimeType: file.type } : undefined;
+        let sources: any[] = [];
+
+        if (model.provider === 'google') {
+            const result = await getGeminiResponseStream(historyForApi, dateFilter, handleStreamUpdate, model.id, researchScope, prioritizeAuthoritative, fileForApi);
+            sources = result.sources;
+        } else {
+            await getOpenAIResponseStream(historyForApi, model.id, handleStreamUpdate, fileForApi);
+        }
 
         playReceiveSound();
-        setMessages(prev => prev.map((msg, index) =>
-            index === prev.length - 1 ? { ...msg, sources } : msg
-        ));
+        if (sources.length > 0) {
+            setMessages(prev => prev.map((msg, index) => index === prev.length - 1 ? { ...msg, sources } : msg));
+        }
 
-        // Fetch suggested prompts and related topics after response is complete
-        getSuggestedPrompts(trimmedPrompt, currentResponse, model).then(setSuggestedPrompts);
-        getRelatedTopics(trimmedPrompt, currentResponse, model).then(setRelatedTopics);
+        if (model.provider === 'google') {
+            getGeminiSuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
+            getGeminiRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
+        } else {
+            getOpenAISuggestedPrompts(trimmedPrompt, currentResponse, model.id).then(setSuggestedPrompts);
+            getOpenAIRelatedTopics(trimmedPrompt, currentResponse, model.id).then(setRelatedTopics);
+        }
 
     } catch (error) {
-        const parsedError = parseGeminiError(error);
-        if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
-            setApiKeySelectorProps({
-                show: true,
-                title: 'API Key Error',
-                description: parsedError.message
-            });
+        const parsedError = model.provider === 'google' ? parseGeminiError(error) : parseOpenAIError(error);
+        if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing' && model.provider === 'google') {
+            setApiKeySelectorProps({ show: true, title: 'API Key Error', description: parsedError.message });
         }
         setMessages(prev => prev.map((msg, index) =>
             index === prev.length - 1 ? { role: 'model', text: parsedError.message, isError: true, originalText: trimmedPrompt, timestamp: new Date().toISOString() } : msg
@@ -490,30 +504,15 @@ const App: React.FC = () => {
   };
 
   const handleToggleAudio = (text: string, index: number) => {
-    // If the clicked message is already speaking, stop it.
     if (speakingMessageIndex === index) {
       window.speechSynthesis.cancel();
       setSpeakingMessageIndex(null);
       return;
     }
-  
-    // If another message is speaking, cancel it before starting the new one.
     window.speechSynthesis.cancel();
-  
     const utterance = new SpeechSynthesisUtterance(text);
-    
-    // When speech ends, reset the speaking index.
-    utterance.onend = () => {
-      setSpeakingMessageIndex(null);
-    };
-  
-    // Handle any potential errors.
-    utterance.onerror = (event) => {
-      console.error('SpeechSynthesisUtterance.onerror', event);
-      setSpeakingMessageIndex(null);
-    };
-  
-    // Start speaking.
+    utterance.onend = () => setSpeakingMessageIndex(null);
+    utterance.onerror = (event) => { console.error('SpeechSynthesisUtterance.onerror', event); setSpeakingMessageIndex(null); };
     window.speechSynthesis.speak(utterance);
     setSpeakingMessageIndex(index);
   };
@@ -521,38 +520,28 @@ const App: React.FC = () => {
   const handleClearChat = () => {
     window.speechSynthesis.cancel();
     setSpeakingMessageIndex(null);
-    setMessages(initialMessages);
+    setMessages(getInitialMessages(model));
     setSuggestedPrompts([]);
     setRelatedTopics([]);
     setSummaryText(null);
   };
   
   const handleCopyAll = () => {
-    const conversationText = messages
-      .map(m => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.text}`)
-      .join('\n\n---\n\n');
-    navigator.clipboard.writeText(conversationText).then(() => {
-      setIsAllCopied(true);
-      setTimeout(() => setIsAllCopied(false), 2000);
-    });
+    const conversationText = messages.map(m => `${m.role === 'user' ? 'You' : 'Assistant'}:\n${m.text}`).join('\n\n---\n\n');
+    navigator.clipboard.writeText(conversationText).then(() => { setIsAllCopied(true); setTimeout(() => setIsAllCopied(false), 2000); });
   };
 
   const handleSummarize = async () => {
     setIsSummarizing(true);
     setShowSummaryModal(true);
-    setSummaryText(null); // Clear previous summary
+    setSummaryText(null);
     try {
-        const summary = await getConversationSummary(messages, model);
+        const summary = model.provider === 'google'
+            ? await getGeminiConversationSummary(messages, model.id)
+            : await getOpenAIConversationSummary(messages, model.id);
         setSummaryText(summary);
     } catch (error) {
-        const parsedError = parseGeminiError(error);
-        if (parsedError.type === 'api_key' || parsedError.type === 'permission' || parsedError.type === 'billing') {
-            setApiKeySelectorProps({
-                show: true,
-                title: 'API Key Error for Summarization',
-                description: parsedError.message
-            });
-        }
+        const parsedError = model.provider === 'google' ? parseGeminiError(error) : parseOpenAIError(error);
         setSummaryText(`Error generating summary: ${parsedError.message}`);
     } finally {
         setIsSummarizing(false);
@@ -564,7 +553,6 @@ const App: React.FC = () => {
   };
 
   const handleRetry = (prompt: string) => {
-    // Remove the error message before retrying
     setMessages(prev => prev.filter(msg => msg.originalText !== prompt));
     handleSendMessage(prompt);
   };
@@ -575,47 +563,19 @@ const App: React.FC = () => {
       localStorage.setItem(CUSTOM_CSS_KEY, css);
       const styleElement = document.getElementById('custom-user-styles') as HTMLStyleElement;
       styleElement.innerHTML = css;
-    } catch (error) {
-      console.error("Failed to save custom CSS:", error);
-    }
+    } catch (error) { console.error("Failed to save custom CSS:", error); }
     setIsCustomCssModalOpen(false);
   };
 
   // Task Handlers
-  const handleAddTask = (text: string) => {
-    const newTask: Task = { id: Date.now().toString(), text, completed: false };
-    setTasks(prev => [...prev, newTask]);
-  };
-  const handleToggleTask = (id: string) => {
-    setTasks(prev => prev.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
-  };
-  const handleDeleteTask = (id: string) => {
-    setTasks(prev => prev.filter(task => task.id !== id));
-  };
-
-  const handleKeySelected = () => {
-    setApiKeySelectorProps({ show: false });
-    setIsKeySelected(true);
-  };
-
-  const handleChangeApiKey = async () => {
-    try {
-        await window.aistudio.openSelectKey();
-        setIsKeySelected(true);
-        setIsApiKeyManagerOpen(false);
-    } catch (error) {
-        console.error("Error opening key selector:", error);
-    }
-  };
-
-  const handleClearApiKey = async () => {
-    try {
-        await window.aistudio.clearSelectedApiKey?.();
-        setIsKeySelected(false);
-    } catch (error) {
-        console.error("Error clearing API key:", error);
-    }
-  };
+  const handleAddTask = (text: string) => setTasks(prev => [...prev, { id: Date.now().toString(), text, completed: false }]);
+  const handleToggleTask = (id: string) => setTasks(prev => prev.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
+  const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(task => task.id !== id));
+  
+  const handleSaveOpenAIKey = (key: string) => setOpenAIApiKey(key);
+  const handleKeySelected = () => { setApiKeySelectorProps({ show: false }); setIsKeySelected(true); };
+  const handleChangeApiKey = async () => { try { await window.aistudio.openSelectKey(); setIsKeySelected(true); setIsApiKeyManagerOpen(false); } catch (e) { console.error(e); } };
+  const handleClearApiKey = async () => { try { await window.aistudio.clearSelectedApiKey?.(); setIsKeySelected(false); } catch (e) { console.error(e); } };
 
   return (
     <>
@@ -656,7 +616,7 @@ const App: React.FC = () => {
                                <div className="flex items-center space-x-2"><SparklesIcon className="w-4 h-4" /> <span>Model & Settings</span></div>
                                <ChevronRightIcon className="w-4 h-4" />
                             </button>
-                            {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)}/>}
+                            {openSubMenu === 'model' && <ModelSelector currentModel={model} onSetModel={setModel} onClose={() => { setOpenSubMenu(null); setIsSettingsMenuOpen(false); }} prioritizeAuthoritative={prioritizeAuthoritative} onTogglePrioritizeAuthoritative={() => setPrioritizeAuthoritative(p => !p)} isOpenAIConfigured={!!openAIApiKey} />}
                         </div>
                          <div className="my-1 h-px bg-[var(--border-color)]/50"></div>
                          <button onClick={() => { setIsApiKeyManagerOpen(true); setIsSettingsMenuOpen(false); }} className="w-full text-left flex items-center space-x-2 p-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"><KeyIcon className="w-4 h-4" /> <span>API Key Manager</span></button>
@@ -712,7 +672,7 @@ const App: React.FC = () => {
                 {recentQueries.length > 0 ? (
                     <RecentQueries queries={recentQueries} onQueryClick={handleSendMessage} onClear={() => setRecentQueries([])} />
                 ) : (
-                    messages.length <= 1 && <InitialPrompts prompts={examplePrompts} onPromptClick={handleSendMessage} />
+                    messages.length <= 1 && <InitialPrompts prompts={getExamplePrompts(model)} onPromptClick={handleSendMessage} />
                 )}
               <div className="mt-4">
                 <ChatInput
@@ -727,6 +687,7 @@ const App: React.FC = () => {
                     onSetResearchScope={setResearchScope}
                     attachedFile={attachedFile}
                     onSetAttachedFile={setAttachedFile}
+                    provider={model.provider}
                 />
               </div>
             </div>
@@ -739,9 +700,9 @@ const App: React.FC = () => {
     {apiKeySelectorProps.show && <ApiKeySelector onKeySelected={handleKeySelected} title={apiKeySelectorProps.title} description={apiKeySelectorProps.description} />}
     {lightboxImageUrl && <Lightbox imageUrl={lightboxImageUrl} onClose={() => setLightboxImageUrl(null)} />}
     {showShortcutsModal && <KeyboardShortcutsModal onClose={() => setShowShortcutsModal(false)} />}
-    {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} />}
+    {isApiKeyManagerOpen && <ApiKeyManager onClose={() => setIsApiKeyManagerOpen(false)} onChangeKey={handleChangeApiKey} onClearKey={handleClearApiKey} isKeySelected={isKeySelected} openAIApiKey={openAIApiKey} onSaveOpenAIKey={handleSaveOpenAIKey} />}
     {isCustomCssModalOpen && <CustomCssModal onClose={() => setIsCustomCssModalOpen(false)} onSave={handleSaveCss} initialCss={customCss} />}
-    <ModelExplanationTooltip modelId={modelExplanation.modelId} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, modelId: model })}/>
+    <ModelExplanationTooltip model={modelExplanation.model} isVisible={modelExplanation.isVisible} onClose={() => setModelExplanation({ isVisible: false, model: model })}/>
     {isTodoListModalOpen && <TodoListModal onClose={() => setIsTodoListModalOpen(false)} tasks={tasks} onAddTask={handleAddTask} onToggleTask={handleToggleTask} onDeleteTask={handleDeleteTask} />}
     {isAboutModalOpen && <AboutModal onClose={() => setIsAboutModalOpen(false)} />}
     {isExportModalOpen && <ExportChatModal isOpen={isExportModalOpen} onClose={() => setIsExportModalOpen(false)} messages={messages} />}

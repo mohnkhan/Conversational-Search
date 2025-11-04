@@ -1,25 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { ModelId } from '../types';
+import { Model } from '../types';
 import { LightbulbIcon, XIcon } from './Icons';
 
 interface ModelExplanationTooltipProps {
-    modelId: ModelId | null;
+    model: Model | null;
     isVisible: boolean;
     onClose: () => void;
 }
 
-const modelDetails: Record<ModelId, { name: string; description: string }> = {
-    'gemini-2.5-flash': {
-        name: 'Gemini 2.5 Flash',
-        description: 'Optimized for speed and efficiency. Ideal for quick, general-purpose tasks and everyday conversation.',
-    },
-    'gemini-2.5-pro': {
-        name: 'Gemini 2.5 Pro',
-        description: 'The most powerful model, excelling at complex reasoning, deep analysis, and creative generation.',
-    },
-};
-
-const ModelExplanationTooltip: React.FC<ModelExplanationTooltipProps> = ({ modelId, isVisible, onClose }) => {
+const ModelExplanationTooltip: React.FC<ModelExplanationTooltipProps> = ({ model, isVisible, onClose }) => {
     const [shouldRender, setShouldRender] = useState(isVisible);
 
     useEffect(() => {
@@ -31,10 +20,8 @@ const ModelExplanationTooltip: React.FC<ModelExplanationTooltipProps> = ({ model
         }
     }, [isVisible]);
 
-    if (!shouldRender || !modelId) return null;
+    if (!shouldRender || !model) return null;
     
-    const details = modelDetails[modelId];
-
     return (
         <div
             className={`fixed top-20 right-4 sm:right-6 w-full max-w-sm p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg shadow-2xl z-50 transition-all duration-300 ease-out ${
@@ -48,8 +35,8 @@ const ModelExplanationTooltip: React.FC<ModelExplanationTooltipProps> = ({ model
                     <LightbulbIcon className="w-5 h-5 text-[var(--accent-primary)]" />
                 </div>
                 <div className="flex-1">
-                    <p className="text-sm font-semibold text-[var(--text-primary)]">Model Switched to {details.name}</p>
-                    <p className="text-sm text-[var(--text-secondary)] mt-1">{details.description}</p>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">Model Switched to {model.name}</p>
+                    <p className="text-sm text-[var(--text-secondary)] mt-1">{model.description}</p>
                 </div>
                 <button
                     onClick={onClose}

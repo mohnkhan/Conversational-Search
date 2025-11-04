@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, ResearchScope } from '../types';
+import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter, ModelId, ResearchScope, AttachedFile } from '../types';
 
 // A module-level instance for non-Veo calls
 let ai: GoogleGenAI | null = null;
@@ -55,7 +55,7 @@ function extractJson(text: string): string {
  * A structured error object for better handling in the UI.
  */
 export interface ParsedError {
-    type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'permission' | 'argument' | 'generic' | 'unknown';
+    type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'permission' | 'argument' | 'generic' | 'unknown' | 'server_error' | 'invalid_request';
     message: string;
     retryable: boolean;
 }
@@ -324,7 +324,7 @@ export async function getGeminiResponseStream(
 }
 
 
-export async function generateImage(prompt: string): Promise<string> {
+export async function generateImageWithImagen(prompt: string): Promise<string> {
     if (!ai) throw new Error("Gemini AI client not initialized.");
     try {
         const response = await ai.models.generateImages({
@@ -388,7 +388,7 @@ export async function generateVideo(prompt: string): Promise<string> {
 }
 
 
-export async function getSuggestedPrompts(
+export async function getGeminiSuggestedPrompts(
     prompt: string,
     response: string,
     model: ModelId
@@ -451,7 +451,7 @@ Return the questions as a JSON object with a single key "questions" which is an 
     }
 }
 
-export async function getRelatedTopics(
+export async function getGeminiRelatedTopics(
     prompt: string,
     response: string,
     model: ModelId
@@ -514,7 +514,7 @@ Return the topics as a JSON object with a single key "topics" which is an array 
 }
 
 
-export async function getConversationSummary(
+export async function getGeminiConversationSummary(
     messages: ChatMessage[],
     model: ModelId
 ): Promise<string> {
@@ -543,4 +543,267 @@ Summary:`;
         // Re-throw the original error to be handled by the UI
         throw error;
     }
+}
+
+
+// ==================================================================
+// --- OPENAI SERVICE FUNCTIONS ---
+// ==================================================================
+
+const OPENAI_API_KEY_STORAGE_KEY = 'openai-api-key';
+
+export const getOpenAIKey = (): string | null => {
+    try {
+        return localStorage.getItem(OPENAI_API_KEY_STORAGE_KEY);
+    } catch {
+        return null;
+    }
+};
+
+export function parseOpenAIError(error: unknown): ParsedError {
+    console.error("OpenAI API Error:", error);
+
+    if (error && typeof error === 'object' && 'error' in error) {
+        const errObj = (error as any).error;
+        const message = errObj.message || 'An unknown error occurred.';
+        const type = errObj.type || 'unknown_error';
+
+        if (type === 'invalid_request_error') {
+            if (message.includes('API key')) {
+                return { type: 'api_key', message: `Invalid OpenAI API Key provided. Please check your key in the API Key Manager.`, retryable: false };
+            }
+            return { type: 'invalid_request', message, retryable: false };
+        }
+        if (type === 'insufficient_quota') {
+            return { type: 'rate_limit', message: 'You have exceeded your OpenAI quota. Please check your billing details on the OpenAI platform.', retryable: false };
+        }
+        if (type === 'server_error') {
+            return { type: 'server_error', message: 'An internal error occurred on the OpenAI side. Please try again later.', retryable: true };
+        }
+    }
+
+    if (error instanceof Error) {
+        if (error.message.includes('key')) {
+             return { type: 'api_key', message: 'Missing or invalid OpenAI API Key. Please set it in the API Key Manager.', retryable: false };
+        }
+    }
+
+    return {
+        type: 'unknown',
+        message: 'An unknown error occurred while communicating with OpenAI. Check the console for details.',
+        retryable: true
+    };
+}
+
+
+const prepareOpenAIHistory = (history: ChatMessage[], file?: AttachedFile) => {
+    const messages = history
+        .filter(msg => !msg.isThinking && !msg.isError && (msg.text || msg.attachment))
+        .map(msg => {
+            const content: any[] = [];
+            if (msg.text) {
+                content.push({ type: 'text', text: msg.text });
+            }
+            if (msg.role === 'user' && msg.attachment) {
+                 content.push({
+                     type: 'image_url',
+                     image_url: {
+                         url: msg.attachment.dataUrl,
+                     }
+                 });
+            }
+            return {
+                role: msg.role === 'model' ? 'assistant' : 'user',
+                content: content
+            };
+    });
+
+    if (file) {
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage && lastMessage.role === 'user') {
+            (lastMessage.content as any[]).push({
+                type: 'image_url',
+                image_url: {
+                    url: `data:${file.type};base64,${file.base64}`
+                }
+            });
+        }
+    }
+    
+    return messages;
+};
+
+export async function getOpenAIResponseStream(
+    history: ChatMessage[],
+    model: string,
+    onStreamUpdate: (text: string) => void,
+    file?: { base64: string; mimeType: string; }
+): Promise<void> {
+    const apiKey = getOpenAIKey();
+    if (!apiKey) {
+        throw new Error("OpenAI API key not found. Please set it in the API Key Manager.");
+    }
+    
+    // FIX: The object passed to prepareOpenAIHistory must conform to the AttachedFile interface, which requires a 'type' property.
+    const messages = prepareOpenAIHistory(history, file ? { name: '', size: 0, dataUrl: `data:${file.mimeType};base64,${file.base64}`, base64: file.base64, type: file.mimeType } : undefined);
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: messages,
+            stream: true,
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+        throw new Error("Failed to get stream reader.");
+    }
+
+    const decoder = new TextDecoder();
+    let done = false;
+
+    while (!done) {
+        const { value, done: readerDone } = await reader.read();
+        done = readerDone;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+        for (const line of lines) {
+            if (line === 'data: [DONE]') {
+                return;
+            }
+            if (line.startsWith('data: ')) {
+                try {
+                    const json = JSON.parse(line.substring(6));
+                    const textChunk = json.choices[0]?.delta?.content;
+                    if (textChunk) {
+                        onStreamUpdate(textChunk);
+                    }
+                } catch (e) {
+                    console.error("Error parsing stream chunk:", e);
+                }
+            }
+        }
+    }
+}
+
+export async function generateImageWithDallE(prompt: string): Promise<string> {
+    const apiKey = getOpenAIKey();
+    if (!apiKey) {
+        throw new Error("OpenAI API key not found. Please set it in the API Key Manager.");
+    }
+
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: "dall-e-3",
+            prompt: prompt,
+            n: 1,
+            size: "1024x1024",
+            response_format: "b64_json",
+        }),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+    }
+
+    const data = await response.json();
+    const b64_json = data.data[0].b64_json;
+    return `data:image/png;base64,${b64_json}`;
+}
+
+async function getOpenAIChatCompletion(
+    prompt: string,
+    model: string,
+    isJson: boolean = false
+): Promise<string> {
+    const apiKey = getOpenAIKey();
+    if (!apiKey) throw new Error("OpenAI API key not set.");
+    
+    const body: any = {
+        model: model,
+        messages: [{ role: 'user', content: prompt }],
+    };
+
+    if(isJson) {
+        body.response_format = { type: 'json_object' };
+    }
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}`},
+        body: JSON.stringify(body),
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw errorData;
+    }
+    const data = await response.json();
+    return data.choices[0].message.content;
+}
+
+export async function getOpenAISuggestedPrompts(prompt: string, response: string, model: string): Promise<string[]> {
+    const fullPrompt = `Based on this user query and model response, generate 3 concise and relevant follow-up questions a user might ask.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return a JSON object with a single key "questions" which is an array of 3 strings.`;
+    try {
+        const result = await getOpenAIChatCompletion(fullPrompt, model, true);
+        const parsed = JSON.parse(result);
+        return Array.isArray(parsed.questions) ? parsed.questions.slice(0, 3) : [];
+    } catch (e) {
+        console.error("Error getting OpenAI suggested prompts", e);
+        return [];
+    }
+}
+
+export async function getOpenAIRelatedTopics(prompt: string, response: string, model: string): Promise<string[]> {
+    const fullPrompt = `Based on the following user query and model response, generate 3-4 broader, related topics for exploration. These should be distinct from simple follow-up questions.
+
+User Query: "${prompt}"
+
+Model Response: "${response}"
+
+Return a JSON object with a single key "topics" which is an array of 3-4 strings.`;
+     try {
+        const result = await getOpenAIChatCompletion(fullPrompt, model, true);
+        const parsed = JSON.parse(result);
+        return Array.isArray(parsed.topics) ? parsed.topics.slice(0, 4) : [];
+    } catch (e) {
+        console.error("Error getting OpenAI related topics", e);
+        return [];
+    }
+}
+
+export async function getOpenAIConversationSummary(messages: ChatMessage[], model: string): Promise<string> {
+    const conversationHistory = messages.map(msg => `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.text}`).join('\n\n');
+    const fullPrompt = `Please provide a concise summary of the following conversation. Capture the main topics and key takeaways.
+
+--- CONVERSATION START ---
+${conversationHistory}
+--- CONVERSATION END ---
+
+Summary:`;
+    return getOpenAIChatCompletion(fullPrompt, model);
 }

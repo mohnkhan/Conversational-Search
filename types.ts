@@ -45,4 +45,12 @@ export interface CustomDateFilter {
 
 export type DateFilter = PredefinedDateFilter | CustomDateFilter;
 
-export type ModelId = 'gemini-2.5-flash' | 'gemini-2.5-pro';
+export type ModelProvider = 'google' | 'openai';
+export type ModelId = string;
+
+export interface Model {
+    id: ModelId;
+    name: string;
+    provider: ModelProvider;
+    description: string;
+}

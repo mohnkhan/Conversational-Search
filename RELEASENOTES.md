@@ -4,6 +4,31 @@ This document tracks the major changes, new features, and improvements for the C
 
 ---
 
+## Version 2.0.0 - The Multi-Provider Update
+
+This major update introduces support for OpenAI models, transforming the application into a versatile, dual-provider AI tool. Users can now seamlessly switch between Google's and OpenAI's flagship models.
+
+### ✨ New Features
+
+-   **OpenAI Model Integration:** Full support for OpenAI's chat models has been added, including:
+    -   **GPT-4o:** The latest, most advanced, and fastest model from OpenAI.
+    -   **GPT-4 Turbo:** High-performance model for large-scale tasks.
+    -   **GPT-3.5 Turbo:** A fast and cost-effective option for standard chat.
+-   **DALL-E 3 Image Generation:** The `/imagine` command now uses DALL-E 3 when an OpenAI model is selected, offering a new dimension of creative and illustrative image generation.
+-   **Dual API Key Management:** The API Key Manager has been redesigned to handle both Google and OpenAI keys separately. Users can now enter and save their OpenAI API key, which is stored securely in their browser's local storage.
+-   **Provider-Aware UI:**
+    -   The **Model Selector** now features a tabbed interface to easily switch between Google and OpenAI models. The OpenAI tab is only enabled after a key has been entered.
+    -   Google-specific features like **Date Filtering** and **Deep Research Mode** are automatically disabled in the UI when an OpenAI model is active, preventing confusion and ensuring a clean user experience.
+-   **Unified Multi-modal Input:** Image understanding (vision) is supported for all capable models, including Gemini and GPT-4o.
+
+### 🚀 Improvements
+
+-   **Refactored AI Service Layer:** The backend service logic has been abstracted to cleanly handle API calls to either Google or OpenAI based on the user's selection.
+-   **Dynamic Initial Prompts:** The initial welcome message and example prompts now dynamically adjust based on the selected model provider, correctly advertising available features (e.g., hiding `/create-video` for OpenAI).
+-   **Updated Documentation:** The `README.md` has been extensively updated to reflect the new dual-provider architecture, setup instructions for both API keys, and usage differences between the model families.
+
+---
+
 ## Version 1.0.0 - Initial Release
 
 This is the inaugural release of the Conversational Search application, a powerful and feature-rich tool built on the Google Gemini API.
