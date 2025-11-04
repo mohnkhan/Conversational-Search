@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage as ChatMessageType, ResearchScope } from '../types';
-import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon, SpeakerIcon, SpeakerWaveIcon } from './Icons';
+import { BotIcon, UserIcon, CopyIcon, CheckIcon, ErrorIcon, ShareIcon, ThumbsUpIcon, ThumbsDownIcon, DownloadIcon, ZoomInIcon, RefreshCwIcon, FileTextIcon, SparklesIcon, SpeakerIcon, SpeakerWaveIcon, PlusSquareIcon } from './Icons';
 import Sources from './Sources';
 import CodeBlock from './CodeBlock'; // Use the shared CodeBlock component
 
@@ -14,6 +14,7 @@ interface ChatMessageProps {
   onRetry: (prompt: string) => void;
   speakingMessageIndex: number | null;
   onToggleAudio: (text: string, index: number) => void;
+  onAddTask?: (text: string) => void;
 }
 
 const thinkingSteps = [
@@ -50,10 +51,11 @@ const stripMarkdown = (markdown: string): string => {
       .replace(/^-{3,}\s*$/gm, ''); // Horizontal rules
   };
 
-const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick, onRetry, speakingMessageIndex, onToggleAudio }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeedback, onImageClick, onRetry, speakingMessageIndex, onToggleAudio, onAddTask }) => {
   const isModel = message.role === 'model';
   const [isCopied, setIsCopied] = useState(false);
   const [isShared, setIsShared] = useState(false);
+  const [isTaskAdded, setIsTaskAdded] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [currentThinkingStep, setCurrentThinkingStep] = useState(thinkingSteps[0]);
   // FIX: Simplified video source handling. The videoUrl is always a string.
@@ -129,6 +131,13 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
         console.error("Failed to copy text for sharing:", err);
     });
   };
+  
+  const handleAddTaskClick = () => {
+    if (!message.text || !onAddTask) return;
+    onAddTask(stripMarkdown(message.text));
+    setIsTaskAdded(true);
+    setTimeout(() => setIsTaskAdded(false), 2000);
+  };
 
   const getIcon = () => {
     if (isModel) {
@@ -159,6 +168,14 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                 title={isSpeaking ? "Stop reading aloud" : "Read message aloud"}
             >
                 {isSpeaking ? <SpeakerWaveIcon className="w-4 h-4" /> : <SpeakerIcon className="w-4 h-4" />}
+            </button>
+             <button
+                onClick={handleAddTaskClick}
+                className="p-1.5 rounded-md text-[var(--text-muted)] bg-[var(--bg-secondary)]/50 hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors duration-200"
+                aria-label="Add to To-Do List"
+                title="Add to To-Do List"
+            >
+                {isTaskAdded ? <CheckIcon className="w-4 h-4 text-green-400" /> : <PlusSquareIcon className="w-4 h-4" />}
             </button>
             <button
                 onClick={() => onFeedback(messageIndex, 'up')}

@@ -642,6 +642,7 @@ const App: React.FC = () => {
   const handleAddTask = (text: string) => setTasks(prev => [...prev, { id: Date.now().toString(), text, completed: false }]);
   const handleToggleTask = (id: string) => setTasks(prev => prev.map(task => task.id === id ? { ...task, completed: !task.completed } : task));
   const handleDeleteTask = (id: string) => setTasks(prev => prev.filter(task => task.id !== id));
+  const handleAddTaskFromMessage = (text: string) => handleAddTask(text);
 
   // Persona Handlers
   const handleSavePersona = (personaToSave: Persona) => {
@@ -740,6 +741,7 @@ const App: React.FC = () => {
                         onRetry={handleRetry}
                         speakingMessageIndex={speakingMessageIndex}
                         onToggleAudio={handleToggleAudio}
+                        onAddTask={msg.role === 'model' && !msg.isError ? handleAddTaskFromMessage : undefined}
                         />
                     ))}
                     {isGeneratingImage && <PlaceholderLoader type="image" prompt={currentImagePrompt} />}
