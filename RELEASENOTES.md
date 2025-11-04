@@ -4,7 +4,24 @@ This document tracks the major changes, new features, and improvements for the C
 
 ---
 
-## **Version 5.0.0** — The Bedrock Expansion `LATEST`
+## **Version 6.0.0** — The Autonomous Agent Update `LATEST`
+
+This is a transformative update that moves the application beyond conversation and into action. With the introduction of **AI-powered Tool Calling**, the assistant can now interact with external services and modify application state on your behalf, turning natural language requests into tangible outcomes.
+
+### ✨ New Features
+- **AI Tool Calling Engine**: The AI can now intelligently decide when to use a tool to fulfill a user's request. This feature is supported across all providers (Google, OpenAI, Anthropic, and AWS Bedrock).
+- **Live Weather Tool**: Ask for the weather anywhere in the world (e.g., `"What's the current weather in Tokyo?"`), and the AI will use a real-time weather API to provide an up-to-date answer.
+- **Direct To-Do List Integration**: Add tasks to your list using natural language. Simply say `"add 'Finish the report' to my to-do list"`, and the AI will use the `createTodoTask` tool to update your list.
+- **"Using Tools" UI State**: A new visual indicator in the chat shows when the AI is actively using a tool, displaying the specific function and arguments being called for full transparency.
+- **Available Tools Modal**: A new modal, accessible from the settings menu, lists all the tools the AI has at its disposal, along with their descriptions and parameters.
+
+### 🚀 Improvements
+- **Unified Tool Schema**: A robust, provider-agnostic tool-calling system has been implemented, allowing the same tool definitions to work seamlessly across Gemini, GPT, Claude, and Bedrock models.
+- **Enhanced Service Layer**: The core `geminiService.ts` has been significantly upgraded to handle the multi-step conversation flow required for tool use: `User Request -> Tool Call -> Tool Result -> Final Response`.
+
+---
+
+## **Version 5.0.0** — The Bedrock Expansion
 
 This monumental release introduces **AWS Bedrock** as a fourth major AI provider, cementing the application's status as a premier multi-cloud AI toolkit. Users can now access an even wider array of industry-leading models, including those from Meta and Amazon, all through the same unified and powerful interface.
 
