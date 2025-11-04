@@ -4,7 +4,18 @@ This document tracks the major changes, new features, and improvements for the C
 
 ---
 
-## **Version 3.0.0** — The Anthropic Integration `LATEST`
+## **Version 4.0.0** — The Productivity & UX Polish `LATEST`
+
+This release focuses on refining the user experience and integrating powerful workflow enhancements. Key updates include a streamlined way to create tasks directly from chat messages and a more intuitive emoji-based icon picker for AI personas. Additionally, core project documentation has been significantly improved for clarity.
+
+### ✨ New Features & 🚀 Improvements
+- **One-Click Task Creation**: A new `+` icon on every model response allows you to instantly add the message content to your To-Do list, seamlessly turning conversation into action.
+- **Intuitive Persona Icons**: The text input for persona icons has been replaced with a user-friendly, clickable emoji picker, making persona customization faster and more visual.
+- **Comprehensive Documentation Rewrite**: The `README.md` and `RELEASENOTES.md` files have been completely overhauled for improved structure, clarity, and user guidance.
+
+---
+
+## **Version 3.0.0** — The Anthropic Integration
 
 This landmark release integrates full support for Anthropic's Claude models, evolving the application into a comprehensive tri-provider AI toolkit. Users can now seamlessly leverage the unique strengths of premier models from Google, OpenAI, and Anthropic within a single, unified interface.
 
