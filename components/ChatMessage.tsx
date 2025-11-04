@@ -228,7 +228,29 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
           )}
       </div>
       <div className="flex-1 group relative">
-        {message.imageUrl ? (
+        {message.isError ? (
+            <div className="bg-red-900/20 border border-red-500/40 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                    <div className="flex-shrink-0 pt-0.5">
+                        <ErrorIcon className="w-5 h-5 text-red-400" />
+                    </div>
+                    <div className="flex-1">
+                        <h4 className="font-semibold text-red-200">An Error Occurred</h4>
+                        <p className="text-red-300/90 mt-1 text-sm">{message.text}</p>
+                        {message.originalText && (
+                            <button
+                                onClick={() => onRetry(message.originalText!)}
+                                className="mt-4 flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-red-600/80 hover:bg-red-500/80 transition-colors"
+                                title="Retry failed prompt"
+                            >
+                                <RefreshCwIcon className="w-4 h-4" />
+                                <span>Retry Prompt</span>
+                            </button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        ) : message.imageUrl ? (
             <div>
                 <p className="text-[var(--text-muted)] italic text-sm mb-2">Image generated for: "{message.text}"</p>
                 <button
@@ -311,53 +333,36 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, messageIndex, onFeed
                     </div>
                 )}
                 <div className={`prose prose-themed max-w-none prose-p:my-2 prose-headings:my-3 prose-ul:my-2 prose-ol:my-2 prose-li:my-1 md:pr-40`}>
-                {message.isError ? (
-                    <div className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 not-prose">
-                        <p className="font-semibold text-red-100">An Error Occurred</p>
-                        <p className="text-red-200 mt-1 text-sm">{message.text}</p>
-                        {message.originalText && (
-                            <button
-                                onClick={() => onRetry(message.originalText!)}
-                                className="mt-3 flex items-center space-x-2 px-3 py-1.5 rounded-md text-xs font-semibold text-white bg-red-600/80 hover:bg-red-500/80 transition-colors"
-                                title="Retry failed prompt"
-                            >
-                                <RefreshCwIcon className="w-4 h-4" />
-                                <span>Retry</span>
-                            </button>
-                        )}
-                    </div>
-                ) : (
                     <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                        a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
-                        code: CodeBlock,
-                        img: ({node, ...props}) => (
-                            <button
-                                onClick={() => props.src && onImageClick(props.src)}
-                                className="relative group/image block my-2 w-full max-w-sm cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] rounded-lg text-left"
-                                aria-label={`View larger image: ${props.alt}`}
-                            >
-                                <img {...props} alt={props.alt || 'Embedded image'} className="max-w-full h-auto rounded-lg border border-[var(--border-color)]" />
-                                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/image:opacity-100 group-focus/image:opacity-100 transition-opacity flex items-center justify-center pointer-events-none rounded-lg">
-                                    <ZoomInIcon className="w-10 h-10 text-white" />
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                            a: ({node, ...props}) => <a {...props} target="_blank" rel="noopener noreferrer" />,
+                            code: CodeBlock,
+                            img: ({node, ...props}) => (
+                                <button
+                                    onClick={() => props.src && onImageClick(props.src)}
+                                    className="relative group/image block my-2 w-full max-w-sm cursor-zoom-in focus:outline-none focus:ring-2 focus:ring-[var(--accent-primary)] focus:ring-offset-2 focus:ring-offset-[var(--bg-primary)] rounded-lg text-left"
+                                    aria-label={`View larger image: ${props.alt}`}
+                                >
+                                    <img {...props} alt={props.alt || 'Embedded image'} className="max-w-full h-auto rounded-lg border border-[var(--border-color)]" />
+                                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/image:opacity-100 group-focus/image:opacity-100 transition-opacity flex items-center justify-center pointer-events-none rounded-lg">
+                                        <ZoomInIcon className="w-10 h-10 text-white" />
+                                    </div>
+                                </button>
+                            ),
+                            table: ({node, ...props}) => (
+                                <div className="overflow-x-auto my-4 border border-[var(--border-color)] rounded-lg not-prose">
+                                  <table className="w-full text-sm" {...props} />
                                 </div>
-                            </button>
-                        ),
-                        table: ({node, ...props}) => (
-                            <div className="overflow-x-auto my-4 border border-[var(--border-color)] rounded-lg not-prose">
-                              <table className="w-full text-sm" {...props} />
-                            </div>
-                          ),
-                        thead: ({node, ...props}) => <thead className="bg-[var(--bg-secondary)]/60" {...props} />,
-                        th: ({node, ...props}) => <th className="px-4 py-3 text-left font-semibold text-[var(--text-secondary)]" {...props} />,
-                        tr: ({node, ...props}) => <tr className="border-b border-[var(--border-color)] last:border-b-0 even:bg-[var(--bg-secondary)]/40" {...props} />,
-                        td: ({node, ...props}) => <td className="px-4 py-3" {...props} />,
-                    }}
+                              ),
+                            thead: ({node, ...props}) => <thead className="bg-[var(--bg-secondary)]/60" {...props} />,
+                            th: ({node, ...props}) => <th className="px-4 py-3 text-left font-semibold text-[var(--text-secondary)]" {...props} />,
+                            tr: ({node, ...props}) => <tr className="border-b border-[var(--border-color)] last:border-b-0 even:bg-[var(--bg-secondary)]/40" {...props} />,
+                            td: ({node, ...props}) => <td className="px-4 py-3" {...props} />,
+                        }}
                     >
-                    {message.text}
+                        {message.text}
                     </ReactMarkdown>
-                )}
                 </div>
                 
                 {isModel && !message.isError && message.sources && message.sources.length > 0 && (

@@ -55,7 +55,7 @@ function extractJson(text: string): string {
  * A structured error object for better handling in the UI.
  */
 export interface ParsedError {
-    type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'permission' | 'argument' | 'generic' | 'unknown' | 'server_error' | 'invalid_request';
+    type: 'api_key' | 'rate_limit' | 'safety' | 'billing' | 'permission' | 'argument' | 'server_error' | 'invalid_request' | 'unknown';
     message: string;
     retryable: boolean;
 }
@@ -69,14 +69,13 @@ export function parseGeminiError(error: unknown): ParsedError {
     console.error("Gemini API Error:", error); // Log the raw error for debugging
 
     if (error instanceof Error) {
-        // [GoogleGenerativeAI Error]: usually prefixes specific errors
         const message = error.message.replace('[GoogleGenerativeAI Error]:', '').trim().toLowerCase();
 
         // API Key issues
         if (message.includes('api key not valid') || message.includes('api_key') || message.includes('requested entity was not found')) {
             return {
                 type: 'api_key',
-                message: "Your API key is invalid or not found. Please ensure it's correct. For video generation, you may need to select a new key from a billed project.",
+                message: "Your API key is invalid or not found. For standard models, ensure the `API_KEY` environment variable is set. For video generation, you may need to select a new key from a billed project.",
                 retryable: false
             };
         }
@@ -85,7 +84,7 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('billing') || message.includes('enable billing')) {
             return {
                 type: 'billing',
-                message: "A billing issue was encountered. Please check that the associated Google Cloud project has billing enabled and the account is in good standing.",
+                message: "A billing issue occurred. Please check that the Google Cloud project linked to your API key has billing enabled and the account is in good standing.",
                 retryable: false
             };
         }
@@ -94,7 +93,7 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('permission denied')) {
             return {
                 type: 'permission',
-                message: "Permission denied. Your API key may not have the necessary permissions for this operation (e.g., video generation). Ensure the 'Vertex AI API' is enabled in your project.",
+                message: "Permission denied. Your API key may lack permissions for this operation. For video generation, ensure the 'Vertex AI API' is enabled in your Google Cloud project.",
                 retryable: false
             };
         }
@@ -103,7 +102,7 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('429') || message.includes('rate limit') || message.includes('resource has been exhausted')) {
             return {
                 type: 'rate_limit',
-                message: "You've exceeded the request limit. Please wait a moment before trying again.",
+                message: "You've exceeded the request limit for this model. Please wait a moment before trying again.",
                 retryable: true
             };
         }
@@ -112,7 +111,7 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('safety') || message.includes('blocked') || message.includes('finish reason: safety')) {
             return {
                 type: 'safety',
-                message: "The request was blocked due to safety filters. This could be due to the prompt or the model's potential response. Please try rephrasing.",
+                message: "The response was blocked by safety filters. This can be due to the prompt or the generated response. Please try rephrasing your request.",
                 retryable: false
             };
         }
@@ -121,15 +120,24 @@ export function parseGeminiError(error: unknown): ParsedError {
         if (message.includes('invalid argument')) {
              return {
                 type: 'argument',
-                message: "The request was invalid, which can happen if the prompt is formatted incorrectly. Please try rephrasing.",
+                message: "The request was invalid. This can happen if the prompt is empty, formatted incorrectly, or contains unsupported content. Please adjust your request and try again.",
                 retryable: false
              };
+        }
+        
+        // Server errors
+        if (message.includes('500') || message.includes('internal error') || message.includes('server error')) {
+            return {
+                type: 'server_error',
+                message: "The server encountered a temporary error. This is likely an issue on Google's side. Please try again in a few moments.",
+                retryable: true
+            };
         }
 
         // Generic but slightly more helpful
         return { 
-            type: 'generic',
-            message: "An unexpected server error occurred. This might be a temporary issue. Please try again in a moment.",
+            type: 'unknown',
+            message: "An unexpected error occurred with the Gemini API. Please try again in a moment. If the problem persists, check the developer console for more details.",
             retryable: true
         };
     }
@@ -141,6 +149,7 @@ export function parseGeminiError(error: unknown): ParsedError {
         retryable: true
     };
 }
+
 
 const getInstructionalPrefix = (filter: DateFilter, scope: ResearchScope | null): string => {
     let prefix = '';
@@ -573,30 +582,35 @@ export function parseOpenAIError(error: unknown): ParsedError {
         const errObj = (error as any).error;
         const message = errObj.message || 'An unknown error occurred.';
         const type = errObj.type || 'unknown_error';
+        const code = errObj.code || null;
 
-        if (type === 'invalid_request_error') {
-            if (message.includes('API key')) {
-                return { type: 'api_key', message: `Invalid OpenAI API Key provided. Please check your key in the API Key Manager.`, retryable: false };
-            }
-            return { type: 'invalid_request', message, retryable: false };
+        if (code === 'invalid_api_key' || (type === 'invalid_request_error' && message.includes('API key'))) {
+            return { type: 'api_key', message: `Invalid OpenAI API Key. Please check your key in Settings > API Key Manager.`, retryable: false };
         }
         if (type === 'insufficient_quota') {
-            return { type: 'rate_limit', message: 'You have exceeded your OpenAI quota. Please check your billing details on the OpenAI platform.', retryable: false };
+            return { type: 'billing', message: 'You have exceeded your OpenAI quota or your trial has expired. Please check your billing details on the OpenAI platform.', retryable: false };
+        }
+        if (code === 'context_length_exceeded') {
+             return { type: 'invalid_request', message: 'The conversation history is too long for this model. Please clear the chat to start a new conversation.', retryable: false };
         }
         if (type === 'server_error') {
-            return { type: 'server_error', message: 'An internal error occurred on the OpenAI side. Please try again later.', retryable: true };
+            return { type: 'server_error', message: "An internal error occurred on OpenAI's servers. Please try again in a few moments.", retryable: true };
         }
+        if (type === 'rate_limit_error') {
+            return { type: 'rate_limit', message: "You've hit the rate limit for your OpenAI account. Please wait before sending another request.", retryable: true };
+        }
+        return { type: 'invalid_request', message, retryable: false };
     }
 
     if (error instanceof Error) {
         if (error.message.includes('key')) {
-             return { type: 'api_key', message: 'Missing or invalid OpenAI API Key. Please set it in the API Key Manager.', retryable: false };
+             return { type: 'api_key', message: 'Missing OpenAI API Key. Please add your key in Settings > API Key Manager.', retryable: false };
         }
     }
 
     return {
         type: 'unknown',
-        message: 'An unknown error occurred while communicating with OpenAI. Check the console for details.',
+        message: 'An unknown error occurred while communicating with OpenAI. Check the developer console for details.',
         retryable: true
     };
 }
@@ -846,22 +860,25 @@ export function parseClaudeError(error: unknown): ParsedError {
 
         switch (type) {
             case 'authentication_error':
-                return { type: 'api_key', message: 'Invalid Anthropic API Key provided. Please check your key in the API Key Manager.', retryable: false };
+                return { type: 'api_key', message: 'Invalid Anthropic API Key provided. Please check your key in Settings > API Key Manager.', retryable: false };
             case 'permission_error':
-                 return { type: 'permission', message: 'Your Anthropic API key does not have permission to perform this action.', retryable: false };
+                 return { type: 'permission', message: 'Your Anthropic API key does not have permission for this action. Please check your Anthropic account settings.', retryable: false };
             case 'invalid_request_error':
-                return { type: 'invalid_request', message, retryable: false };
+                if (message.includes('input_image')) {
+                    return { type: 'invalid_request', message: `There was an issue processing the attached image. Please try a different image. Details: ${message}`, retryable: false };
+                }
+                return { type: 'invalid_request', message: `The request was invalid. Details: ${message}`, retryable: false };
             case 'rate_limit_error':
                 return { type: 'rate_limit', message: 'You have exceeded your Anthropic API rate limit. Please wait and try again.', retryable: true };
             case 'api_error':
-                return { type: 'server_error', message: 'An internal error occurred on the Anthropic side. Please try again later.', retryable: true };
+                return { type: 'server_error', message: "An internal error occurred on Anthropic's side. Please try again later.", retryable: true };
             case 'overloaded_error':
-                return { type: 'server_error', message: 'Anthropic\'s servers are currently overloaded. Please try again later.', retryable: true };
+                return { type: 'server_error', message: "Anthropic's servers are experiencing high traffic. Please wait a moment and try your request again.", retryable: true };
         }
     }
 
     if (error instanceof Error && error.message.includes('key')) {
-        return { type: 'api_key', message: 'Missing or invalid Anthropic API Key. Please set it in the API Key Manager.', retryable: false };
+        return { type: 'api_key', message: 'Missing Anthropic API Key. Please set it in Settings > API Key Manager.', retryable: false };
     }
 
     return { type: 'unknown', message: 'An unknown error occurred while communicating with Anthropic. Check the console for details.', retryable: true };
