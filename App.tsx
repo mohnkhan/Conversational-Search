@@ -54,8 +54,9 @@ import AvailableToolsModal from './components/AvailableToolsModal';
 // --- Model Definitions ---
 export const AVAILABLE_MODELS: Model[] = [
     // Google
-    { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'google', description: 'Fast and cost-effective for most tasks.' },
-    { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'google', description: 'Most capable for complex reasoning.' },
+    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', provider: 'google', description: 'Fast and cost-effective for most tasks.' },
+    { id: 'gemini-3.1-pro-preview', name: 'Gemini 3.1 Pro', provider: 'google', description: 'Most capable for complex reasoning.' },
+    { id: 'gemini-2.5-flash-image', name: 'Gemini 2.5 Flash (Image)', provider: 'google', description: 'Specialized model for image generation and editing.' },
     // OpenAI
     { id: 'gpt-4o', name: 'GPT-4o', provider: 'openai', description: 'The latest, most advanced model from OpenAI.' },
     { id: 'gpt-4-turbo', name: 'GPT-4 Turbo', provider: 'openai', description: 'High-performance model for large-scale tasks.' },

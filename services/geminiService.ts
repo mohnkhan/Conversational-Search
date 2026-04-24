@@ -3,10 +3,10 @@ import { ChatMessage, Source, DateFilter, PredefinedDateFilter, CustomDateFilter
 
 // A module-level instance for non-Veo calls
 let ai: GoogleGenAI | null = null;
-if (process.env.API_KEY) {
-    ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+if (process.env.GEMINI_API_KEY) {
+    ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 } else {
-    console.warn("API_KEY environment variable not set for standard models.");
+    console.warn("GEMINI_API_KEY environment variable not set for standard models.");
 }
 
 /**
@@ -211,7 +211,7 @@ export async function getGeminiResponseStream(
     if (!ai) throw new Error("Gemini AI client not initialized.");
 
     const isDeepResearchActive = !!researchScope;
-    const modelToUse = isDeepResearchActive ? 'gemini-2.5-pro' : model;
+    const modelToUse = isDeepResearchActive ? 'gemini-3.1-pro-preview' : model;
     
     try {
         const processedHistory = history.filter(
@@ -429,15 +429,15 @@ export async function generateImageWithImagen(prompt: string): Promise<string> {
 }
 
 export async function generateVideo(prompt: string): Promise<string> {
-    if (!process.env.API_KEY) {
-        throw new Error("API_KEY environment variable not set for video generation.");
+    if (!process.env.GEMINI_API_KEY) {
+        throw new Error("GEMINI_API_KEY environment variable not set for video generation.");
     }
     // Create a new instance for every Veo call to ensure the latest key is used
-    const videoAi = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const videoAi = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
     try {
         let operation = await videoAi.models.generateVideos({
-            model: 'veo-3.1-fast-generate-preview',
+            model: 'veo-3.1-lite-generate-preview',
             prompt: prompt,
             config: {
               numberOfVideos: 1,
@@ -457,7 +457,7 @@ export async function generateVideo(prompt: string): Promise<string> {
         }
 
         // The response.body contains the MP4 bytes. You must append an API key when fetching from the download link.
-        const response = await fetch(`${downloadLink}&key=${process.env.API_KEY}`);
+        const response = await fetch(`${downloadLink}&key=${process.env.GEMINI_API_KEY}`);
         if (!response.ok) {
             throw new Error(`Failed to download video: ${response.statusText}`);
         }
